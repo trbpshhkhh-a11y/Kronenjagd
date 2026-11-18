@@ -1,0 +1,29 @@
+{
+  "name": "kronenjagd",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Kronen sammeln – Weihnachts-Brettspiel-App mit zwei Spielmodi",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspace client && npm run build --workspace server",
+    "build:static": "npm run build --workspace client",
+    "start": "node server/dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p shared && tsc -p server --noEmit && tsc -p client --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

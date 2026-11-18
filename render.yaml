@@ -1,0 +1,12 @@
+# Render Blueprint: ein kostenloser Web-Service für Modus 1 + Modus 2
+services:
+  - type: web
+    name: kronen-sammeln
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

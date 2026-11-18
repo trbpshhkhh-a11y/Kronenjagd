@@ -1,0 +1,107 @@
+/**
+ * Ansichten je Rolle. NUR diese Objekte werden an die Geräte verschickt.
+ * Tokens und geheime Inhalte (Begriffe, geheime Zahl, Lösungen vor dem Aufdecken)
+ * werden hier herausgefiltert.
+ */
+import type { GameState, Phase, Settings, Crown, Toast, MiniResult } from './types';
+import type { GameId } from '../games';
+import type { Team } from '../teams';
+import { miniHostView, miniPlayerView, MCtx } from './minigames';
+import { playableGames } from './engine';
+
+export interface PublicPlayer {
+  id: string;
+  name: string;
+  color: string;
+  connected: boolean;
+  kronen: number;
+  bonus: number;
+  pos: number;
+  start: number;
+}
+
+export interface MiniView {
+  game: GameId;
+  stage: 'auslosung' | 'teams' | 'bereit' | 'spiel' | 'ergebnis';
+  until: number | null;
+  teams: Team<string>[];
+  ready: string[];
+  chosenBy: string | null;
+  result: MiniResult | null;
+  /** spielabhängige Ansicht */
+  inner: any;
+}
+
+export interface BaseView {
+  code: string;
+  version: number;
+  serverNow: number;
+  started: boolean;
+  settings: Settings;
+  players: PublicPlayer[];
+  order: string[];
+  turnPlayerId: string | null;
+  crowns: Crown[];
+  phase: Phase;
+  mini: MiniView | null;
+  toast: Toast | null;
+  playableGames: GameId[];
+  hostConnected: boolean;
+}
+
+export interface HostView extends BaseView {
+  role: 'host';
+}
+
+export interface PlayerView extends BaseView {
+  role: 'player';
+  me: PublicPlayer;
+}
+
+const pub = (s: GameState): PublicPlayer[] =>
+  s.players.map(({ id, name, color, connected, kronen, bonus, pos, start }) => ({ id, name, color, connected, kronen, bonus, pos, start }));
+
+function base(s: GameState, now: number): BaseView {
+  return {
+    code: s.code,
+    version: s.version,
+    serverNow: now,
+    started: s.started,
+    settings: s.settings,
+    players: pub(s),
+    order: s.order,
+    turnPlayerId: s.started ? s.order[s.turn] ?? null : null,
+    crowns: s.crowns.filter((c) => c.field > 0),
+    phase: s.phase,
+    mini: null,
+    toast: s.toast,
+    playableGames: playableGames(s),
+    hostConnected: s.hostConnected,
+  };
+}
+
+function miniBase(s: GameState) {
+  const m = s.mini!;
+  return { game: m.game, stage: m.stage, until: m.until, teams: m.teams, ready: m.ready, chosenBy: m.chosenBy, result: m.result };
+}
+
+export function viewForHost(s: GameState, now: number): HostView {
+  const v: HostView = { ...base(s, now), role: 'host' };
+  if (s.mini) {
+    const c: MCtx = { s, teams: s.mini.teams, rng: () => 0, now };
+    v.mini = { ...miniBase(s), inner: s.mini.inner ? miniHostView(s.mini.inner, c) : null };
+  }
+  return v;
+}
+
+export function viewForPlayer(s: GameState, playerId: string, now: number): PlayerView | null {
+  const all = pub(s);
+  const me = all.find((p) => p.id === playerId);
+  if (!me) return null;
+  const v: PlayerView = { ...base(s, now), role: 'player', me };
+  if (s.mini) {
+    const c: MCtx = { s, teams: s.mini.teams, rng: () => 0, now };
+    v.mini = { ...miniBase(s), inner: s.mini.inner ? miniPlayerView(s.mini.inner, playerId, c) : null };
+  }
+  return v;
+}
