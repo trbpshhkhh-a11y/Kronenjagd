@@ -10,7 +10,7 @@ export default function BoardDebug() {
   const H = BOARD.data.height;
   return (
     <div style={{ padding: 10 }}>
-      <h2 style={{ fontSize: 20 }}>Board-Debug – {f.length} Felder · Pfeile = Vorwärts-Nachbarn · <a href="#/dev/feld-editor" style={{ color: '#ffd970' }}>Feld-Editor</a></h2>
+      <h2 style={{ fontSize: 20 }}>Board-Debug – {f.length} Felder · Linien = Verbindungen, pink = an Weichen · <a href="#/dev/feld-editor" style={{ color: '#ffd970' }}>Feld-Editor</a></h2>
       <div style={{ position: 'relative', width: '100%', maxWidth: 1586 }} id="board-debug">
         <img src={boardImg} style={{ width: '100%', display: 'block' }} alt="Spielbrett" />
         <svg viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
@@ -20,13 +20,11 @@ export default function BoardDebug() {
             </marker>
           </defs>
           {f.flatMap((a) =>
-            a.next.map((n) => {
+            a.neighbors.filter((n) => n > a.id).map((n) => {
               const b = BOARD.byId.get(n)!;
               const x1 = (a.x / 100) * W, y1 = (a.y / 100) * H, x2 = (b.x / 100) * W, y2 = (b.y / 100) * H;
-              const len = Math.hypot(x2 - x1, y2 - y1);
-              const sx = x1 + ((x2 - x1) / len) * 14, sy = y1 + ((y2 - y1) / len) * 14;
-              const ex = x2 - ((x2 - x1) / len) * 16, ey = y2 - ((y2 - y1) / len) * 16;
-              return <line key={`${a.id}-${n}`} x1={sx} y1={sy} x2={ex} y2={ey} stroke={len > 120 ? '#ff4081' : '#00e5ff'} strokeWidth={len > 120 ? 2 : 3} strokeDasharray={len > 120 ? '8 6' : undefined} markerEnd="url(#arr)" />;
+              const branch = (BOARD.adj.get(a.id)?.length ?? 0) > 2 || (BOARD.adj.get(n)?.length ?? 0) > 2;
+              return <line key={`${a.id}-${n}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke={branch ? '#ff4081' : '#00e5ff'} strokeWidth={branch ? 4 : 3} />;
             }),
           )}
           {f.map((a) => (
@@ -37,7 +35,7 @@ export default function BoardDebug() {
           ))}
         </svg>
       </div>
-      <p style={{ fontSize: 16 }}>Gestrichelte pinke Linien = sehr lange Verbindungen (im Bild nicht direkt benachbart).</p>
+      <p style={{ fontSize: 16 }}>Felder mit mehr als zwei Nachbarn sind Weichen: Dort entscheidet der Spieler die Richtung neu.</p>
     </div>
   );
 }

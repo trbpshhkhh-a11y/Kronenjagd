@@ -86,9 +86,9 @@ Der Spielstand liegt im `localStorage`. Versehentliches Neuladen schadet also ni
 1. Auf dem Fernseher/Laptop: **Nur App → Neue Lobby erstellen**. Es erscheinen ein 5-stelliger Code und ein QR-Code.
 2. Auf jedem Handy: QR-Code scannen oder **Nur App → Beitreten**, Code und Namen eingeben.
 3. Der Hauptscreen stellt Kronen zum Sieg, aktive Spiele und Timer ein und startet das Spiel (2 bis 10 Spieler).
-4. Wer dran ist, würfelt auf dem Handy, sieht auf einem Brettausschnitt beide Zielfelder und wählt vorwärts oder rückwärts.
+4. Wer dran ist, würfelt auf dem Handy und wählt die Richtung so, wie sie auf dem Brett aussieht (z. B. „nach oben“, „nach rechts“). Die Feldnummern sind nur Orientierung. Kommt die Figur an eine **Abzweigung**, entscheidet der Spieler dort neu, wohin die restlichen Felder gehen. Der Brettausschnitt auf dem Handy lässt sich bis zum ganzen Brett herauszoomen („🗺 Ganzes Brett“), damit man sieht, wo die Kronen liegen.
 5. Es liegen immer **2 Kronen** auf dem Brett (30 % Chance auf eine **große Krone** mit 2 Punkten). Wer auf einer Krone landet oder über sie hinwegzieht, bekommt sie.
-6. Sonderfelder: grün +2, rot −2, gelb = nochmal würfeln, blau = Ereigniskarte, lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder für den nächsten Zug).
+6. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird auf dem Handy vom Stapel gezogen und auf dem Fernseher aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder für den nächsten Zug).
 
 Verliert ein Handy die Verbindung (Bildschirm gesperrt, WLAN-Wechsel), verbindet es sich automatisch wieder. Wer länger als 60 Sekunden weg ist und dran wäre, wird übersprungen. Schließt der Hauptscreen versehentlich, bleibt die Lobby 10 Minuten bestehen.
 
@@ -108,7 +108,7 @@ shared/                      Gemeinsame Typen + komplette Spiellogik (reine Funk
   test/                      Automatische Tests
 server/                      Node.js-Server (HTTP + WebSocket mit `ws`), maßgeblicher Spielzustand
 client/                      React + Vite + TypeScript (beide Modi, PWA)
-  src/board/board.json       Feldgeometrie: Mittelpunkt (Prozent), Feldtyp, Nachbarn
+  src/board/board.json       Feldgeometrie: Mittelpunkt (Prozent), Feldtyp, Nachbarfelder (Streckennetz)
   src/mode1/                 Spielleiter-Modus
   src/mode2/                 Hauptscreen- und Handy-Ansichten
   src/dev/                   Entwickler-Werkzeuge für das Brett
@@ -118,12 +118,12 @@ client/                      React + Vite + TypeScript (beide Modi, PWA)
 Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Neue Einträge einfach anhängen. Innerhalb einer Sitzung wiederholt sich nichts, bis ein Pool leer ist. Dann wird er neu gemischt. Die Tests prüfen Mindestgrößen und Duplikate.
 
 ### Feldkoordinaten / Brett austauschen
-- **`/#/dev/board-debug`** zeichnet Nummern, Feldtypen und Verbindungen über das Brettbild.
+- **`/#/dev/board-debug`** zeichnet Nummern, Feldtypen und Verbindungen über das Brettbild (Weichen pink).
 - **`/#/dev/feld-editor`**: Felder nacheinander anklicken, Typ und Nachbarn anpassen, `board.json` exportieren und unter `client/src/board/board.json` speichern.
 
 ### Schaltbare Regeln (`shared/src/mode2/constants.ts`)
 - `KRONE_AUCH_BEIM_VORBEIGEHEN` (Standard `true`)
-- `GELB_NOCHMAL_WUERFELN` (Standard `true`)
+- `GELB_SPIELERTAUSCH` (Standard `true`)
 - `GROSSE_KRONE_CHANCE` (Standard `0.3`)
 - `SCHRITT_MS`, `GETRENNT_UEBERSPRINGEN_MS`, Spielerfarben, Standard-Timer
 
@@ -139,10 +139,10 @@ Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (
 
 Vorgegebene, über Konstanten änderbare Annahmen:
 - Kronen werden auch **beim Vorbeiziehen** eingesammelt, nicht nur beim Landen.
-- Gelbe Kreispfeil-Felder bedeuten in Modus 2 **„nochmal würfeln“**.
-- +2 und −2 werden in Modus 2 automatisch ausgeführt, die Folgefelder lösen keine Effekte aus (Kronen werden dabei aber eingesammelt).
+- Gelbe Kreispfeil-Felder bedeuten in Modus 2 **„Position mit einem beliebigen Mitspieler tauschen“** (wie die Ereigniskarte Spielertausch, 30 s Zeit, danach kein Tausch).
+- +2 und −2 werden in Modus 2 automatisch ausgeführt, die Folgefelder lösen keine Effekte aus (Kronen werden dabei aber eingesammelt). +2 geht in Laufrichtung weiter (an einer Weiche geradeaus), −2 geht den gerade gelaufenen Weg zurück.
 - Bei Minispielen spielen **alle** mit, die Belohnung sind **Bonusfelder** für den nächsten Zug (keine Kronen).
-- Die Strecke ist ein **Ring** 1 → 76 → 1 ohne Abzweigungen (siehe Hinweise zum Brett).
+- Gezogen wird entlang der Strecke im Bild, nicht nach Feldnummern (siehe Hinweise zum Brett).
 - Der Host ist nur Hauptscreen und kein Mitspieler.
 
 Eigene Annahmen (einfachste sinnvolle Lösung):
@@ -164,5 +164,7 @@ Eigene Annahmen (einfachste sinnvolle Lösung):
 
 ### Hinweise zum Spielbrett
 - Die Feldtypen im Bild stimmen mit der Vorgabe überein: grün +2 (4, 21, 30, 38), rot −2 (51, 64, 74), blau ?! (7, 14, 41, 45, 59), gelb (39, 55), lila (10, 35, 52, 57, 66, 69). Feld 23 ist normal.
-- **Die Nummerierung im Bild ist nicht durchgehend verbunden.** Zwischen 42 → 43, 53 → 54, 67 → 68 und 76 → 1 liegen die Felder im Bild weit auseinander (in `/#/dev/board-debug` pink gestrichelt). Außerdem berühren oder kreuzen sich Strecken, z. B. bei 32/67, 25–26/53, 9–10/76, 20/42 und 1/68. Wie vorgegeben ist die Strecke als Ring nach Feldnummern umgesetzt. Bei diesen Übergängen springt die Figur also über das Brett. Wer Abzweigungen möchte, kann sie im Feld-Editor über die Nachbarlisten eintragen. Die Bewegungslogik unterstützt mehrere Wege.
+- **Die Feldnummern sind nur Orientierung.** Gezogen wird entlang der Strecke, wie sie im Bild verläuft (z. B. von 1 nach links auf 68, nicht auf 76). Die Verbindungen stehen als `neighbors` in `board.json`.
+- **Abzweigungen:** Bei 2 (nach 3 oder 43) sowie an den Einmündungen 9/10 ↔ 76, 19/20 ↔ 42, 25/26 ↔ 53, 31/32 ↔ 67 und 45/46 ↔ 54. Kommt eine Figur an eine Abzweigung, wählt der Spieler die Richtung für die restlichen Felder neu. An Einmündungen kann man keine Ecke abschneiden (z. B. nicht 76 → 9 → 10). Am Zugbeginn darf man in jede Richtung losgehen, im Zug nicht umkehren.
+- Wer die Verbindungen ändern möchte, kann sie im Feld-Editor über die Nachbarlisten anpassen.
 - Die Mittelpunkte der Felder wurden per Bildanalyse bestimmt: Nummern im Bild abgelesen, Overlay geprüft, mit Screenshots der Debug-Ansicht kontrolliert. Eine automatische Texterkennung (OCR) stand nicht zur Verfügung.

@@ -3,10 +3,11 @@ import { PlayerView, normalizeCode, CODE_LENGTH, CARD_TEXT, gameById, fieldType 
 import { useConnection, loadSession, PLAYER_KEY } from '../connection';
 import { go } from '../../lib/router';
 import { useWakeLock } from '../../lib/hooks';
-import { BoardSnippet, statusText, useLeft, playerName, ConnBanner, useToast } from '../common';
+import { BoardSnippet, OPTION_COLORS, statusText, useLeft, playerName, ConnBanner, useToast } from '../common';
 import { Die, Dot, FieldBadge, Modal, Confirm } from '../../components/ui';
 import { CrownSvg, FieldIcon, TokenSvg, FIELD_TYPE_LABEL } from '../../components/icons';
 import { Confetti } from '../../components/Decor';
+import { EventCardScene } from '../../components/EventCard';
 import { PlayerMini } from './PlayerMini';
 
 export default function PlayerApp({ initialCode = '' }: { initialCode?: string }) {
@@ -152,7 +153,7 @@ function Spectate({ v }: { v: PlayerView }) {
       {ph.k === 'gewuerfelt' && (
         <div className="row center"><Die value={ph.wurf} size="4em" /><span className="head" style={{ fontSize: '2em' }}>{ph.bonus ? `${ph.wurf}+${ph.bonus}=${ph.total}` : ph.wurf}</span></div>
       )}
-      {ph.k === 'karte' && <div className="card center"><h3>{CARD_TEXT[ph.card].titel}</h3><p>{CARD_TEXT[ph.card].text} {ph.card === 'sprung' ? ph.ziel : ''}</p></div>}
+      {ph.k === 'karte' && <div className="row center"><EventCardScene width={ph.feld ? 170 : 120} card={ph.card} feld={ph.feld} ziel={ph.ziel} info={ph.info} /></div>}
       <BoardSnippet view={v} center={v.me.pos} highlight={v.me.id} zoom={2.6} />
       <p className="center small">Deine Figur steht auf Feld {v.me.pos}.</p>
     </>
@@ -205,17 +206,25 @@ function MyTurn({ v, send, left }: { v: PlayerView; send: Send; left: number | n
     case 'richtung':
       return (
         <div className="stack">
-          <p className="center head">{ph.total} Felder – wohin? {left !== null && <span className="badge">⏱ {left}s</span>}</p>
-          <BoardSnippet view={v} center={v.me.pos} highlight={v.me.id} zoom={1.9} previews={ph.options} aspect={1} />
-          <div className="grid2" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            {ph.options.map((o) => {
+          <p className="center head">Noch {ph.remaining} {ph.remaining === 1 ? 'Feld' : 'Felder'} – wohin? {left !== null && <span className="badge">⏱ {left}s</span>}</p>
+          <BoardSnippet view={v} center={v.me.pos} highlight={v.me.id} zoom={1.6} previews={ph.options} aspect={1} />
+          <div className="stack" style={{ gap: 10 }}>
+            {ph.options.map((o, i) => {
               const type = fieldType(o.target);
               const crownOnPath = v.crowns.filter((c) => o.path.includes(c.field));
+              const col = OPTION_COLORS[i % OPTION_COLORS.length];
               return (
-                <button key={o.key} className={`btn big ${o.dir === 'vor' ? 'green' : 'blue'}`} style={{ flexDirection: 'column', gap: 4, padding: 10 }} onClick={() => send({ t: 'act', a: { t: 'direction', key: o.key } })}>
-                  <span>{o.dir === 'vor' ? '▶ ' : '◀ '}{o.label}</span>
-                  <span className="row" style={{ gap: 6 }}>Feld <FieldBadge n={o.target} showIcon={false} /> {type !== 'normal' && <FieldIcon type={type} size="1em" />}</span>
-                  <span className="small">{type !== 'normal' ? FIELD_TYPE_LABEL[type] : ''}{crownOnPath.length > 0 ? ` 👑×${crownOnPath.reduce((s, c) => s + c.value, 0)}` : ''}</span>
+                <button key={o.key} className="btn big block" style={{ justifyContent: 'flex-start', gap: 12, padding: '10px 14px', borderColor: col, boxShadow: `0 5px 0 ${col}, inset 0 0 0 3px ${col}` }} onClick={() => send({ t: 'act', a: { t: 'direction', key: o.key } })}>
+                  <span style={{ fontSize: '1.6em', width: '1.3em' }}>{o.arrow}</span>
+                  <span className="stack" style={{ gap: 2, alignItems: 'flex-start', textAlign: 'left' }}>
+                    <span>{o.label[0].toUpperCase() + o.label.slice(1)}</span>
+                    <span className="small row" style={{ gap: 6 }}>
+                      {o.final ? 'Ziel:' : 'bis Weiche:'} <FieldBadge n={o.target} showIcon={false} /> {o.final && type !== 'normal' && <FieldIcon type={type} size="1em" />}
+                      {o.final && type !== 'normal' ? FIELD_TYPE_LABEL[type] : ''}
+                      {crownOnPath.length > 0 ? ` 👑×${crownOnPath.reduce((s, c) => s + c.value, 0)}` : ''}
+                    </span>
+                    {!o.final && <span className="small muted">dann noch {ph.remaining - o.path.length} – neu entscheiden</span>}
+                  </span>
                 </button>
               );
             })}
@@ -224,17 +233,18 @@ function MyTurn({ v, send, left }: { v: PlayerView; send: Send; left: number | n
       );
     case 'karteZiehen':
       return (
-        <div className="stack" style={{ alignItems: 'center' }}>
+        <div className="stack" style={{ alignItems: 'center', gap: 20 }}>
           <h2>Ereigniskarte!</h2>
-          <button className="btn blue huge block" onClick={() => send({ t: 'act', a: { t: 'drawCard' } })} style={{ fontSize: '3em' }}>?! Karte ziehen</button>
-          {left !== null && <p className="small">Automatisch in {left}s</p>}
+          <EventCardScene width={150} card={null} drawing deckHint="Tippe auf den Stapel" onDeckClick={() => send({ t: 'act', a: { t: 'drawCard' } })} />
+          {left !== null && <p className="small" style={{ marginTop: 24 }}>Automatisch in {left}s</p>}
         </div>
       );
     case 'karte': {
-      const c = CARD_TEXT[ph.card];
       return (
         <div className="stack">
-          <div className="card center"><h2>{c.titel}</h2><p>{c.text} {ph.card === 'sprung' && ph.ziel ? <FieldBadge n={ph.ziel} /> : null}</p></div>
+          <div className="row center">
+            <EventCardScene width={ph.feld ? 200 : 140} card={ph.card} feld={ph.feld} ziel={ph.ziel} info={ph.info} />
+          </div>
           {ph.stage === 'wahl' && ph.card === 'tausch' && (
             <div className="panel stack">
               <h3>Mit wem tauschst du? {left !== null && <span className="badge">⏱ {left}s</span>}</h3>
