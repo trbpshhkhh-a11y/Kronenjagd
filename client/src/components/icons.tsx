@@ -36,7 +36,7 @@ export function ControllerSvg({ size = '1em' }: { size?: string | number }) {
 
 export function CircleArrowsSvg({ size = '1em' }: { size?: string | number }) {
   return (
-    <svg viewBox="0 0 48 48" width={size} aria-label="Nochmal würfeln">
+    <svg viewBox="0 0 48 48" width={size} aria-label="Spielertausch">
       <g fill="none" stroke="#2b1a10" strokeWidth="5" strokeLinecap="round">
         <path d="M38 18 A15 15 0 0 0 11 15" />
         <path d="M10 30 A15 15 0 0 0 37 33" />
@@ -79,7 +79,7 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   plus2: 'Grünes Feld (+2)',
   minus2: 'Rotes Feld (−2)',
   ereignis: 'Ereignisfeld (?!)',
-  wiederholung: 'Gelbes Feld (Kreispfeile)',
+  wiederholung: 'Gelbes Feld (Spielertausch)',
   minispiel: 'Minispielfeld',
 };
 

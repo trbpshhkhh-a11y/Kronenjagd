@@ -2,8 +2,8 @@
 
 /** Kronen werden auch beim Vorbeiziehen eingesammelt, nicht nur beim Landen. */
 export const KRONE_AUCH_BEIM_VORBEIGEHEN = true;
-/** Gelbe Kreispfeil-Felder: nochmal würfeln. */
-export const GELB_NOCHMAL_WUERFELN = true;
+/** Gelbe Kreispfeil-Felder: Position mit einem beliebigen Mitspieler tauschen. */
+export const GELB_SPIELERTAUSCH = true;
 /** Wahrscheinlichkeit, dass eine Krone eine große Krone (2 Punkte) ist. */
 export const GROSSE_KRONE_CHANCE = 0.3;
 /** Dauer eines Schritts der Figur in ms (Animation auf dem Hauptscreen). */

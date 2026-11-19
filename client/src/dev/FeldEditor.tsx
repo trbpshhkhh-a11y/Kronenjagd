@@ -38,7 +38,7 @@ export default function FeldEditor() {
         <select value={f.type} onChange={(e) => setFields((fs) => fs.map((x) => (x.id === cur ? { ...x, type: e.target.value as FieldType } : x)))}>
           {TYPES.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <label>Nachbarn (vorwärts): <input value={f.next.join(',')} onChange={(e) => setFields((fs) => fs.map((x) => (x.id === cur ? { ...x, next: e.target.value.split(',').map(Number).filter(Boolean) } : x)))} style={{ width: 90 }} /></label>
+        <label>Nachbarn: <input value={f.neighbors.join(',')} onChange={(e) => setFields((fs) => fs.map((x) => (x.id === cur ? { ...x, neighbors: e.target.value.split(',').map(Number).filter(Boolean) } : x)))} style={{ width: 110 }} /></label>
         <button className="btn sm" onClick={download}>⬇ board.json</button>
         <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(json); setCopied(true); }}>{copied ? 'Kopiert!' : 'JSON kopieren'}</button>
         <a href="#/dev/board-debug" style={{ color: '#ffd970' }}>Debug-Ansicht</a>

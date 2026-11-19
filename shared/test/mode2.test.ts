@@ -1,33 +1,51 @@
 import { describe, it, expect } from 'vitest';
 import {
-  paths, moveOptions, simplePath, BOARD, seededRng, crownValue, respawnCrown, playerAction, tick, currentPlayer,
+  moveOptions, allowedNext, neighbors, BOARD, seededRng, crownValue, respawnCrown, playerAction, tick, currentPlayer,
   createGameState, addPlayer, renamePlayer, startGame, GameError, viewForHost, viewForPlayer, fieldType, fieldsOfType,
   hostAction, CARDS, newDeck, GameState, Rng, endTurn, startMinigame, setConnected, GETRENNT_UEBERSPRINGEN_MS, SCHRITT_MS,
 } from '../src';
 import { setup, advance } from './helpers';
 
-describe('Bewegung auf dem Graphen', () => {
-  it('Ring vorwärts mit Umlauf 76 → 1', () => {
-    expect(simplePath(75, 3, 'vor')).toEqual([76, 1, 2]);
+describe('Bewegung auf dem Streckennetz', () => {
+  it('Nachbarn folgen dem Bild, nicht den Nummern (1 → 68, nicht 76)', () => {
+    expect(neighbors(1)).toEqual([2, 68]);
+    expect(neighbors(76)).not.toContain(1);
+    expect(neighbors(42)).not.toContain(43);
+    expect(neighbors(67)).not.toContain(68);
+    expect(neighbors(53)).not.toContain(54);
+    expect(moveOptions(1, null, 1).map((o) => o.target).sort((a, b) => a - b)).toEqual([2, 68]);
   });
-  it('rückwärts mit Umlauf 1 → 76', () => {
-    expect(simplePath(2, 4, 'zurueck')).toEqual([1, 76, 75, 74]);
+  it('Verbindungen sind symmetrisch und das Netz ist zusammenhängend', () => {
+    for (const f of BOARD.data.fields) for (const n of neighbors(f.id)) expect(neighbors(n)).toContain(f.id);
+    const seen = new Set([1]);
+    const stack = [1];
+    while (stack.length) for (const n of neighbors(stack.pop()!)) if (!seen.has(n)) (seen.add(n), stack.push(n));
+    expect(seen.size).toBe(76);
   });
-  it('genau zwei Optionen auf dem Ring', () => {
-    const o = moveOptions(10, 5);
-    expect(o.map((x) => [x.dir, x.target])).toEqual([['vor', 15], ['zurueck', 5]]);
+  it('Abzweigung bei Feld 2: von 68 kommend nach 3 oder 43', () => {
+    expect(allowedNext(2, 1).sort((a, b) => a - b)).toEqual([3, 43]);
+    const o = moveOptions(68, null, 6);
+    const up = o.find((x) => x.first === 1)!;
+    expect(up.path).toEqual([1, 2]);
+    expect(up.final).toBe(false);
   });
-  it('Jedes Feld hat genau einen Nachfolger und Vorgänger', () => {
-    for (const f of BOARD.data.fields) {
-      expect(BOARD.next.get(f.id)).toHaveLength(1);
-      expect(BOARD.prev.get(f.id)).toHaveLength(1);
-    }
-    expect(paths(1, 76, 'vor')[0][75]).toBe(1);
+  it('An Einmündungen wird keine Ecke abgeschnitten', () => {
+    expect(allowedNext(9, 8).sort((a, b) => a - b)).toEqual([10, 76]);
+    expect(allowedNext(10, 76)).toEqual([11]);
+    expect(allowedNext(9, 76)).toEqual([8]);
+    expect(allowedNext(76, 75).sort((a, b) => a - b)).toEqual([9, 10]);
+  });
+  it('Richtungen werden nach dem Bild benannt', () => {
+    expect(moveOptions(68, null, 1).find((o) => o.first === 1)!.label).toMatch(/oben/);
+    expect(moveOptions(2, 1, 1).find((o) => o.first === 3)!.label).toMatch(/rechts/);
   });
 });
 
 function forcePos(s: GameState, pid: string, pos: number) {
   s.players.find((p) => p.id === pid)!.pos = pos;
+}
+function choose(s: GameState, pid: string, first: number, rng: Rng, t: { now: number }) {
+  playerAction(s, pid, { t: 'direction', key: 'n' + first }, { rng, now: t.now });
 }
 function toTurnPhase(s: GameState, rng: Rng, t: { now: number }) {
   advance(s, rng, t, 30000);
@@ -113,12 +131,14 @@ describe('Kronen', () => {
     // Spieler 2 Felder vor eine Krone stellen (Startfeld davor ist normal)
     const crown = s.crowns[0];
     crown.value = 1;
-    forcePos(s, p.id, simplePath(crown.field, 2, 'zurueck')[1]);
+    crown.field = 15;
+    s.crowns[1].field = 70;
+    forcePos(s, p.id, 13);
     const field = crown.field;
     rollWith(s, t, 2);
     advance(s, rng, t, 3000);
     expect(s.phase.k).toBe('richtung');
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 14, rng, t);
     advance(s, rng, t, SCHRITT_MS * 3);
     expect(p.pos).toBe(field);
     expect(p.kronen).toBe(1);
@@ -130,11 +150,12 @@ describe('Kronen', () => {
     const p = currentPlayer(s)!;
     const crown = s.crowns[0];
     crown.value = 2;
-    const field = crown.field;
-    forcePos(s, p.id, simplePath(field, 1, 'zurueck')[0]);
+    crown.field = 15;
+    s.crowns[1].field = 70;
+    forcePos(s, p.id, 14);
     rollWith(s, t, 4);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 15, rng, t);
     advance(s, rng, t, SCHRITT_MS * 2);
     expect(p.kronen).toBe(2);
   });
@@ -145,10 +166,12 @@ describe('Kronen', () => {
     p.kronen = 4;
     const crown = s.crowns[0];
     crown.value = 2;
-    forcePos(s, p.id, simplePath(crown.field, 1, 'zurueck')[0]);
+    crown.field = 15;
+    s.crowns[1].field = 70;
+    forcePos(s, p.id, 14);
     rollWith(s, t, 1);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 15, rng, t);
     advance(s, rng, t, 2000);
     expect(p.kronen).toBe(6);
     expect(s.phase).toEqual({ k: 'sieg', winner: p.id });
@@ -188,7 +211,7 @@ describe('Zugablauf', () => {
     expect(p.bonus).toBe(0);
     advance(s, rng, t, 3000);
     if (s.phase.k !== 'richtung') throw new Error('phase');
-    expect(s.phase.options[0].path).toHaveLength(8);
+    expect(s.phase.remaining).toBe(8);
   });
   it('Richtung: nach Ablauf der Zeit geht es vorwärts', () => {
     const { s, rng, t } = setup(2);
@@ -200,15 +223,38 @@ describe('Zugablauf', () => {
     // Ziel ist 3 vorwärts (ggf. durch Feldeffekt verändert -> mindestens bewegt)
     expect(p.pos).not.toBe(start);
   });
-  it('Rückwärts gehen ist möglich', () => {
+  it('An einer Weiche wird über die restlichen Felder neu entschieden (68 → 2 → 3)', () => {
     const { s, rng, t } = setup(2, 3);
     toTurnPhase(s, rng, t);
     const p = currentPlayer(s)!;
+    s.crowns.forEach((c, i) => (c.field = [70, 72][i]));
+    forcePos(s, p.id, 68);
+    rollWith(s, t, 6);
+    advance(s, rng, t, 3000);
+    if (s.phase.k !== 'richtung') throw new Error('phase');
+    expect(s.phase.options.map((o) => o.first).sort((a, b) => a - b)).toEqual([1, 69]);
+    choose(s, p.id, 1, rng, t);
+    advance(s, rng, t, SCHRITT_MS * 3);
+    expect(p.pos).toBe(2);
+    if (s.phase.k !== 'richtung') throw new Error('phase ' + (s.phase as { k: string }).k);
+    expect(s.phase.remaining).toBe(4);
+    expect(s.phase.options.map((o) => o.first).sort((a, b) => a - b)).toEqual([3, 43]);
+    choose(s, p.id, 3, rng, t);
+    advance(s, rng, t, SCHRITT_MS * 5);
+    expect(p.pos).toBe(6);
+  });
+  it('Zurückgehen ist am Zugbeginn möglich', () => {
+    const { s, rng, t } = setup(2, 3);
+    toTurnPhase(s, rng, t);
+    const p = currentPlayer(s)!;
+    s.crowns.forEach((c, i) => (c.field = [70, 72][i]));
     forcePos(s, p.id, 3);
     rollWith(s, t, 2);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'zurueck-0' }, { rng, now: t.now });
-    advance(s, rng, t, SCHRITT_MS * 3);
+    choose(s, p.id, 2, rng, t);
+    advance(s, rng, t, SCHRITT_MS * 2);
+    choose(s, p.id, 1, rng, t);
+    advance(s, rng, t, SCHRITT_MS * 2);
     expect(p.pos).toBe(1);
   });
   it('+2-Feld: 2 weiter in gleicher Richtung ohne weiteren Effekt', () => {
@@ -219,7 +265,7 @@ describe('Zugablauf', () => {
     forcePos(s, p.id, 2); // 2 + 2 = 4 (plus2) -> 6
     rollWith(s, t, 2);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 3, rng, t);
     advance(s, rng, t, 4000);
     expect(p.pos).toBe(6);
     expect(s.order[s.turn]).not.toBe(p.id);
@@ -232,33 +278,41 @@ describe('Zugablauf', () => {
     forcePos(s, p.id, 48); // 48 + 3 = 51 (minus2) -> 49
     rollWith(s, t, 3);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 49, rng, t);
     advance(s, rng, t, 4000);
     expect(p.pos).toBe(49);
   });
-  it('Gelbes Feld: nochmal würfeln', () => {
-    const { s, rng, t } = setup(2, 4);
+  it('Gelbes Feld: Position mit einem beliebigen Mitspieler tauschen', () => {
+    const { s, rng, t } = setup(3, 4);
     toTurnPhase(s, rng, t);
     const p = currentPlayer(s)!;
     s.crowns.forEach((c, i) => (c.field = [20, 22][i]));
-    forcePos(s, p.id, 36); // +3 = 39 (wiederholung)
+    forcePos(s, p.id, 36); // +3 = 39 (gelb)
     rollWith(s, t, 3);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 37, rng, t);
     advance(s, rng, t, 3000);
     expect(p.pos).toBe(39);
-    expect(s.phase.k).toBe('wuerfeln');
-    expect(currentPlayer(s)!.id).toBe(p.id);
+    expect(s.phase).toMatchObject({ k: 'karte', card: 'tausch', stage: 'wahl', feld: true });
+    const other = s.players.find((x) => x.id !== p.id)!;
+    const otherPos = other.pos;
+    playerAction(s, p.id, { t: 'tauschWahl', target: other.id }, { rng, now: t.now });
+    expect(p.pos).toBe(otherPos);
+    expect(other.pos).toBe(39);
+    advance(s, rng, t, 3000);
+    expect(currentPlayer(s)!.id).not.toBe(p.id);
   });
   it('Minispielfeld startet ein Minispiel, danach ist der nächste Spieler dran', () => {
     const { s, rng, t } = setup(4, 4);
     toTurnPhase(s, rng, t);
     const p = currentPlayer(s)!;
     s.crowns.forEach((c, i) => (c.field = [20, 22][i]));
-    forcePos(s, p.id, 8); // +2 = 10 (minispiel)
+    forcePos(s, p.id, 8); // 8 → 9 (Weiche) → 10 (minispiel)
     rollWith(s, t, 2);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 9, rng, t);
+    advance(s, rng, t, SCHRITT_MS * 2);
+    choose(s, p.id, 10, rng, t);
     advance(s, rng, t, 2000);
     expect(s.phase.k).toBe('minispiel');
     expect(s.mini?.stage).toBe('auslosung');
@@ -284,7 +338,7 @@ describe('Ereigniskarten', () => {
     forcePos(s, p.id, 5); // +2 = 7 (ereignis)
     rollWith(s, t, 2);
     advance(s, rng, t, 3000);
-    playerAction(s, p.id, { t: 'direction', key: 'vor-0' }, { rng, now: t.now });
+    choose(s, p.id, 6, rng, t);
     advance(s, rng, t, 2000);
     expect(s.phase.k).toBe('karteZiehen');
     return { s, rng, t, p };

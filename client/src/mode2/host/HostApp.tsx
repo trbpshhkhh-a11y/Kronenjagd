@@ -10,6 +10,7 @@ import { CrownSvg, TokenSvg } from '../../components/icons';
 import { Snow, Confetti } from '../../components/Decor';
 import { SlotRoller, FIELD_NUMBERS } from '../../components/Roller';
 import { HostMini } from './HostMini';
+import { EventCardScene } from '../../components/EventCard';
 
 export default function HostApp() {
   const r = useRoute();
@@ -266,40 +267,23 @@ function DiceOverlay({ v }: { v: HostView }) {
 
 function CardOverlay({ v }: { v: HostView }) {
   const ph = v.phase;
-  const [flipped, setFlipped] = useState(false);
-  useEffect(() => {
-    if (ph.k === 'karte') {
-      const t = setTimeout(() => setFlipped(true), 150);
-      return () => clearTimeout(t);
-    }
-    setFlipped(false);
-  }, [ph.k]);
   const name = playerName(v, v.turnPlayerId);
-  const card = ph.k === 'karte' ? CARD_TEXT[ph.card] : null;
+  const feld = ph.k === 'karte' && !!ph.feld;
   return (
-    <Overlay dim={0.5}>
-      <div className="row" style={{ gap: 60, alignItems: 'center' }}>
-        <div className={`event-card ${flipped ? 'flipped' : ''}`}>
-          <div className="inner">
-            <div className="face front">?!</div>
-            <div className="face back">
-              {card && ph.k === 'karte' && (
-                <>
-                  <h1 style={{ color: 'var(--blue)', fontSize: 64 }}>{card.titel}</h1>
-                  <p style={{ fontSize: 34 }}>{card.text}</p>
-                  {ph.card === 'sprung' && ph.ziel && <FieldBadge n={ph.ziel} size="xl" />}
-                  {ph.card === 'krone' && <CrownSvg size={200} />}
-                  {ph.card === 'kronenNeu' && <div className="row"><CrownSvg size={130} /><CrownSvg size={130} big /></div>}
-                  {ph.card === 'tausch' && <div style={{ fontSize: 120 }}>🔄</div>}
-                  {ph.card === 'spielWahl' && <div style={{ fontSize: 120 }}>🎮</div>}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="panel dark stack" style={{ maxWidth: 640, fontSize: 36 }}>
+    <Overlay dim={0.55}>
+      <div className="row" style={{ gap: 70, alignItems: 'center' }}>
+        <EventCardScene
+          width={feld ? 380 : 330}
+          card={ph.k === 'karte' ? ph.card : null}
+          feld={feld}
+          ziel={ph.k === 'karte' ? ph.ziel : undefined}
+          info={ph.k === 'karte' ? ph.info : undefined}
+          drawing={ph.k === 'karteZiehen'}
+        />
+        <div className="panel dark stack" style={{ maxWidth: 560, fontSize: 36 }}>
           <h2 className="gold">{name}</h2>
           {ph.k === 'karteZiehen' && <p>zieht auf dem Handy eine Ereigniskarte …</p>}
+          {feld && ph.k === 'karte' && ph.stage !== 'fertig' && <p>ist auf einem gelben Feld gelandet und darf die Position mit einem Mitspieler tauschen.</p>}
           {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'tausch' && <p>wählt auf dem Handy, mit wem getauscht wird …</p>}
           {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'spielWahl' && <p>sucht auf dem Handy ein Minispiel aus …</p>}
           {ph.k === 'karte' && ph.stage === 'fertig' && ph.card === 'tausch' && ph.info && <p>tauscht mit {ph.info}!</p>}

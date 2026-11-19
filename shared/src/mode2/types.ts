@@ -1,7 +1,7 @@
 import type { GameId } from '../games';
 import type { DeckState } from '../deck';
 import type { PoolState } from '../pools';
-import type { MoveOption, Direction } from '../board';
+import type { MoveOption } from '../board';
 import type { Team } from '../teams';
 import type { TimerSettings } from './constants';
 import type { MiniInner } from './minigames';
@@ -68,10 +68,10 @@ export type Phase =
   | { k: 'intro'; until: number }
   | { k: 'wuerfeln' }
   | { k: 'gewuerfelt'; wurf: number; bonus: number; total: number; until: number }
-  | { k: 'richtung'; total: number; options: MoveOption[]; until: number }
-  | { k: 'bewegen'; path: number[]; idx: number; dir: Direction; effects: boolean; nextAt: number; grund: 'zug' | 'plus2' | 'minus2' }
+  | { k: 'richtung'; remaining: number; options: MoveOption[]; until: number }
+  | { k: 'bewegen'; path: number[]; idx: number; remainingAfter: number; effects: boolean; nextAt: number; grund: 'zug' | 'plus2' | 'minus2' }
   | { k: 'karteZiehen'; until: number }
-  | { k: 'karte'; card: CardId; stage: 'zeigen' | 'wahl' | 'fertig'; until: number; ziel?: number; info?: string }
+  | { k: 'karte'; card: CardId; stage: 'zeigen' | 'wahl' | 'fertig'; until: number; ziel?: number; info?: string; /** true = gelbes Feld statt Ereigniskarte */ feld?: boolean }
   | { k: 'minispiel' }
   | { k: 'sieg'; winner: string };
 
@@ -99,6 +99,8 @@ export interface GameState {
   started: boolean;
   lastActivity: number;
   hostConnected: boolean;
+  /** Felder, die im aktuellen Zug betreten wurden (inkl. Start) */
+  trail: number[];
 }
 
 export interface Ctx {

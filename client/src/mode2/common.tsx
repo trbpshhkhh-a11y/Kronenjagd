@@ -56,24 +56,28 @@ export interface BoardProps {
   jump?: boolean;
 }
 
+/** Farben für die Richtungsoptionen (gleiche Reihenfolge wie die Buttons) */
+export const OPTION_COLORS = ['#66bb6a', '#64b5f6', '#ffb74d', '#f06292'];
+
 /** Das Brett mit Figuren und Kronen (Positionen in Prozent -> passt zu jeder Auflösung) */
 export function BoardLayer({ view, previews, highlight, jump }: BoardProps) {
   const off = tokenOffsets(view.players);
   return (
     <div className="board-wrap">
       <img className="board-img" src={boardImg} alt="Spielbrett" draggable={false} />
-      {previews?.map((o) => (
-        <div key={o.key}>
-          {o.path.slice(0, -1).map((f, i) => {
-            const { x, y } = fieldXY(f);
-            return <span key={i} className="path-dot" style={{ left: `${x}%`, top: `${y}%`, background: o.dir === 'vor' ? '#66bb6a' : '#64b5f6' }} />;
-          })}
-          {(() => {
-            const { x, y } = fieldXY(o.target);
-            return <span className="preview-mark" style={{ left: `${x}%`, top: `${y}%`, borderColor: o.dir === 'vor' ? '#66bb6a' : '#64b5f6', background: o.dir === 'vor' ? 'rgba(102,187,106,.35)' : 'rgba(100,181,246,.35)' }}>{o.dir === 'vor' ? '▶' : '◀'}</span>;
-          })()}
-        </div>
-      ))}
+      {previews?.map((o, k) => {
+        const col = OPTION_COLORS[k % OPTION_COLORS.length];
+        const t = fieldXY(o.target);
+        return (
+          <div key={o.key}>
+            {o.path.slice(0, -1).map((f, i) => {
+              const { x, y } = fieldXY(f);
+              return <span key={i} className="path-dot" style={{ left: `${x}%`, top: `${y}%`, background: col }} />;
+            })}
+            <span className="preview-mark" style={{ left: `${t.x}%`, top: `${t.y}%`, borderColor: col, background: col + '59' }}>{o.final ? o.arrow : '⑂'}</span>
+          </div>
+        );
+      })}
       {view.crowns.map((c: Crown) => {
         const { x, y } = fieldXY(c.field);
         return (
@@ -96,10 +100,29 @@ export function BoardLayer({ view, previews, highlight, jump }: BoardProps) {
   );
 }
 
-/** Brettausschnitt um ein Feld (Handy) */
-export function BoardSnippet({ view, center, zoom = 3, previews, highlight, aspect = 4 / 3 }: BoardProps & { center: number; zoom?: number; aspect?: number }) {
+const ZOOM_STUFEN = [1, 1.6, 2.3, 3.2];
+const ZOOM_KEY = 'kj_zoom';
+
+/** Brettausschnitt um ein Feld (Handy) – mit Zoom bis zum ganzen Brett */
+export function BoardSnippet({ view, center, zoom = 2.6, previews, highlight, aspect = 4 / 3 }: BoardProps & { center: number; zoom?: number; aspect?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(320);
+  const [z, setZ] = useState<number>(() => {
+    try {
+      const v = Number(localStorage.getItem(ZOOM_KEY));
+      return ZOOM_STUFEN.includes(v) ? v : zoom;
+    } catch {
+      return zoom;
+    }
+  });
+  const setZoom = (v: number) => {
+    setZ(v);
+    try {
+      localStorage.setItem(ZOOM_KEY, String(v));
+    } catch {
+      /* egal */
+    }
+  };
   useEffect(() => {
     const el = ref.current!;
     const ro = new ResizeObserver(() => setW(el.clientWidth));
@@ -107,18 +130,27 @@ export function BoardSnippet({ view, center, zoom = 3, previews, highlight, aspe
     setW(el.clientWidth);
     return () => ro.disconnect();
   }, []);
-  const h = w / aspect;
-  const innerW = w * zoom;
+  const innerW = w * z;
   const innerH = innerW * (BOARD.data.height / BOARD.data.width);
+  const h = Math.min(w / aspect, innerH);
   const { x, y } = fieldXY(center);
   let left = w / 2 - (x / 100) * innerW;
   let top = h / 2 - (y / 100) * innerH;
   left = Math.min(0, Math.max(w - innerW, left));
   top = Math.min(0, Math.max(h - innerH, top));
+  const idx = ZOOM_STUFEN.indexOf(z);
+  const nearest = idx >= 0 ? idx : ZOOM_STUFEN.findIndex((v) => v >= z);
   return (
-    <div ref={ref} style={{ position: 'relative', width: '100%', height: h, overflow: 'hidden', borderRadius: 16, border: '4px solid var(--metal)', boxShadow: '0 8px 20px rgba(0,0,0,.5)' }}>
-      <div style={{ position: 'absolute', width: innerW, left, top, transition: 'left .4s, top .4s' }}>
+    <div>
+    <div ref={ref} style={{ position: 'relative', width: '100%', height: h, overflow: 'hidden', borderRadius: 16, border: '4px solid var(--metal)', boxShadow: '0 8px 20px rgba(0,0,0,.5)', transition: 'height .3s' }}>
+      <div style={{ position: 'absolute', width: innerW, left, top, transition: 'left .4s, top .4s, width .3s' }}>
         <BoardLayer view={view} previews={previews} highlight={highlight} />
+      </div>
+    </div>
+      <div className="zoom-bar">
+        <button className="zoom-btn" aria-label="Herauszoomen" disabled={nearest <= 0} onClick={() => setZoom(ZOOM_STUFEN[Math.max(0, nearest - 1)])}>−</button>
+        <button className="zoom-btn" aria-label="Hineinzoomen" disabled={nearest >= ZOOM_STUFEN.length - 1} onClick={() => setZoom(ZOOM_STUFEN[Math.min(ZOOM_STUFEN.length - 1, nearest + 1)])}>+</button>
+        <button className="zoom-btn wide" onClick={() => setZoom(z === 1 ? zoom : 1)}>{z === 1 ? '🔍 Meine Figur' : '🗺 Ganzes Brett'}</button>
       </div>
     </div>
   );
@@ -164,7 +196,7 @@ export function statusText(v: BaseView): string {
     case 'gewuerfelt':
       return ph.bonus > 0 ? `${cur} würfelt ${ph.wurf} + ${ph.bonus} Bonus = ${ph.total} Felder` : `${cur} würfelt … ${ph.wurf}!`;
     case 'richtung':
-      return `${cur} wählt die Richtung (${ph.total} Felder)`;
+      return `${cur} wählt die Richtung (noch ${ph.remaining} ${ph.remaining === 1 ? 'Feld' : 'Felder'})`;
     case 'bewegen':
       return ph.grund === 'plus2' ? `${cur}: +2 Felder` : ph.grund === 'minus2' ? `${cur}: −2 Felder` : `${cur} zieht …`;
     case 'karteZiehen':

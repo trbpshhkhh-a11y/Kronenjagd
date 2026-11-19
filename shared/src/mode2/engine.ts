@@ -9,9 +9,9 @@ import { newDeck, drawIndex } from '../deck';
 import { newPools } from '../pools';
 import { randInt, shuffle, pick, uniqueFields, Rng } from '../rng';
 import { makeTeams } from '../teams';
-import { BOARD, Board, fieldType, fieldsOfType, moveOptions, simplePath, opposite } from '../board';
+import { BOARD, Board, fieldType, fieldsOfType, moveOptions, autoPath, allowedNext } from '../board';
 import {
-  KRONE_AUCH_BEIM_VORBEIGEHEN, GELB_NOCHMAL_WUERFELN, GROSSE_KRONE_CHANCE, SCHRITT_MS, GETRENNT_UEBERSPRINGEN_MS,
+  KRONE_AUCH_BEIM_VORBEIGEHEN, GELB_SPIELERTAUSCH, GROSSE_KRONE_CHANCE, SCHRITT_MS, GETRENNT_UEBERSPRINGEN_MS,
   MAX_SPIELER, MIN_SPIELER, SPIELER_FARBEN, DEFAULT_TIMER, TimerSettings,
 } from './constants';
 import { CARDS, CardId, CARD_TEXT, Crown, Ctx, GameError, GameState, Player, Settings } from './types';
@@ -49,6 +49,7 @@ export function createGameState(code: string, now: number): GameState {
     started: false,
     lastActivity: now,
     hostConnected: true,
+    trail: [],
   };
 }
 
@@ -246,6 +247,7 @@ export function startGame(s: GameState, ctx: Ctx) {
 function beginTurn(s: GameState) {
   s.phase = { k: 'wuerfeln' };
   s.mini = null;
+  s.trail = [];
 }
 
 export function endTurn(s: GameState) {
@@ -254,24 +256,50 @@ export function endTurn(s: GameState) {
   beginTurn(s);
 }
 
-function startMove(s: GameState, path: number[], dir: 'vor' | 'zurueck', effects: boolean, grund: 'zug' | 'plus2' | 'minus2', now: number) {
-  s.phase = { k: 'bewegen', path, idx: 0, dir, effects, nextAt: now + SCHRITT_MS, grund };
+/** Vorheriges Feld der aktuellen Bewegung (für die Richtung) */
+const prevField = (s: GameState): number | null => (s.trail.length >= 2 ? s.trail[s.trail.length - 2] : null);
+
+/** Richtungswahl für die verbleibenden Schritte anbieten (an jeder Weiche neu) */
+export function offerDirections(s: GameState, remaining: number, now: number) {
+  const p = currentPlayer(s)!;
+  if (s.trail.length === 0) s.trail = [p.pos];
+  const options = moveOptions(p.pos, prevField(s), remaining);
+  s.phase = { k: 'richtung', remaining, options, until: now + s.settings.timer.richtung * 1000 };
 }
 
-function onLanded(s: GameState, p: Player, dir: 'vor' | 'zurueck', effects: boolean, ctx: Ctx) {
+function startMove(s: GameState, path: number[], remainingAfter: number, effects: boolean, grund: 'zug' | 'plus2' | 'minus2', now: number) {
+  if (path.length === 0) {
+    s.phase = { k: 'bewegen', path, idx: 0, remainingAfter: 0, effects, nextAt: now, grund };
+    return;
+  }
+  s.phase = { k: 'bewegen', path, idx: 0, remainingAfter, effects, nextAt: now + SCHRITT_MS, grund };
+}
+
+/** 2 Felder zurück: entlang des gerade gegangenen Weges, danach geradeaus weiter */
+function backPath(s: GameState, steps: number): number[] {
+  const back = s.trail.slice(0, -1).reverse().slice(0, steps);
+  if (back.length < steps) {
+    const cur = back.length ? back[back.length - 1] : s.trail[s.trail.length - 1];
+    const prev = back.length >= 2 ? back[back.length - 2] : back.length === 1 ? s.trail[s.trail.length - 1] : null;
+    back.push(...autoPath(cur, prev, steps - back.length));
+  }
+  return back;
+}
+
+function onLanded(s: GameState, p: Player, effects: boolean, ctx: Ctx) {
   if (!effects) return endTurn(s);
   const type = fieldType(p.pos);
   switch (type) {
     case 'plus2':
       toast(s, `+2! ${p.name} geht 2 Felder weiter.`, 'feld');
-      return startMove(s, simplePath(p.pos, 2, dir), dir, false, 'plus2', ctx.now + 500);
+      return startMove(s, autoPath(p.pos, prevField(s), 2), 0, false, 'plus2', ctx.now + 500);
     case 'minus2':
       toast(s, `−2! ${p.name} muss 2 Felder zurück.`, 'feld');
-      return startMove(s, simplePath(p.pos, 2, opposite(dir)), opposite(dir), false, 'minus2', ctx.now + 500);
+      return startMove(s, backPath(s, 2), 0, false, 'minus2', ctx.now + 500);
     case 'wiederholung':
-      if (GELB_NOCHMAL_WUERFELN) {
-        toast(s, `${p.name} darf nochmal würfeln!`, 'feld');
-        s.phase = { k: 'wuerfeln' };
+      if (GELB_SPIELERTAUSCH) {
+        toast(s, `Gelbes Feld! ${p.name} darf mit einem Mitspieler tauschen.`, 'feld');
+        s.phase = { k: 'karte', card: 'tausch', stage: 'wahl', until: ctx.now + 30000, feld: true };
         return;
       }
       return endTurn(s);
@@ -448,7 +476,7 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       requireTurn(s, pid);
       const opt = ph.options.find((o) => o.key === a.key);
       if (!opt) throw new GameError('Ungültige Richtung');
-      startMove(s, opt.path, opt.dir, true, 'zug', ctx.now);
+      startMove(s, opt.path, ph.remaining - opt.path.length, true, 'zug', ctx.now);
       break;
     }
     case 'drawCard':
@@ -560,21 +588,23 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
     }
     case 'gewuerfelt':
       if (ctx.now < ph.until) return false;
-      s.phase = { k: 'richtung', total: ph.total, options: moveOptions(p!.pos, ph.total), until: ctx.now + s.settings.timer.richtung * 1000 };
+      s.trail = [p!.pos];
+      offerDirections(s, ph.total, ctx.now);
       return true;
     case 'richtung': {
       if (ctx.now < ph.until) return false;
-      const opt = ph.options.find((o) => o.dir === 'vor') ?? ph.options[0];
-      toast(s, 'Zeit abgelaufen – es geht vorwärts.', 'info');
-      startMove(s, opt.path, opt.dir, true, 'zug', ctx.now);
+      const opt = ph.options[0];
+      toast(s, `Zeit abgelaufen – es geht ${opt.label}.`, 'info');
+      startMove(s, opt.path, ph.remaining - opt.path.length, true, 'zug', ctx.now);
       return true;
     }
     case 'bewegen': {
       if (ctx.now < ph.nextAt) return false;
       if (ph.idx < ph.path.length) {
         p!.pos = ph.path[ph.idx];
+        s.trail.push(p!.pos);
         ph.idx++;
-        const last = ph.idx === ph.path.length;
+        const last = ph.idx === ph.path.length && ph.remainingAfter === 0;
         if (KRONE_AUCH_BEIM_VORBEIGEHEN || last) {
           if (collectAt(s, p!, p!.pos, ctx.rng, ph.path.slice(ph.idx))) return true;
         }
@@ -582,7 +612,12 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
         if (ph.nextAt < ctx.now - 5000) ph.nextAt = ctx.now; // nach langer Pause nicht ewig nachholen
         return true;
       }
-      onLanded(s, p!, ph.dir, ph.effects, ctx);
+      if (ph.remainingAfter > 0) {
+        // Weiche erreicht: Spieler entscheidet über die restlichen Felder neu
+        offerDirections(s, ph.remainingAfter, ctx.now);
+        return true;
+      }
+      onLanded(s, p!, ph.effects, ctx);
       return true;
     }
     case 'karteZiehen':

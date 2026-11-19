@@ -223,8 +223,12 @@ function handle(c: Conn, msg: ClientMessage) {
     case 'debugPhase' as string: {
       if (process.env.KJ_DEBUG !== '1') throw new GameError('Unbekannte Nachricht');
       const lobby = requireHost(c);
-      const d = msg as unknown as { card?: number; winner?: boolean };
-      if (d.winner) lobby.state.phase = { k: 'sieg', winner: lobby.state.order[0] };
+      const d = msg as unknown as { card?: number; winner?: boolean; pos?: number };
+      if (d.pos) {
+        const cur = lobby.state.players.find((p) => p.id === lobby.state.order[lobby.state.turn]);
+        if (cur) cur.pos = d.pos;
+        lobby.state.phase = { k: 'wuerfeln' };
+      } else if (d.winner) lobby.state.phase = { k: 'sieg', winner: lobby.state.order[0] };
       else {
         lobby.state.cardDeck = { size: 5, remaining: [d.card ?? 0] };
         lobby.state.phase = { k: 'karteZiehen', until: now + 30000 };
