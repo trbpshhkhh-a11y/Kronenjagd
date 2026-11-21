@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BOARD, BaseView, PublicPlayer, Crown, MoveOption, gameById, CARD_TEXT } from '@kronen/shared';
 import boardImg from '@assets/spielbrett.png';
-import { TokenSvg, CrownSvg } from '../components/icons';
+import { TokenSvg, CrownSvg, ControllerSvg } from '../components/icons';
 import { useServerClock } from '../lib/hooks';
 
 export { boardImg };
@@ -82,17 +82,47 @@ export interface BoardProps {
   previews?: MoveOption[];
   highlight?: string | null;
   jump?: boolean;
+  /** Richtung durch Antippen des Bretts wählen (Schlüssel der Option) */
+  onPick?: (key: string) => void;
 }
 
-/** Farben für die Richtungsoptionen (gleiche Reihenfolge wie die Buttons) */
-export const OPTION_COLORS = ['#66bb6a', '#64b5f6', '#ffb74d', '#f06292'];
+/** Farben für die Richtungsoptionen auf dem Brett */
+export const OPTION_COLORS = ['#66bb6a', '#4fc3f7', '#ffb74d', '#f06292'];
 
-/** Das Brett mit Figuren und Kronen (Positionen in Prozent -> passt zu jeder Auflösung) */
-export function BoardLayer({ view, previews, highlight, jump }: BoardProps) {
+/** Felder, die im Brettbild noch nicht als Sonderfeld gemalt sind (App zeichnet sie) */
+const MARKED = BOARD.data.fields.filter((f) => f.markieren);
+
+/**
+ * Das Brett mit Figuren und Kronen (Positionen in Prozent -> passt zu jeder Auflösung).
+ * Mit `onPick` kann der Spieler einen hervorgehobenen Weg direkt auf dem Brett antippen.
+ */
+export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardProps) {
   const off = tokenOffsets(view.players);
+  const pick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onPick || !previews?.length) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - r.left;
+    const py = e.clientY - r.top;
+    // nächstes hervorgehobenes Feld; Tippfläche mind. 44 px (Radius 26 px)
+    const radius = Math.max(26, r.width * 0.03);
+    let best: { key: string; d: number } | null = null;
+    for (const o of previews)
+      for (const f of o.path) {
+        const { x, y } = fieldXY(f);
+        const d = Math.hypot((x / 100) * r.width - px, (y / 100) * r.height - py);
+        if (d <= radius && (!best || d < best.d)) best = { key: o.key, d };
+      }
+    if (best) onPick(best.key);
+  };
   return (
-    <div className="board-wrap">
+    <div className={`board-wrap ${onPick && previews?.length ? 'pickable' : ''}`} onClick={pick}>
       <img className="board-img" src={boardImg} alt="Spielbrett" draggable={false} />
+      {MARKED.map((f) => (
+        <span key={f.id} className={`field-mark ${f.type}`} style={{ left: `${f.x}%`, top: `${f.y}%` }} title={`Feld ${f.id}`}>
+          {f.type === 'minispiel' && <ControllerSvg size="72%" />}
+          <span className="field-mark-nr">{f.id}</span>
+        </span>
+      ))}
       {previews?.map((o, k) => {
         const col = OPTION_COLORS[k % OPTION_COLORS.length];
         const t = fieldXY(o.target);
@@ -100,9 +130,9 @@ export function BoardLayer({ view, previews, highlight, jump }: BoardProps) {
           <div key={o.key}>
             {o.path.slice(0, -1).map((f, i) => {
               const { x, y } = fieldXY(f);
-              return <span key={i} className="path-dot" style={{ left: `${x}%`, top: `${y}%`, background: col }} />;
+              return <span key={i} className="path-dot" style={{ left: `${x}%`, top: `${y}%`, background: col, boxShadow: `0 0 0 3px ${col}55` }} />;
             })}
-            <span className="preview-mark" style={{ left: `${t.x}%`, top: `${t.y}%`, borderColor: col, background: col + '59' }}>{o.final ? o.arrow : '⑂'}</span>
+            <span className={`preview-mark ${o.final ? 'final' : 'weiche'}`} style={{ left: `${t.x}%`, top: `${t.y}%`, borderColor: col, background: col + '44', boxShadow: `0 0 18px ${col}` }} />
           </div>
         );
       })}
@@ -128,58 +158,47 @@ export function BoardLayer({ view, previews, highlight, jump }: BoardProps) {
   );
 }
 
-const ZOOM_STUFEN = [1, 1.6, 2.3, 3.2];
-const ZOOM_KEY = 'kj_zoom';
-
-/** Brettausschnitt um ein Feld (Handy) – mit Zoom bis zum ganzen Brett */
-export function BoardSnippet({ view, center, zoom = 2.6, previews, highlight, aspect = 4 / 3 }: BoardProps & { center: number; zoom?: number; aspect?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(320);
-  const [z, setZ] = useState<number>(() => {
-    try {
-      const v = Number(localStorage.getItem(ZOOM_KEY));
-      return ZOOM_STUFEN.includes(v) ? v : zoom;
-    } catch {
-      return zoom;
-    }
-  });
-  const setZoom = (v: number) => {
-    setZ(v);
-    try {
-      localStorage.setItem(ZOOM_KEY, String(v));
-    } catch {
-      /* egal */
-    }
-  };
+/** Größe des Fensters (aktualisiert bei Drehen/Größenänderung) */
+export function useViewport() {
+  const [d, setD] = useState({ w: window.innerWidth, h: window.innerHeight });
   useEffect(() => {
-    const el = ref.current!;
-    const ro = new ResizeObserver(() => setW(el.clientWidth));
-    ro.observe(el);
-    setW(el.clientWidth);
-    return () => ro.disconnect();
+    const on = () => setD({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', on);
+    window.addEventListener('orientationchange', on);
+    return () => {
+      window.removeEventListener('resize', on);
+      window.removeEventListener('orientationchange', on);
+    };
   }, []);
-  const innerW = w * z;
-  const innerH = innerW * (BOARD.data.height / BOARD.data.width);
-  const h = Math.min(w / aspect, innerH);
-  const { x, y } = fieldXY(center);
-  let left = w / 2 - (x / 100) * innerW;
-  let top = h / 2 - (y / 100) * innerH;
-  left = Math.min(0, Math.max(w - innerW, left));
-  top = Math.min(0, Math.max(h - innerH, top));
-  const idx = ZOOM_STUFEN.indexOf(z);
-  const nearest = idx >= 0 ? idx : ZOOM_STUFEN.findIndex((v) => v >= z);
+  return d;
+}
+
+/** Kann der Browser Vollbild + Querformat erzwingen? (Android/Chrome ja, iPhone nein) */
+export function canLockLandscape(): boolean {
+  const so = (screen as any).orientation;
+  return !!(document.fullscreenEnabled && so && typeof so.lock === 'function');
+}
+
+export async function lockLandscape() {
+  try {
+    if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    await (screen as any).orientation.lock('landscape');
+  } catch {
+    /* nicht erlaubt – dann bleibt es beim Hinweis */
+  }
+}
+
+/** Hinweis im Hochformat während des Spiels */
+export function RotateHint({ big }: { big?: boolean }) {
   return (
-    <div>
-    <div ref={ref} style={{ position: 'relative', width: '100%', height: h, overflow: 'hidden', borderRadius: 16, border: '4px solid var(--metal)', boxShadow: '0 8px 20px rgba(0,0,0,.5)', transition: 'height .3s' }}>
-      <div style={{ position: 'absolute', width: innerW, left, top, transition: 'left .4s, top .4s, width .3s' }}>
-        <BoardLayer view={view} previews={previews} highlight={highlight} />
-      </div>
-    </div>
-      <div className="zoom-bar">
-        <button className="zoom-btn" aria-label="Herauszoomen" disabled={nearest <= 0} onClick={() => setZoom(ZOOM_STUFEN[Math.max(0, nearest - 1)])}>−</button>
-        <button className="zoom-btn" aria-label="Hineinzoomen" disabled={nearest >= ZOOM_STUFEN.length - 1} onClick={() => setZoom(ZOOM_STUFEN[Math.min(ZOOM_STUFEN.length - 1, nearest + 1)])}>+</button>
-        <button className="zoom-btn wide" onClick={() => setZoom(z === 1 ? zoom : 1)}>{z === 1 ? '🔍 Meine Figur' : '🗺 Ganzes Brett'}</button>
-      </div>
+    <div className="rotate-banner" style={big ? { fontSize: 34, padding: '18px 26px' } : undefined}>
+      <span className="rotate-icon" aria-hidden>📱</span>
+      <span className="grow">
+        <b>Bitte Gerät drehen</b>
+        <br />
+        <span className="small">Gespielt wird im Querformat – dann füllt das Brett den ganzen Bildschirm.</span>
+      </span>
+      {canLockLandscape() && <button className="btn sm gold" onClick={lockLandscape}>Vollbild & Querformat</button>}
     </div>
   );
 }

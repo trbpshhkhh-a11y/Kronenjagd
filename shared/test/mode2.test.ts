@@ -29,11 +29,36 @@ describe('Bewegung auf dem Streckennetz', () => {
     expect(up.path).toEqual([1, 2]);
     expect(up.final).toBe(false);
   });
-  it('An Einmündungen wird keine Ecke abgeschnitten', () => {
-    expect(allowedNext(9, 8).sort((a, b) => a - b)).toEqual([10, 76]);
-    expect(allowedNext(10, 76)).toEqual([11]);
-    expect(allowedNext(9, 76)).toEqual([8]);
-    expect(allowedNext(76, 75).sort((a, b) => a - b)).toEqual([9, 10]);
+  it('Einmündung 76: erst auf Feld 9 entscheiden, nicht auf Feld 10', () => {
+    expect(neighbors(76)).toEqual([9, 75]);
+    expect(neighbors(10)).toEqual([9, 11]);
+    expect(neighbors(9)).toEqual([8, 10, 76]);
+    expect(allowedNext(10, 11)).toEqual([9]);
+    expect(allowedNext(9, 10).sort((a, b) => a - b)).toEqual([8, 76]);
+    expect(allowedNext(9, 76).sort((a, b) => a - b)).toEqual([8, 10]);
+    expect(allowedNext(76, 75)).toEqual([9]);
+    // von 11 aus: keine Entscheidung auf 10, Weiche erst auf 9
+    const o = moveOptions(11, 12, 5);
+    expect(o).toHaveLength(1);
+    expect(o[0].path).toEqual([10, 9]);
+    expect(o[0].final).toBe(false);
+  });
+  it('alle Einmündungen haben genau ein Weichenfeld', () => {
+    const pairs: [number, number, number][] = [
+      [42, 20, 19],
+      [53, 26, 25],
+      [67, 32, 31],
+      [54, 46, 45],
+      [76, 9, 10],
+    ];
+    for (const [branch, sw, other] of pairs) {
+      expect(neighbors(branch)).toContain(sw);
+      expect(neighbors(branch)).not.toContain(other);
+      expect(neighbors(sw)).toHaveLength(3);
+      expect(neighbors(other)).toHaveLength(2);
+    }
+    const switches = BOARD.data.fields.filter((f) => neighbors(f.id).length > 2).map((f) => f.id);
+    expect(switches).toEqual([2, 9, 20, 26, 32, 46]);
   });
   it('Richtungen werden nach dem Bild benannt', () => {
     expect(moveOptions(68, null, 1).find((o) => o.first === 1)!.label).toMatch(/oben/);

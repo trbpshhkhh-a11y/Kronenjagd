@@ -14,6 +14,8 @@ export interface BoardField {
    * Die Feldnummern sind nur Orientierung, gezogen wird entlang dieser Verbindungen.
    */
   neighbors: number[];
+  /** true = im Brettbild noch nicht als Sonderfeld gemalt: die App zeichnet die Markierung selbst */
+  markieren?: boolean;
 }
 
 export interface BoardData {
