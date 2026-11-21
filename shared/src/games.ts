@@ -8,7 +8,8 @@ export type GameId =
   | 'montagsmaler'
   | 'zahlen'
   | 'wissen'
-  | 'begriffe';
+  | 'begriffe'
+  | 'flunker';
 
 /** einzel = jeder für sich, zweier = Zweier-Teams (ggf. ein Dreierteam), zweiTeams = 2 Teams */
 export type TeamMode = 'einzel' | 'zweier' | 'zweiTeams';
@@ -30,6 +31,8 @@ export interface GameDef {
   rules: GameRules;
   /** Abweichungen in Modus 2 (Nur App) */
   app: string[];
+  /** Nur im Online-Modus (braucht die Handys), nicht in Modus 1 */
+  nurOnline?: boolean;
 }
 
 export const GAMES: GameDef[] = [
@@ -180,9 +183,26 @@ export const GAMES: GameDef[] = [
     },
     app: ['Der Erklärer sieht die Begriffe auf seinem Handy und tippt „Erraten“ oder „Überspringen“. Der Partner rät laut.'],
   },
+  {
+    id: 'flunker', nr: 11, name: 'Flunker-Quiz', teamMode: 'einzel', minPlayers: 2, nurOnline: true,
+    rules: {
+      utensilien: 'nur eure Handys',
+      teams: 'Jeder gegen jeden',
+      ablauf: [
+        'Alle bekommen eine verrückte Frage, deren Antwort kaum jemand kennt.',
+        'Jeder denkt sich eine glaubwürdige falsche Antwort aus – eine Finte – und tippt sie ins Handy.',
+        'Dann werden alle Finten mit der echten Antwort gemischt. Jeder tippt, welche die echte ist.',
+        'Für jeden, der auf deine Finte hereinfällt, bekommst du einen Punkt – und einen, wenn du die echte Antwort findest. Es gibt 3 Runden.',
+      ],
+      gewinn: 'Bonusfelder nach Platz: 1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1.',
+    },
+    app: ['Finte bis 40 Zeichen. Ist sie zu nah an der Wahrheit, musst du dir etwas anderes ausdenken. Für deine eigene Finte kannst du nicht stimmen.'],
+  },
 ];
 
 export const GAME_IDS = GAMES.map((g) => g.id);
+/** Spiele für Modus 1 (mit Spielbrett) – ohne die reinen Online-Spiele */
+export const BRETT_GAME_IDS = GAMES.filter((g) => !g.nurOnline).map((g) => g.id);
 
 export function gameById(id: GameId): GameDef {
   const g = GAMES.find((x) => x.id === id);

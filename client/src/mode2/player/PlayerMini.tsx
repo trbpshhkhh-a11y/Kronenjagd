@@ -9,6 +9,7 @@ import { RulesButton } from '../../components/Rules';
 import { TimerRing } from '../../components/ui';
 import { Confetti } from '../../components/Decor';
 import { DrawCanvas } from './DrawCanvas';
+import { FlunkerPlayer } from '../games/Flunker';
 
 type Send = (m: any) => void;
 const act = (send: Send, a: any) => send({ t: 'act', a: { t: 'mini', a } });
@@ -57,7 +58,7 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
       {m.stage === 'spiel' && m.inner && noScreen && <PublicInfo v={v} inner={m.inner} />}
       {m.stage === 'ergebnis' && m.result && (
         <div className="panel list">
-          {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{i + 1}.</b><span className="grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span><span>{r.punkte} P.</span><span className="badge green">+{r.bonus}</span></div>)}
+          {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{r.platz ?? i + 1}.</b><span className="grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span><span>{r.anzeige ?? `${r.punkte} P.`}</span><span className="badge green">+{r.bonus}</span></div>)}
         </div>
       )}
     </>
@@ -277,6 +278,8 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
       );
     case 'montagsmaler':
       return <MalPlayer v={v} send={send} inner={inner} />;
+    case 'flunker':
+      return <FlunkerPlayer v={v} send={send} inner={inner} />;
     case 'zahlen':
       return (
         <div className="stack">

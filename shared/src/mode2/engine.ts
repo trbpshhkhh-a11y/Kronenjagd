@@ -489,7 +489,8 @@ function miniStep(s: GameState, ctx: Ctx): boolean {
       if (ctx.now < (m.until ?? 0)) return false;
       m.teams = makeTeamsHumansFirst(ctx.rng, s.players.map((p) => p.id), gameById(m.game).teamMode, (id) => !playerById(s, id)?.bot);
       m.stage = 'teams';
-      m.until = ctx.now + (gameById(m.game).teamMode === 'einzel' ? 2000 : 4500);
+      // Online-Spiele (jeder gegen jeden): Team-Auslosung überspringen
+      m.until = gameById(m.game).nurOnline ? ctx.now : ctx.now + (gameById(m.game).teamMode === 'einzel' ? 2000 : 4500);
       return true;
     case 'teams':
       if (ctx.now < (m.until ?? 0)) return false;

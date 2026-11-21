@@ -16,6 +16,7 @@ import type { Gegenstand, Schaetzfrage } from '../content';
 import { BEGRIFFE, ZAHLEN_HINWEISE } from '../content';
 import { closestIds, zahlenBonus } from '../bonus';
 import { normalize, startsWithLetter, fuzzyEquals } from '../text';
+import { flunkerImpl, type FlunkerState } from './flunker';
 
 export interface MCtx extends Ctx {
   s: GameState;
@@ -180,7 +181,7 @@ export interface BegriffeState {
   botInfo: BotInfo | null;
 }
 
-export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState;
+export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState | FlunkerState;
 
 /** Aktionen der Spieler in Minispielen */
 export type MiniAction =
@@ -200,12 +201,14 @@ export type MiniAction =
   | { k: 'loeschen' }
   | { k: 'zahlTipp'; value: number }
   | { k: 'waehlen'; opt: number }
+  | { k: 'finte'; text: string }
+  | { k: 'stimme'; opt: number }
   /** nur Bots: simulierte Fähigkeit (Erfolg ausgewürfelt), wird im Minispiel aufgelöst */
   | { k: 'skill'; success: boolean }
   /** nur Bots als Kenner bei Zahlen erraten */
   | { k: 'hinweis'; kategorie: string; begriff: string };
 
-interface Impl<S extends MiniInner> {
+export interface Impl<S extends MiniInner> {
   init(c: MCtx): S;
   action(st: S, pid: string, a: MiniAction, c: MCtx): void;
   tick(st: S, c: MCtx): boolean;
@@ -1062,6 +1065,7 @@ const begriffe: Impl<BegriffeState> = {
 
 const IMPLS: Record<GameId, Impl<any>> = {
   game7, kopfrechnen: kopf, stirnraten: stirn, gegenstaende: gegen, slf, schaetzen: schaetz, montagsmaler: mal, zahlen, wissen, begriffe,
+  flunker: flunkerImpl,
 };
 
 export const miniInit = (game: GameId, c: MCtx): MiniInner => IMPLS[game].init(c);

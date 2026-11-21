@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { HostView, GAMES, gameById, formatNumber } from '@kronen/shared';
 import { useLeft, playerName, playerOf, usePortrait, displayName } from '../common';
 import { LiveDrawing } from '../LiveDrawing';
+import { FlunkerHost } from '../games/Flunker';
 import { SlotRoller } from '../../components/Roller';
 import { RulesContent } from '../../components/Rules';
 import { TimerRing, Dot } from '../../components/ui';
@@ -62,9 +63,9 @@ export function HostMini({ v, send }: { v: HostView; send: Send }) {
             <div className="stack" style={{ width: P ? '100%' : 1200, gap: 12 }}>
               {m.result.rows.map((r, i) => (
                 <div key={i} className="list-item" style={{ fontSize: 38 }}>
-                  <span className="head gold" style={{ width: 70 }}>{i + 1}.</span>
+                  <span className="head gold" style={{ width: 70 }}>{r.platz ?? i + 1}.</span>
                   <span className="head grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span>
-                  <span>{r.punkte} Punkte</span>
+                  <span>{r.anzeige ?? `${r.punkte} Punkte`}</span>
                   <span className="badge green" style={{ fontSize: 34 }}>+{r.bonus} Felder</span>
                 </div>
               ))}
@@ -243,6 +244,8 @@ function GameView({ v, inner }: { v: HostView; inner: any }) {
       );
     case 'montagsmaler':
       return <MalHost v={v} inner={inner} />;
+    case 'flunker':
+      return <FlunkerHost v={v} inner={inner} portrait={P} />;
     case 'zahlen':
       return (
         <div className="stack" style={{ alignItems: 'center', gap: 26 }}>

@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { DeckState, GameId, GAME_IDS, newDeck, PoolState, fixPools, Team } from '@kronen/shared';
+import { DeckState, GameId, BRETT_GAME_IDS, newDeck, PoolState, fixPools, Team } from '@kronen/shared';
 import { load, save, remove } from '../lib/storage';
 
 export interface M1Player {
@@ -41,7 +41,7 @@ export const freshState = (players: M1Player[] = []): M1State => ({
   crown: null,
   kronenZiel: 5,
   slfTimer: 90,
-  gameDeck: newDeck(GAME_IDS.length),
+  gameDeck: newDeck(BRETT_GAME_IDS.length),
   pools: fixPools(undefined),
   game: null,
   lastBonus: null,
@@ -52,7 +52,7 @@ function initial(): M1State {
   const s = load<M1State | null>(KEY, null);
   if (!s || s.v !== 1) return freshState();
   s.pools = fixPools(s.pools);
-  if (!s.gameDeck || s.gameDeck.size !== GAME_IDS.length) s.gameDeck = newDeck(GAME_IDS.length);
+  if (!s.gameDeck || s.gameDeck.size !== BRETT_GAME_IDS.length) s.gameDeck = newDeck(BRETT_GAME_IDS.length);
   return s;
 }
 

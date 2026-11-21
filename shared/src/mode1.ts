@@ -1,6 +1,6 @@
 /** Hilfsfunktionen für Modus 1 (Spielleiter mit physischem Brett). */
 import { Rng, randomField, uniqueFields } from './rng';
-import { GAME_IDS, GameId, isPlayable } from './games';
+import { BRETT_GAME_IDS, GameId, isPlayable } from './games';
 import { DeckState, drawIndex } from './deck';
 import { teamBonus, individualBonus, zahlenBonus } from './bonus';
 
@@ -28,6 +28,6 @@ export const drawCrownField = (rng: Rng, previous: number | null, occupied: numb
 
 /** Nächstes Spiel vom Stapel (erst wenn alle dran waren, wird neu gemischt) */
 export function drawNextGame(deck: DeckState, rng: Rng, playerCount: number): GameId | null {
-  const i = drawIndex(deck, rng, (x) => isPlayable(GAME_IDS[x], playerCount));
-  return i === null ? null : GAME_IDS[i];
+  const i = drawIndex(deck, rng, (x) => isPlayable(BRETT_GAME_IDS[x], playerCount));
+  return i === null ? null : BRETT_GAME_IDS[i];
 }

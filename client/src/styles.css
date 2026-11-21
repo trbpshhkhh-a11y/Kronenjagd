@@ -476,7 +476,7 @@ table.tbl td, table.tbl th { padding: 6px 8px; border-bottom: 1px solid rgba(255
 .choice-list .btn { min-height: 40px; font-size: 0.85em; gap: 6px; }
 
 /* ---------- Minispiele auf dem Handy ---------- */
-.mini-screen { position: relative; z-index: 3; padding: max(10px, env(safe-area-inset-top)) 12px 20px; max-width: 680px; margin: 0 auto; }
+.mini-screen { position: relative; z-index: 3; padding: max(32px, env(safe-area-inset-top)) 12px 20px; max-width: 680px; margin: 0 auto; }
 .mini-wrap { display: flex; flex-direction: column; gap: 12px; }
 .mini-cols { display: flex; flex-direction: column; gap: 12px; }
 .mini-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -596,3 +596,31 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 .joystick-knob { position: absolute; left: 50%; top: 50%; width: 44%; height: 44%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff8a80, var(--red) 55%, var(--red-dark)); border: 4px solid #4d0d0d; box-shadow: 0 6px 0 #4d0d0d, 0 10px 16px rgba(0, 0, 0, 0.5), inset 0 3px 0 rgba(255, 255, 255, 0.35); pointer-events: none; transition: transform 0.05s; }
 .joystick:not(.active) .joystick-knob { transition: transform 0.15s ease-out; }
 .joystick-label { position: absolute; left: 50%; bottom: -1.6em; transform: translateX(-50%); font-size: 0.75em; opacity: 0.8; white-space: nowrap; }
+
+/* ---------- Countdown ---------- */
+.countdown { font-family: var(--font-head); color: var(--gold-light); text-shadow: 0 8px 0 rgba(0, 0, 0, 0.4), 0 0 40px rgba(255, 217, 112, 0.6); line-height: 1; animation: cdPop 0.9s ease-out both; text-align: center; }
+@keyframes cdPop { 0% { transform: scale(2); opacity: 0; } 25% { transform: scale(1); opacity: 1; } 85% { opacity: 1; } 100% { transform: scale(0.85); opacity: 0.2; } }
+
+/* ---------- Flunker-Quiz ---------- */
+.fl-hint { display: inline-block; background: var(--blue); color: #fff; border-radius: 999px; padding: 0.15em 0.9em; font-family: var(--font-head); font-size: 0.75em; }
+.card .fl-hint { font-size: 0.9em; }
+.fl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.fl-grid.big { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; font-size: 40px; }
+.fl-grid.big.portrait { grid-template-columns: repeat(2, 1fr); }
+.fl-card { position: relative; background: linear-gradient(180deg, var(--cream), var(--cream-2)); color: var(--ink); border: 4px solid #b98a3a; border-radius: 16px; padding: 10px 12px; min-height: 3.2em; opacity: 0.45; transition: transform 0.3s, opacity 0.3s, border-color 0.3s; display: flex; flex-direction: column; justify-content: center; }
+.fl-card.shown { opacity: 1; }
+.fl-card.current { transform: scale(1.05); box-shadow: 0 0 0 5px var(--gold-light), 0 10px 30px rgba(0, 0, 0, 0.5); z-index: 1; }
+.fl-card.real { border-color: #43a047; background: linear-gradient(180deg, #e8f5e9, #c8e6c9); }
+.fl-text { font-family: var(--font-head); font-size: 1.15em; line-height: 1.15; }
+.fl-letter { position: absolute; top: 6px; right: 10px; font-family: var(--font-head); color: var(--red-dark); opacity: 0.7; }
+.fl-letter.sm { position: static; display: inline-flex; width: 1.6em; height: 1.6em; align-items: center; justify-content: center; border-radius: 50%; background: var(--gold); color: var(--ink); font-size: 0.85em; opacity: 1; flex-shrink: 0; }
+.fl-meta { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 0.7em; animation: fade 0.4s; }
+.fl-tag { color: var(--red-dark); font-weight: 800; }
+.fl-tag.real { color: var(--green-dark); }
+.fl-voters { display: flex; flex-wrap: wrap; gap: 4px; }
+.fl-voter { background: rgba(90, 50, 25, 0.15); border-radius: 999px; padding: 0 8px; font-weight: 700; }
+.fl-plus { font-family: var(--font-head); color: var(--green-dark); animation: flyUp 0.8s ease-out both; }
+@keyframes flyUp { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+.fl-scores { display: flex; flex-direction: column; gap: 6px; }
+.fl-done { border-color: #66bb6a !important; background: rgba(102, 187, 106, 0.25) !important; }
+.fl-opt { justify-content: flex-start; gap: 10px; min-height: 52px; text-align: left; }

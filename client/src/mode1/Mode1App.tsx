@@ -335,7 +335,7 @@ function GameDraw() {
   const { s, update } = useM1();
   const [done, setDone] = useState(false);
   const g = gameById(s.game!.id);
-  const names = useMemo(() => GAMES.map((x) => x.name), []);
+  const names = useMemo(() => GAMES.filter((x) => !x.nurOnline).map((x) => x.name), []);
   return (
     <div className="screen">
       <TopBar />

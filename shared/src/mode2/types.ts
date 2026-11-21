@@ -62,6 +62,10 @@ export interface MiniResultRow {
   members: string[];
   punkte: number;
   bonus: number;
+  /** Platz (bei den Online-Spielen mit Platz-Wertung) */
+  platz?: number;
+  /** Anzeige statt „x Punkte“, z. B. „Reihe 23“ */
+  anzeige?: string;
 }
 export interface MiniResult {
   bonus: Record<string, number>;
