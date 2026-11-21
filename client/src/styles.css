@@ -340,10 +340,6 @@ p { margin: 0.4em 0; line-height: 1.4; }
 /* ---------- Hauptscreen (16:9-Bühne) ---------- */
 .stage-outer { position: fixed; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; z-index: 1; }
 .stage { width: 1920px; height: 1080px; position: relative; transform-origin: center center; flex-shrink: 0; font-size: 28px; }
-.rotate-hint { position: fixed; inset: 0; display: none; z-index: 100; background: var(--wood-800); align-items: center; justify-content: center; flex-direction: column; text-align: center; gap: 20px; padding: 24px; }
-@media (orientation: portrait) {
-  .host-root .rotate-hint { display: flex; }
-}
 
 /* ---------- Toast ---------- */
 .toast { position: absolute; left: 50%; top: 40px; transform: translateX(-50%); z-index: 40; padding: 0.5em 1.2em; border-radius: 999px; background: rgba(20, 10, 4, 0.9); border: 3px solid var(--gold); font-family: var(--font-head); font-size: 1.3em; animation: toastIn 0.35s; white-space: nowrap; }
@@ -441,3 +437,11 @@ table.tbl td, table.tbl th { padding: 6px 8px; border-bottom: 1px solid rgba(255
 .ev-sparkles span { position: absolute; left: 50%; top: 50%; color: var(--gold-light); font-size: calc(var(--w) * 0.09); text-shadow: 0 0 8px #fff3b0; animation: evSpark 1s ease-out both; }
 @keyframes evSpark { 0% { transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(0.3); opacity: 1; } 100% { transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(var(--w) * -0.95)) scale(1); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ev-drawn, .ev-deck.waiting .ev-top, .ev-front::after, .ev-sparkles span { animation: none !important; } }
+
+/* ---------- Hauptscreen im Hochformat ---------- */
+.pstage-outer { position: relative; z-index: 1; overflow-x: hidden; }
+.pstage { width: 1080px; position: relative; font-size: 28px; }
+.portrait-tip { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 90; display: flex; gap: 10px; align-items: center; }
+.leader-badge { display: inline-flex; align-items: center; gap: 0.2em; padding: 0.05em 0.5em; border-radius: 999px; background: var(--gold); color: var(--ink); font-weight: 800; font-size: 0.75em; }
+.level-btns { display: inline-flex; gap: 4px; }
+.level-btns .btn { min-height: 34px; padding: 0 0.6em; font-size: 0.75em; }

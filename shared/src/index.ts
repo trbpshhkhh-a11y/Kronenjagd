@@ -15,3 +15,4 @@ export * from './mode2/engine';
 export * from './mode2/minigames';
 export * from './mode2/views';
 export * from './mode1';
+export * from './mode2/bots';

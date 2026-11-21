@@ -7,7 +7,8 @@ import type { GameState, Phase, Settings, Crown, Toast, MiniResult } from './typ
 import type { GameId } from '../games';
 import type { Team } from '../teams';
 import { miniHostView, miniPlayerView, MCtx } from './minigames';
-import { playableGames } from './engine';
+import { playableGames, canLead } from './engine';
+import type { BotLevel } from './constants';
 
 export interface PublicPlayer {
   id: string;
@@ -18,6 +19,7 @@ export interface PublicPlayer {
   bonus: number;
   pos: number;
   start: number;
+  bot: BotLevel | null;
 }
 
 export interface MiniView {
@@ -46,7 +48,12 @@ export interface BaseView {
   mini: MiniView | null;
   toast: Toast | null;
   playableGames: GameId[];
+  /** Ist gerade ein Hauptscreen verbunden? (sonst zeigen die Handys alles) */
   hostConnected: boolean;
+  /** Lobby wurde von einem Hauptscreen erstellt */
+  screenMode: boolean;
+  leaderId: string | null;
+  turnNo: number;
 }
 
 export interface HostView extends BaseView {
@@ -56,10 +63,12 @@ export interface HostView extends BaseView {
 export interface PlayerView extends BaseView {
   role: 'player';
   me: PublicPlayer;
+  /** Darf dieser Spieler die Lobby leiten (Einstellungen, Bots, Start …)? */
+  iAmLeader: boolean;
 }
 
 const pub = (s: GameState): PublicPlayer[] =>
-  s.players.map(({ id, name, color, connected, kronen, bonus, pos, start }) => ({ id, name, color, connected, kronen, bonus, pos, start }));
+  s.players.map(({ id, name, color, connected, kronen, bonus, pos, start, bot }) => ({ id, name, color, connected, kronen, bonus, pos, start, bot }));
 
 function base(s: GameState, now: number): BaseView {
   return {
@@ -77,6 +86,9 @@ function base(s: GameState, now: number): BaseView {
     toast: s.toast,
     playableGames: playableGames(s),
     hostConnected: s.hostConnected,
+    screenMode: s.screenMode,
+    leaderId: s.leaderId,
+    turnNo: s.turnNo,
   };
 }
 
@@ -98,9 +110,9 @@ export function viewForPlayer(s: GameState, playerId: string, now: number): Play
   const all = pub(s);
   const me = all.find((p) => p.id === playerId);
   if (!me) return null;
-  const v: PlayerView = { ...base(s, now), role: 'player', me };
+  const v: PlayerView = { ...base(s, now), role: 'player', me, iAmLeader: canLead(s, playerId) };
   if (s.mini) {
-    const c: MCtx = { s, teams: s.mini.teams, rng: () => 0, now };
+    const c: MCtx = { s, teams: s.mini.teams, rng: () => 0, now, noScreen: !s.hostConnected };
     v.mini = { ...miniBase(s), inner: s.mini.inner ? miniPlayerView(s.mini.inner, playerId, c) : null };
   }
   return v;

@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { PlayerView, gameById, formatNumber } from '@kronen/shared';
-import { useLeft, playerOf } from '../common';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { PlayerView, gameById, formatNumber, GAMES } from '@kronen/shared';
+import { useLeft, playerOf, displayName } from '../common';
+import { LiveDrawing } from '../LiveDrawing';
+import { BotLine } from '../host/HostMini';
+import { SlotRoller } from '../../components/Roller';
+import { Tiles } from '../../mode1/games';
 import { RulesButton } from '../../components/Rules';
 import { TimerRing } from '../../components/ui';
 import { Confetti } from '../../components/Decor';
@@ -15,6 +19,13 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
   const myTeamIdx = m.teams.findIndex((t) => t.members.includes(v.me.id));
   const myTeam = m.teams[myTeamIdx];
   const einzel = g.teamMode === 'einzel';
+  const noScreen = !v.hostConnected;
+  const names = useMemo(() => GAMES.map((x) => x.name), []);
+  const host = (a: any) => send({ t: 'host', a });
+  const nameOf = (id: string) => {
+    const p = playerOf(v, id);
+    return p ? displayName(p) : '?';
+  };
   return (
     <div className="stack">
       <div className="row between">
@@ -24,19 +35,32 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
       {!einzel && myTeam && m.stage !== 'auslosung' && (
         <div className="chip" style={{ alignSelf: 'flex-start' }}>
           <b className="gold">{myTeam.name}:</b>
-          {myTeam.members.map((id) => playerOf(v, id)?.name).join(' & ')}
+          {myTeam.members.map(nameOf).join(' & ')}
         </div>
       )}
-      {m.stage === 'auslosung' && <div className="card center"><h3>Das Minispiel wird ausgelost …</h3><p>Schau auf den Hauptscreen!</p></div>}
-      {m.stage === 'teams' && <div className="card center"><h3>{einzel ? 'Jeder für sich!' : 'Die Teams stehen!'}</h3><p>Schau auf den Hauptscreen.</p></div>}
+      {m.stage === 'auslosung' &&
+        (noScreen ? (
+          <div className="stack" style={{ alignItems: 'center' }}>
+            <h3>{m.chosenBy ? `${nameOf(m.chosenBy)} hat ausgesucht:` : 'Das Minispiel ist …'}</h3>
+            {m.chosenBy ? <div className="slot done"><div className="slot-text" style={{ fontSize: '2rem' }}>{g.name}</div></div> : <SlotRoller options={names} final={g.name} duration={2600} render={(x) => x} style={{ width: '100%' }} />}
+          </div>
+        ) : (
+          <div className="card center"><h3>Das Minispiel wird ausgelost …</h3><p>Schau auf den Hauptscreen!</p></div>
+        ))}
+      {(m.stage === 'teams' || (m.stage === 'bereit' && noScreen)) && (
+        noScreen ? <TeamList v={v} nameOf={nameOf} /> : <div className="card center"><h3>{einzel ? 'Jeder für sich!' : 'Die Teams stehen!'}</h3><p>Schau auf den Hauptscreen.</p></div>
+      )}
       {m.stage === 'bereit' && (
         <div className="stack" style={{ alignItems: 'center' }}>
           <p className="center">Lies die Regeln und bestätige, wenn du bereit bist.</p>
           {m.ready.includes(v.me.id) ? <p className="badge green" style={{ fontSize: '1.2em' }}>✔ Du bist bereit</p> : <button className="btn green huge block" onClick={() => send({ t: 'act', a: { t: 'ready' } })}>Bereit!</button>}
           <p className="small">{m.ready.length} von {v.players.length} bereit</p>
+          {v.iAmLeader && <button className="btn gold" onClick={() => host({ t: 'weiter' })}>Los geht’s (nicht warten)</button>}
         </div>
       )}
       {m.stage === 'spiel' && m.inner && <Inner v={v} send={send} inner={m.inner} />}
+      {m.stage === 'spiel' && m.inner && noScreen && <PublicInfo v={v} inner={m.inner} />}
+      {m.stage === 'spiel' && m.game === 'game7' && v.iAmLeader && <button className="btn ghost sm" onClick={() => host({ t: 'beenden' })}>Game of 7 beenden</button>}
       {m.stage === 'ergebnis' && m.result && (
         <div className="stack">
           <Confetti duration={2500} />
@@ -45,12 +69,93 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
             <div className="mega" style={{ color: 'var(--green)', textShadow: 'none' }}>+{m.result.bonus[v.me.id] ?? 0}</div>
           </div>
           <div className="panel list">
-            {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{i + 1}.</b><span className="grow">{r.label}</span><span>{r.punkte} P.</span><span className="badge green">+{r.bonus}</span></div>)}
+            {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{i + 1}.</b><span className="grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span><span>{r.punkte} P.</span><span className="badge green">+{r.bonus}</span></div>)}
           </div>
+          {v.iAmLeader && <button className="btn gold" onClick={() => host({ t: 'weiter' })}>Weiter</button>}
         </div>
       )}
     </div>
   );
+}
+
+function TeamList({ v, nameOf }: { v: PlayerView; nameOf: (id: string) => string }) {
+  const m = v.mini!;
+  if (gameById(m.game).teamMode === 'einzel')
+    return (
+      <div className="card center">
+        <h3>Jeder für sich!</h3>
+        <p>{v.players.map((p) => displayName(p)).join(', ')}</p>
+      </div>
+    );
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      {m.teams.map((t, i) => (
+        <div key={i} className="card" style={{ padding: 12, animation: `cardIn .4s ${i * 0.2}s both` }}>
+          <b>{t.name}</b>: {t.members.map(nameOf).join(' & ')}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Was sonst nur der Hauptscreen zeigt – ohne Hauptscreen auf jedem Handy */
+function PublicInfo({ v, inner }: { v: PlayerView; inner: any }) {
+  const chips = (list: { label: string; n: number }[], unit = '') => (
+    <div className="row center">{list.map((c, i) => <span key={i} className="chip">{c.label}: <b className="gold">{c.n}</b>{unit}</span>)}</div>
+  );
+  switch (inner.game) {
+    case 'game7':
+      return (
+        <div className="panel stack" style={{ padding: 12 }}>
+          {inner.teams.map((tm: any, i: number) => (
+            <div key={i} className="list-item" style={i === inner.current && !inner.finished ? { borderColor: 'var(--gold)' } : undefined}>
+              <span className="grow"><b>{tm.label}</b> <span className="small muted">{tm.members.join(' & ')}</span></span>
+              <b className="head gold">{tm.stage}</b>{tm.locked && ' 🔒'}
+            </div>
+          ))}
+        </div>
+      );
+    case 'kopfrechnen':
+      return chips(inner.scores.map((x: any) => ({ label: (inner.raus.includes(x.name) ? '✖ ' : '') + x.name, n: x.punkte })));
+    case 'stirnraten':
+    case 'begriffe':
+      return chips(inner.correct, ' richtig');
+    case 'gegenstaende':
+      if (inner.stage === 'zeigen' && inner.items) return <Tiles items={inner.items} />;
+      if (inner.stage === 'aufloesung' && inner.scores) return chips(inner.scores.map((r: any) => ({ label: r.label, n: r.punkte })), '/10');
+      if (inner.stage === 'abfrage') return <p className="center small">Geantwortet: {inner.beantwortet.join(', ') || '–'}</p>;
+      return null;
+    case 'schaetzen':
+      return (
+        <>
+          {inner.stage === 'frage' && <p className="center small">Geschätzt: {inner.geschaetzt.join(', ') || '–'}</p>}
+          {chips(inner.scores.map((x: any) => ({ label: x.name, n: x.punkte })))}
+        </>
+      );
+    case 'slf':
+      return inner.stage !== 'pruefung' ? <p className="center small">Schreiben: {inner.abgegeben.length}/{v.players.length}</p> : null;
+    case 'zahlen':
+      return (
+        <div className="stack" style={{ gap: 8 }}>
+          {inner.teams.map((tm: any, i: number) => (
+            <div key={i} className="card" style={{ padding: 12 }}>
+              <b>{tm.label}</b>: 🔎 {tm.rater} {tm.hatGetippt && inner.stage === 'raten' ? '✔' : ''} · 🧠 {tm.kenner.join(', ')}
+              {inner.stage === 'aufgedeckt' && <div>Tipp: <b>{tm.tipp ?? '–'}</b> → <b style={{ color: 'var(--green)' }}>+{tm.bonus}</b></div>}
+            </div>
+          ))}
+        </div>
+      );
+    case 'wissen':
+      return (
+        <div className="row center">
+          {inner.teams.map((tm: any, i: number) => (
+            <span key={i} className="chip">{tm.label}: {inner.stage === 'loesung' ? (tm.teamWahl === null ? '–' : `${'ABCD'[tm.teamWahl]} ${tm.teamWahl === inner.richtig ? '✔' : '✖'}`) : tm.gesperrt ? '🔒' : '…'} · <b className="gold">{tm.punkte}</b></span>
+          ))}
+        </div>
+      );
+    default:
+      return null;
+  }
 }
 
 function Timer({ v, until, total }: { v: PlayerView; until: number; total: number }) {
@@ -124,6 +229,7 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
             ) : <p className="center">Gleich geht’s los – du erklärst!</p>
           )}
           {inner.role === 'zuschauer' && <p className="center">Das andere Team ist dran. Schau zu!</p>}
+          {inner.botInfo && inner.stage === 'laeuft' && <div className="center"><BotLine info={inner.botInfo} /></div>}
           {inner.stage === 'laeuft' && <Timer v={v} until={inner.until} total={t.stirnraten} />}
         </div>
       );
@@ -172,6 +278,12 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
           ) : (
             <div className="card center"><h3>Die Zahl war</h3><div className="mega" style={{ color: 'var(--red-dark)', textShadow: 'none' }}>{inner.zahl}</div></div>
           )}
+          {(inner.hints as any[]).length > 0 && (
+            <div className="panel stack" style={{ padding: 12, gap: 4 }}>
+              <b>💬 Hinweise der Bot-Kenner</b>
+              {(inner.hints as any[]).map((h, i) => <span key={i}>{inner.teams[h.team]?.label}: {h.name} – {h.kategorie}: <b>{h.begriff}</b></span>)}
+            </div>
+          )}
           {inner.stage === 'raten' && <Timer v={v} until={inner.until} total={t.zahlen} />}
         </div>
       );
@@ -215,6 +327,7 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
           ) : (
             <p className="center">Ein anderes Team ist dran.</p>
           )}
+          {inner.botInfo && inner.stage === 'laeuft' && <div className="center"><BotLine info={inner.botInfo} /></div>}
           {inner.stage === 'laeuft' && <Timer v={v} until={inner.until} total={t.begriffe} />}
         </div>
       );
@@ -224,7 +337,15 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
 }
 
 function GegenPlayer({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
-  if (inner.stage === 'start' || inner.stage === 'zeigen') return <div className="card center" style={{ padding: 40 }}><h2>👀 Schau auf den Hauptscreen!</h2><p>Merke dir die Gegenstände und ihre Nummern.</p></div>;
+  if (inner.stage === 'start' || inner.stage === 'zeigen')
+    return v.hostConnected ? (
+      <div className="card center" style={{ padding: 40 }}><h2>👀 Schau auf den Hauptscreen!</h2><p>Merke dir die Gegenstände und ihre Nummern.</p></div>
+    ) : (
+      <div className="card center" style={{ padding: 16 }}>
+        <h3>👀 Merke dir die Gegenstände und ihre Nummern!</h3>
+        {inner.stage === 'zeigen' ? <Timer v={v} until={inner.until} total={10} /> : <p>Gleich geht’s los …</p>}
+      </div>
+    );
   if (inner.stage === 'abfrage')
     return (
       <div className="stack">
@@ -318,9 +439,12 @@ function MalPlayer({ v, send, inner }: { v: PlayerView; send: Send; inner: any }
           </>
         ) : <p className="center head">Gleich zeichnest du!</p>
       )}
+      {inner.role !== 'zeichner' && inner.strokes && (inner.stage === 'laeuft' || inner.stage === 'pause') && (
+        <LiveDrawing strokes={inner.strokes} resetKey={`${inner.teamIdx}-${inner.begriffNr}`} />
+      )}
       {inner.role === 'rater' && (
         <>
-          <p className="center">Schau auf den Hauptscreen und rate! Laut rufen oder hier tippen:</p>
+          <p className="center">{inner.strokes ? 'Rate! Laut rufen oder hier tippen:' : 'Schau auf den Hauptscreen und rate! Laut rufen oder hier tippen:'}</p>
           <form className="row" onSubmit={(e) => { e.preventDefault(); if (guess.trim()) { act(send, { k: 'tipp', text: guess }); setGuess(''); } }}>
             <input className="input" style={{ flex: 1 }} value={guess} maxLength={40} onChange={(e) => setGuess(e.target.value)} placeholder="Dein Tipp" disabled={inner.stage !== 'laeuft'} />
             <button className="btn green" type="submit" disabled={inner.stage !== 'laeuft'}>Raten</button>
@@ -329,7 +453,8 @@ function MalPlayer({ v, send, inner }: { v: PlayerView; send: Send; inner: any }
           {inner.guesses.slice(-4).map((g: any, i: number) => <p key={i} className="small center">{g.name}: {g.text} {g.ok ? '✔' : ''}</p>)}
         </>
       )}
-      {inner.role === 'zuschauer' && <p className="center">Das andere Team ist dran. Schau auf den Hauptscreen!</p>}
+      {inner.role === 'zuschauer' && <p className="center">Das andere Team ist dran.{inner.strokes ? '' : ' Schau auf den Hauptscreen!'}</p>}
+      {inner.role === 'zuschauer' && inner.guesses.slice(-3).map((g: any, i: number) => <p key={i} className="small center">{g.name}: {g.text} {g.ok ? '✔' : ''}</p>)}
       {inner.stage === 'laeuft' && <Timer v={v} until={inner.until} total={v.settings.timer.montagsmaler} />}
       <div className="row center">{inner.correct.map((c: any, i: number) => <span key={i} className="chip">{c.label}: {c.n}</span>)}</div>
     </div>

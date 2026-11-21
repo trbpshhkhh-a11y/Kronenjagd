@@ -33,3 +33,33 @@ export function makeTeams<P>(rng: Rng, players: readonly P[], mode: TeamMode, la
   }
   return teams;
 }
+
+/**
+ * Wie makeTeams, verteilt aber zuerst die Menschen gleichmäßig auf die Teams
+ * (damit möglichst jedes Team mindestens einen Menschen hat) und füllt dann mit Bots auf.
+ */
+export function makeTeamsHumansFirst<P>(rng: Rng, players: readonly P[], mode: TeamMode, isHuman: (p: P) => boolean, label: (p: P) => string = String): Team<P>[] {
+  const shape = makeTeams(rng, players, mode, label);
+  if (mode === 'einzel') return shape;
+  const humans = shuffle(rng, players.filter(isHuman));
+  const bots = shuffle(rng, players.filter((p) => !isHuman(p)));
+  const sizes = shape.map((t) => t.members.length);
+  const teams: Team<P>[] = shape.map((t) => ({ name: t.name, members: [] }));
+  let ti = 0;
+  for (const h of humans) {
+    // reihum auf Teams mit freiem Platz
+    for (let k = 0; k < teams.length; k++) {
+      const idx = (ti + k) % teams.length;
+      if (teams[idx].members.length < sizes[idx]) {
+        teams[idx].members.push(h);
+        ti = idx + 1;
+        break;
+      }
+    }
+  }
+  for (const b of bots) {
+    const idx = teams.findIndex((t, i) => t.members.length < sizes[i]);
+    teams[idx].members.push(b);
+  }
+  return teams;
+}

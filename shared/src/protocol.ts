@@ -3,9 +3,16 @@ import type { HostAction, PlayerAction } from './mode2/engine';
 import type { HostView, PlayerView } from './mode2/views';
 import type { Settings } from './mode2/types';
 import type { Stroke } from './mode2/minigames';
+import type { BotLevel } from './mode2/constants';
 
 export type ClientMessage =
   | { t: 'create' }
+  /** Lobby ohne Hauptscreen erstellen: dieses Gerät spielt mit und leitet die Lobby */
+  | { t: 'createPlay'; name: string }
+  /** Als Hauptscreen einer bestehenden Lobby beitreten (auch nach dem Start) */
+  | { t: 'joinScreen'; code: string }
+  | { t: 'addBot'; level?: BotLevel }
+  | { t: 'botLevel'; playerId: string; level: BotLevel }
   | { t: 'resumeHost'; code: string; token: string }
   | { t: 'join'; code: string; name: string }
   | { t: 'resume'; code: string; token: string }

@@ -1,34 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
-import { HostView, GAMES, GameId, TIMER_LABELS, TimerSettings, CARD_TEXT, Stroke } from '@kronen/shared';
+import { useEffect, useState } from 'react';
+import { HostView } from '@kronen/shared';
 import { useConnection } from '../connection';
-import { useRoute, go, absoluteUrl } from '../../lib/router';
+import { useRoute, go } from '../../lib/router';
 import { useWakeLock } from '../../lib/hooks';
-import { Stage, BoardLayer, CrownTable, statusText, useLeft, playerName, playerOf, useToast } from '../common';
-import { QR } from '../../components/QR';
-import { Stepper, Die, Dot, FieldBadge, Confirm } from '../../components/ui';
+import { load, save } from '../../lib/storage';
+import { Stage, BoardLayer, CrownTable, statusText, useLeft, playerName, playerOf, useToast, usePortrait, displayName, tokenLetter } from '../common';
+import { Die, Dot, FieldBadge, Confirm } from '../../components/ui';
 import { CrownSvg, TokenSvg } from '../../components/icons';
 import { Snow, Confetti } from '../../components/Decor';
 import { SlotRoller, FIELD_NUMBERS } from '../../components/Roller';
 import { HostMini } from './HostMini';
 import { EventCardScene } from '../../components/EventCard';
+import { emitStroke } from '../LiveDrawing';
+import { PlayerManager, LobbySettings, JoinCode } from '../LobbyParts';
 
 export default function HostApp() {
   const r = useRoute();
   const create = r.query.get('neu') === '1';
-  const strokeListeners = useRef(new Set<(s: Stroke) => void>());
-  const conn = useConnection<HostView>('host', { create, onStroke: (s) => strokeListeners.current.forEach((f) => f(s)) });
+  const joinCode = r.query.get('c') ?? undefined;
+  const conn = useConnection<HostView>('host', { create, joinScreen: joinCode, onStroke: emitStroke });
   useWakeLock(true);
   useEffect(() => {
-    if (create && conn.session) history.replaceState(null, '', '#/host');
-  }, [create, conn.session]);
+    if ((create || joinCode) && conn.session) history.replaceState(null, '', '#/host');
+  }, [create, joinCode, conn.session]);
   const v = conn.view;
   return (
     <div className="host-root">
-      <div className="rotate-hint">
-        <div style={{ fontSize: '4rem' }}>🔄</div>
-        <h2>Bitte Gerät drehen</h2>
-        <p>Der Hauptscreen ist für das Querformat gemacht.</p>
-      </div>
       <Stage>
         <Snow count={30} edgeOnly />
         {conn.closed && !v ? (
@@ -41,23 +38,43 @@ export default function HostApp() {
           <Centered>
             <h1 className="gold">Verbinde …</h1>
             {conn.status !== 'open' && <p>Server wird gesucht …</p>}
-            {!create && !conn.session && <button className="btn big" onClick={() => go('/host?neu=1')}>Neue Lobby erstellen</button>}
+            {conn.error && <p className="err">{conn.error}</p>}
+            {(conn.error || (!create && !joinCode && !conn.session)) && <button className="btn big" onClick={() => go('/nur-app')}>Zurück</button>}
           </Centered>
         ) : !v.started ? (
           <Lobby v={v} send={conn.send} error={conn.error} clearError={conn.clearError} onClose={() => { conn.send({ t: 'close' }); conn.forget(); go('/nur-app'); }} />
         ) : (
-          <Game v={v} send={conn.send} strokeListeners={strokeListeners.current} onExit={() => { conn.send({ t: 'close' }); conn.forget(); go('/'); }} />
+          <Game v={v} send={conn.send} onExit={() => { conn.forget(); go('/'); }} />
         )}
         {conn.status !== 'open' && v && (
-          <div className="badge red" style={{ position: 'absolute', bottom: 16, right: 16, fontSize: 24 }}>Verbindung wird wiederhergestellt …</div>
+          <div className="badge red" style={{ position: 'absolute', bottom: 16, right: 16, fontSize: 24, zIndex: 50 }}>Verbindung wird wiederhergestellt …</div>
         )}
       </Stage>
+      <PortraitTip />
+    </div>
+  );
+}
+
+/** Kleiner, schließbarer Hinweis im Hochformat */
+function PortraitTip() {
+  const [hidden, setHidden] = useState(() => load('kj_hochformat_tipp', false));
+  const [portrait, setPortrait] = useState(window.innerHeight > window.innerWidth);
+  useEffect(() => {
+    const on = () => setPortrait(window.innerHeight > window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  if (!portrait || hidden) return null;
+  return (
+    <div className="portrait-tip badge">
+      🔄 Im Querformat sieht es am besten aus
+      <button className="btn sm ghost" style={{ minHeight: 28, padding: '0 8px', color: 'var(--ink)', borderColor: 'var(--ink)' }} onClick={() => { setHidden(true); save('kj_hochformat_tipp', true); }} aria-label="Hinweis schließen">✕</button>
     </div>
   );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, textAlign: 'center' }}>{children}</div>;
+  return <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, textAlign: 'center', padding: 40 }}>{children}</div>;
 }
 
 type Send = ReturnType<typeof useConnection>['send'];
@@ -65,124 +82,97 @@ type Send = ReturnType<typeof useConnection>['send'];
 /* ------------------------------ Lobby ------------------------------ */
 
 function Lobby({ v, send, error, clearError, onClose }: { v: HostView; send: Send; error: string | null; clearError: () => void; onClose: () => void }) {
-  const url = absoluteUrl('/beitreten?c=' + v.code);
+  const portrait = usePortrait();
   const [ask, setAsk] = useState(false);
-  const setTimer = (k: keyof TimerSettings, val: number) => send({ t: 'settings', settings: { timer: { ...v.settings.timer, [k]: val } } });
-  const toggleGame = (id: GameId) => {
-    const on = v.settings.aktiveSpiele.includes(id);
-    const list = on ? v.settings.aktiveSpiele.filter((g) => g !== id) : [...v.settings.aktiveSpiele, id];
-    send({ t: 'settings', settings: { aktiveSpiele: list } });
-  };
   useEffect(() => {
     if (!error) return;
     const t = setTimeout(clearError, 4000);
     return () => clearTimeout(t);
   }, [error, clearError]);
+  const humans = v.players.filter((p) => !p.bot).length;
+  const canStart = v.players.length >= 2 && humans >= 1;
   return (
-    <div style={{ position: 'absolute', inset: 0, padding: 40, display: 'grid', gridTemplateColumns: '560px 1fr 640px', gap: 32 }}>
+    <div style={portrait ? { padding: 40, display: 'flex', flexDirection: 'column', gap: 28 } : { position: 'absolute', inset: 0, padding: 40, display: 'grid', gridTemplateColumns: '560px 1fr 640px', gap: 32 }}>
       <div className="panel stack" style={{ alignItems: 'center', textAlign: 'center' }}>
-        <h2>Lobby-Code</h2>
-        <div className="head gold" style={{ fontSize: 132, letterSpacing: '0.12em', lineHeight: 1, textShadow: '0 6px 0 rgba(0,0,0,.4)' }}>{v.code}</div>
-        <QR text={url} size={330} />
-        <p style={{ fontSize: 24 }}>QR-Code scannen oder auf dem Handy<br />„Nur App“ → „Beitreten“ wählen und den Code eingeben.</p>
+        <JoinCode code={v.code} qrSize={portrait ? 300 : 330} big />
         <div className="grow" />
         <button className="btn ghost sm" onClick={() => setAsk(true)}>Lobby schließen</button>
       </div>
-      <div className="panel stack">
+      <div className="panel stack" style={{ fontSize: 30 }}>
         <div className="row between">
           <h2>Mitspieler ({v.players.length}/10)</h2>
           <CrownSvg size={70} />
         </div>
-        <div className="stack" style={{ gap: 12 }}>
-          {v.players.map((p) => (
-            <div key={p.id} className="list-item" style={{ fontSize: 34 }}>
-              <span style={{ width: 56, height: 64 }}><TokenSvg color={p.color} letter={p.name.slice(0, 1).toUpperCase()} /></span>
-              <span className="head grow">{p.name}</span>
-              <span className={`badge ${p.connected ? 'green' : 'gray'}`}>{p.connected ? 'verbunden' : 'getrennt'}</span>
-              <button className="btn sm red" onClick={() => send({ t: 'kick', playerId: p.id })}>Entfernen</button>
-            </div>
-          ))}
-          {v.players.length === 0 && <p style={{ fontSize: 30 }} className="muted">Noch niemand da. Scannt den QR-Code!</p>}
-        </div>
+        <PlayerManager v={v} send={send} canEdit />
         <div className="grow" />
         {error && <p className="err">{error}</p>}
-        <button className="btn red huge" disabled={v.players.length < 2} onClick={() => send({ t: 'start' })}>
-          {v.players.length < 2 ? 'Mindestens 2 Spieler nötig' : '🎲 Spiel starten'}
+        <button className="btn red huge" disabled={!canStart} onClick={() => send({ t: 'start' })}>
+          {v.players.length < 2 ? 'Mindestens 2 Spieler nötig' : humans < 1 ? 'Mindestens 1 Mensch nötig' : '🎲 Spiel starten'}
         </button>
       </div>
-      <div className="panel stack" style={{ fontSize: 22, overflow: 'hidden' }}>
+      <div className="panel stack" style={{ fontSize: 22, overflow: 'auto' }}>
         <h2>Einstellungen</h2>
-        <div className="row between"><b>Kronen zum Sieg</b><Stepper value={v.settings.kronenZumSieg} min={3} max={15} onChange={(k) => send({ t: 'settings', settings: { kronenZumSieg: k } })} /></div>
-        <div className="row between"><b>Würfel</b><span className="row"><Die value={6} size="1.2em" /> 1 Würfel, Augen 1 bis 6</span></div>
-        <b>Aktive Spiele</b>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-          {GAMES.map((g) => {
-            const on = v.settings.aktiveSpiele.includes(g.id);
-            const ok = v.players.length >= g.minPlayers;
-            return (
-              <button key={g.id} className={`btn sm ${on ? 'green' : 'ghost'}`} onClick={() => toggleGame(g.id)} title={ok ? '' : `ab ${g.minPlayers} Spielern`} style={{ justifyContent: 'flex-start', opacity: ok ? 1 : 0.6 }}>
-                {on ? '✔' : '✖'} {g.name}
-              </button>
-            );
-          })}
-        </div>
-        <b>Timer (Sekunden)</b>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '2px 10px', alignItems: 'center', fontSize: 18 }}>
-          {(Object.keys(TIMER_LABELS) as (keyof TimerSettings)[]).map((k) => (
-            <TimerRow key={k} label={TIMER_LABELS[k]} value={v.settings.timer[k]} onChange={(n) => setTimer(k, n)} />
-          ))}
-        </div>
+        <LobbySettings v={v} send={send} canEdit />
       </div>
       {ask && <Confirm text="Lobby wirklich schließen?" yes="Ja, schließen" onYes={onClose} onNo={() => setAsk(false)} />}
     </div>
   );
 }
 
-function TimerRow({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
-  const step = value >= 60 ? 15 : 5;
-  return (
-    <>
-      <span>{label}</span>
-      <span className="row" style={{ gap: 4 }}>
-        <button className="btn sm" style={{ minHeight: 34, padding: '0 10px' }} onClick={() => onChange(Math.max(5, value - step))}>−</button>
-        <span className="head" style={{ minWidth: 50, textAlign: 'center' }}>{value}</span>
-        <button className="btn sm" style={{ minHeight: 34, padding: '0 10px' }} onClick={() => onChange(Math.min(600, value + step))}>+</button>
-      </span>
-    </>
-  );
-}
-
 /* ------------------------------ Spiel ------------------------------ */
 
-function Game({ v, send, strokeListeners, onExit }: { v: HostView; send: Send; strokeListeners: Set<(s: Stroke) => void>; onExit: () => void }) {
+function Game({ v, send, onExit }: { v: HostView; send: Send; onExit: () => void }) {
+  const portrait = usePortrait();
   const toast = useToast(v);
   const ph = v.phase;
   const cur = playerOf(v, v.turnPlayerId);
   const showMini = ph.k === 'minispiel' && v.mini;
-  return (
-    <div style={{ position: 'absolute', inset: 0 }}>
-      {/* Brett füllt den größten Teil der Bühne */}
-      <div style={{ position: 'absolute', top: 0, left: 200, width: 1519 }}>
-        <BoardLayer view={ph.k === 'intro' ? { ...v, players: v.players.map((p) => ({ ...p, pos: 0 })) } : v} highlight={ph.k === 'intro' ? null : v.turnPlayerId} jump={ph.k === 'karte'} previews={ph.k === 'richtung' ? ph.options : undefined} />
-      </div>
-      <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 20, fontSize: 26 }}>
-        <CrownTable view={ph.k === 'intro' ? { ...v, turnPlayerId: null } : v} />
-      </div>
-      <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 20 }} className="badge" title="Lobby-Code">Code {v.code}</div>
-      {/* Statusleiste */}
-      <div className="panel dark" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, height: 112, zIndex: 20, display: 'flex', alignItems: 'center', gap: 24, padding: '8px 28px' }}>
-        {cur && <span style={{ width: 60, height: 70 }}><TokenSvg color={cur.color} letter={cur.name[0]?.toUpperCase() ?? '?'} /></span>}
-        <span className="head grow" style={{ fontSize: 40 }}>{statusText(v)}</span>
-        {cur && cur.bonus > 0 && ph.k === 'wuerfeln' && <span className="badge green" style={{ fontSize: 30 }}>+{cur.bonus} Bonus</span>}
-        {ph.k === 'gewuerfelt' && <Die value={ph.k === 'gewuerfelt' ? ph.wurf : 1} size="52px" />}
-        {ph.k === 'richtung' && <DirTimer v={v} until={ph.until} />}
-      </div>
-      {toast && <div className={`toast ${toast.kind}`}>{toast.text}</div>}
+  const boardView = ph.k === 'intro' ? { ...v, players: v.players.map((p) => ({ ...p, pos: 0 })) } : v;
+  const board = <BoardLayer view={boardView} highlight={ph.k === 'intro' ? null : v.turnPlayerId} jump={ph.k === 'karte'} previews={ph.k === 'richtung' ? ph.options : undefined} />;
+  const status = (
+    <div className="panel dark" style={portrait ? { display: 'flex', alignItems: 'center', gap: 20, padding: '12px 24px' } : { position: 'absolute', left: 16, right: 16, bottom: 8, height: 112, zIndex: 20, display: 'flex', alignItems: 'center', gap: 24, padding: '8px 28px' }}>
+      {cur && <span style={{ width: 60, height: 70, flexShrink: 0 }}><TokenSvg color={cur.color} letter={tokenLetter(cur)} /></span>}
+      <span className="head grow" style={{ fontSize: portrait ? 36 : 40 }}>{statusText(v)}</span>
+      {cur && cur.bonus > 0 && ph.k === 'wuerfeln' && <span className="badge green" style={{ fontSize: 30 }}>+{cur.bonus} Bonus</span>}
+      {ph.k === 'gewuerfelt' && <Die value={ph.wurf} size="52px" />}
+      {ph.k === 'richtung' && <DirTimer v={v} until={ph.until} />}
+    </div>
+  );
+  const table = <CrownTable view={ph.k === 'intro' ? { ...v, turnPlayerId: null } : v} />;
+  const overlays = (
+    <>
+      {toast && <div className={`toast ${toast.kind}`} style={portrait ? { whiteSpace: 'normal', maxWidth: 1000, textAlign: 'center' } : undefined}>{toast.text}</div>}
       {ph.k === 'intro' && <Intro v={v} send={send} />}
       {ph.k === 'gewuerfelt' && <DiceOverlay v={v} />}
       {(ph.k === 'karteZiehen' || ph.k === 'karte') && <CardOverlay v={v} />}
-      {showMini && <HostMini v={v} send={send} strokeListeners={strokeListeners} />}
+      {showMini && <HostMini v={v} send={send} />}
       {ph.k === 'sieg' && <Victory v={v} send={send} onExit={onExit} />}
+    </>
+  );
+  if (portrait) {
+    return (
+      <div style={{ position: 'relative', minHeight: 'inherit' }}>
+        <div className="row between" style={{ padding: '16px 20px 8px' }}>
+          <span className="head gold" style={{ fontSize: 40 }}>Kronen sammeln</span>
+          <span className="badge" style={{ fontSize: 26 }}>Code {v.code}</span>
+        </div>
+        <div style={{ width: 1080 }}>{board}</div>
+        <div className="stack" style={{ padding: 20, gap: 20, fontSize: 30 }}>
+          {status}
+          {table}
+        </div>
+        {overlays}
+      </div>
+    );
+  }
+  return (
+    <div style={{ position: 'absolute', inset: 0 }}>
+      {/* Brett füllt den größten Teil der Bühne */}
+      <div style={{ position: 'absolute', top: 0, left: 200, width: 1519 }}>{board}</div>
+      <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 20, fontSize: 26 }}>{table}</div>
+      <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 20 }} className="badge" title="Lobby-Code">Code {v.code}</div>
+      {status}
+      {overlays}
     </div>
   );
 }
@@ -192,15 +182,17 @@ function DirTimer({ v, until }: { v: HostView; until: number }) {
   return <span className="head" style={{ fontSize: 40 }}>⏱ {left}</span>;
 }
 
-function Overlay({ children, dim = 0.6 }: { children: React.ReactNode; dim?: number }) {
+export function Overlay({ children, dim = 0.6 }: { children: React.ReactNode; dim?: number }) {
+  const portrait = usePortrait();
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 30, background: `rgba(15,7,2,${dim})`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 30, animation: 'fade .3s' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 30, background: `rgba(15,7,2,${dim})`, display: 'flex', alignItems: 'center', justifyContent: portrait ? 'flex-start' : 'center', flexDirection: 'column', gap: 30, animation: 'fade .3s', overflowY: 'auto', padding: portrait ? '60px 30px' : 0, textAlign: 'center' }}>
       {children}
     </div>
   );
 }
 
 function Intro({ v, send }: { v: HostView; send: Send }) {
+  const portrait = usePortrait();
   const [step, setStep] = useState(0);
   const players = v.players;
   const orderDone = step > players.length;
@@ -214,10 +206,10 @@ function Intro({ v, send }: { v: HostView; send: Send }) {
     <Overlay dim={0.7}>
       <h1 className="gold">{orderDone ? 'Die Reihenfolge' : 'Startfelder werden ausgelost'}</h1>
       {!orderDone ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 340px)', gap: 20, width: 1600, justifyContent: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 340px)', gap: 20, width: portrait ? '100%' : 1600, justifyContent: 'center' }}>
           {players.map((p, i) => (
             <div key={p.id} className="panel row between" style={{ opacity: i <= step ? 1 : 0.35, fontSize: 30 }}>
-              <span className="row"><Dot color={p.color} /> <b>{p.name}</b></span>
+              <span className="row"><Dot color={p.color} /> <b>{displayName(p)}</b></span>
               {i < step ? <FieldBadge n={p.start} /> : i === step ? <SlotRoller options={FIELD_NUMBERS} final={p.start} duration={1000} render={(x) => x} style={{ minWidth: 0, padding: '0 14px' }} onDone={() => setTimeout(() => setStep((s) => s + 1), 300)} /> : <span className="field">?</span>}
             </div>
           ))}
@@ -229,8 +221,8 @@ function Intro({ v, send }: { v: HostView; send: Send }) {
             return (
               <div key={id} className="panel stack" style={{ alignItems: 'center', animation: `cardIn .4s ${i * 0.25}s both`, fontSize: 30 }}>
                 <span className="head gold" style={{ fontSize: 50 }}>{i + 1}.</span>
-                <span style={{ width: 70, height: 80 }}><TokenSvg color={p.color} letter={p.name[0].toUpperCase()} /></span>
-                <b>{p.name}</b>
+                <span style={{ width: 70, height: 80 }}><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
+                <b>{displayName(p)}</b>
               </div>
             );
           })}
@@ -266,14 +258,15 @@ function DiceOverlay({ v }: { v: HostView }) {
 }
 
 function CardOverlay({ v }: { v: HostView }) {
+  const portrait = usePortrait();
   const ph = v.phase;
   const name = playerName(v, v.turnPlayerId);
   const feld = ph.k === 'karte' && !!ph.feld;
   return (
     <Overlay dim={0.55}>
-      <div className="row" style={{ gap: 70, alignItems: 'center' }}>
+      <div className={portrait ? 'stack' : 'row'} style={{ gap: 70, alignItems: 'center' }}>
         <EventCardScene
-          width={feld ? 380 : 330}
+          width={feld ? 380 : portrait ? 300 : 330}
           card={ph.k === 'karte' ? ph.card : null}
           feld={feld}
           ziel={ph.k === 'karte' ? ph.ziel : undefined}
@@ -282,10 +275,10 @@ function CardOverlay({ v }: { v: HostView }) {
         />
         <div className="panel dark stack" style={{ maxWidth: 560, fontSize: 36 }}>
           <h2 className="gold">{name}</h2>
-          {ph.k === 'karteZiehen' && <p>zieht auf dem Handy eine Ereigniskarte …</p>}
+          {ph.k === 'karteZiehen' && <p>zieht eine Ereigniskarte …</p>}
           {feld && ph.k === 'karte' && ph.stage !== 'fertig' && <p>ist auf einem gelben Feld gelandet und darf die Position mit einem Mitspieler tauschen.</p>}
-          {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'tausch' && <p>wählt auf dem Handy, mit wem getauscht wird …</p>}
-          {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'spielWahl' && <p>sucht auf dem Handy ein Minispiel aus …</p>}
+          {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'tausch' && <p>wählt, mit wem getauscht wird …</p>}
+          {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'spielWahl' && <p>sucht ein Minispiel aus …</p>}
           {ph.k === 'karte' && ph.stage === 'fertig' && ph.card === 'tausch' && ph.info && <p>tauscht mit {ph.info}!</p>}
         </div>
       </div>
@@ -302,11 +295,11 @@ function Victory({ v, send, onExit }: { v: HostView; send: Send; onExit: () => v
       <Confetti duration={7000} />
       <Confetti duration={7000} gold />
       <CrownSvg size={260} big className="crown-big" />
-      <h1 className="gold" style={{ fontSize: 130 }}>{w?.name} gewinnt!</h1>
+      <h1 className="gold" style={{ fontSize: 130 }}>{w ? displayName(w) : '?'} gewinnt!</h1>
       <p className="head" style={{ fontSize: 48 }}>mit {w?.kronen} Kronenpunkten</p>
       <div className="row center" style={{ gap: 20 }}>
         {[...v.players].sort((a, b) => b.kronen - a.kronen).map((p, i) => (
-          <span key={p.id} className="chip" style={{ fontSize: 30 }}>{i + 1}. <Dot color={p.color} /> {p.name} · {p.kronen} 👑</span>
+          <span key={p.id} className="chip" style={{ fontSize: 30 }}>{i + 1}. <Dot color={p.color} /> {displayName(p)} · {p.kronen} 👑</span>
         ))}
       </div>
       <div className="row center" style={{ gap: 24 }}>
@@ -316,4 +309,3 @@ function Victory({ v, send, onExit }: { v: HostView; send: Send; onExit: () => v
     </Overlay>
   );
 }
-

@@ -2,7 +2,9 @@ import {
   CODE_ALPHABET, CODE_LENGTH, normalizeCode, createGameState, addPlayer, GameState, GameError, setConnected, removePlayer, cryptoRng, Rng,
 } from '@kronen/shared';
 
-export const HOST_ABWESEND_MS = 10 * 60 * 1000;
+
+export const HOST_ABWESEND_MS = 10 * 60 * 1000; // Lobby bleibt 10 Minuten bestehen, wenn niemand mehr da ist
+export const LEER_LOESCHEN_MS = HOST_ABWESEND_MS;
 export const INAKTIV_MS = 4 * 60 * 60 * 1000;
 export const RATE_LIMIT_FEHLVERSUCHE = 8;
 export const RATE_LIMIT_FENSTER_MS = 60 * 1000;
@@ -16,6 +18,8 @@ export interface Lobby {
   /** token -> playerId */
   tokens: Map<string, string>;
   lastBroadcastVersion: number;
+  /** seit wann weder Hauptscreen noch ein Mensch verbunden ist */
+  emptySince: number | null;
 }
 
 export class LobbyError extends Error {
@@ -53,16 +57,17 @@ export class LobbyManager {
     return randomString(this.rng, 'abcdefghijklmnopqrstuvwxyz0123456789', 32);
   }
 
-  create(): Lobby {
+  create(screenMode = true): Lobby {
     const code = this.newCode();
     const lobby: Lobby = {
       code,
-      state: createGameState(code, this.now()),
+      state: createGameState(code, this.now(), { screenMode }),
       hostToken: this.newToken(),
       hostConnections: 0,
       hostDisconnectedAt: null,
       tokens: new Map(),
       lastBroadcastVersion: 0,
+      emptySince: null,
     };
     this.lobbies.set(code, lobby);
     return lobby;
@@ -89,14 +94,18 @@ export class LobbyManager {
     return this.lobbies.get(normalizeCode(code));
   }
 
-  join(rawCode: string, name: string, rateKey: string): { lobby: Lobby; playerId: string; token: string } {
-    this.checkRate(rateKey);
-    const lobby = this.get(rawCode);
-    if (!lobby) {
-      this.fail(rateKey);
-      throw new LobbyError('bad_code', 'Diese Lobby gibt es nicht (mehr). Bitte prüfe den Code.');
+  /** Lobby ohne Hauptscreen: Der Ersteller spielt mit und leitet die Lobby. */
+  createAsPlayer(name: string): { lobby: Lobby; playerId: string; token: string } {
+    const lobby = this.create(false);
+    try {
+      return this.addHuman(lobby, name);
+    } catch (e) {
+      this.lobbies.delete(lobby.code);
+      throw e;
     }
-    if (lobby.state.started) throw new LobbyError('bad_code', 'Das Spiel in dieser Lobby hat schon begonnen. Neue Spieler können nicht mehr beitreten.');
+  }
+
+  private addHuman(lobby: Lobby, name: string) {
     const token = this.newToken();
     const playerId = 'p' + randomString(this.rng, 'abcdefghijkmnpqrstuvwxyz23456789', 8);
     try {
@@ -107,6 +116,28 @@ export class LobbyManager {
     }
     lobby.tokens.set(token, playerId);
     return { lobby, playerId, token };
+  }
+
+  /** Als Hauptscreen beitreten – auch nach dem Start erlaubt */
+  joinScreen(rawCode: string, rateKey: string): Lobby {
+    this.checkRate(rateKey);
+    const lobby = this.get(rawCode);
+    if (!lobby) {
+      this.fail(rateKey);
+      throw new LobbyError('bad_code', 'Diese Lobby gibt es nicht (mehr). Bitte prüfe den Code.');
+    }
+    return lobby;
+  }
+
+  join(rawCode: string, name: string, rateKey: string): { lobby: Lobby; playerId: string; token: string } {
+    this.checkRate(rateKey);
+    const lobby = this.get(rawCode);
+    if (!lobby) {
+      this.fail(rateKey);
+      throw new LobbyError('bad_code', 'Diese Lobby gibt es nicht (mehr). Bitte prüfe den Code.');
+    }
+    if (lobby.state.started) throw new LobbyError('bad_code', 'Das Spiel in dieser Lobby hat schon begonnen. Neue Spieler können nicht mehr beitreten.');
+    return this.addHuman(lobby, name);
   }
 
   resume(rawCode: string, token: string): { lobby: Lobby; playerId: string } {
@@ -124,13 +155,13 @@ export class LobbyManager {
 
   leave(lobby: Lobby, playerId: string) {
     if (!lobby.state.started) {
-      removePlayer(lobby.state, playerId);
+      removePlayer(lobby.state, playerId, this.now());
       for (const [t, id] of lobby.tokens) if (id === playerId) lobby.tokens.delete(t);
     } else setConnected(lobby.state, playerId, false, this.now());
   }
 
   kick(lobby: Lobby, playerId: string) {
-    removePlayer(lobby.state, playerId);
+    removePlayer(lobby.state, playerId, this.now());
     for (const [t, id] of lobby.tokens) if (id === playerId) lobby.tokens.delete(t);
   }
 
@@ -148,14 +179,24 @@ export class LobbyManager {
     this.lobbies.delete(code);
   }
 
-  /** Abgelaufene Lobbys entfernen. Gibt die entfernten Codes zurück. */
+  /** Ist noch ein Mensch oder Hauptscreen da? */
+  hasPresence(l: Lobby): boolean {
+    return l.hostConnections > 0 || l.state.players.some((p) => !p.bot && p.connected);
+  }
+
+  /**
+   * Abgelaufene Lobbys entfernen: wenn 10 Minuten lang weder Hauptscreen noch ein Mensch
+   * verbunden war, oder nach 4 Stunden ohne Aktivität. Gibt die entfernten Codes zurück.
+   */
   cleanup(): string[] {
     const now = this.now();
     const removed: string[] = [];
     for (const [code, l] of this.lobbies) {
-      const hostGone = l.hostConnections === 0 && l.hostDisconnectedAt !== null && now - l.hostDisconnectedAt > HOST_ABWESEND_MS;
+      if (this.hasPresence(l)) l.emptySince = null;
+      else if (l.emptySince === null) l.emptySince = now;
+      const empty = l.emptySince !== null && now - l.emptySince > LEER_LOESCHEN_MS;
       const inactive = now - l.state.lastActivity > INAKTIV_MS;
-      if (hostGone || inactive) {
+      if (empty || inactive) {
         this.lobbies.delete(code);
         removed.push(code);
       }

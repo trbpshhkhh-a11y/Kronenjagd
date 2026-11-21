@@ -162,3 +162,24 @@ export function moveOptions(pos: number, prev: number | null, steps: number, boa
     return { key: `n${first}`, first, path, target: path[path.length - 1], final: path.length >= steps, label: d.label, arrow: d.arrow };
   });
 }
+
+/** Kürzeste Anzahl Schritte von `from` zu einem der Zielfelder (Infinity, wenn keins erreichbar). */
+export function distanceToNearest(from: number, targets: number[], board: Board = BOARD): number {
+  const goal = new Set(targets);
+  if (goal.size === 0) return Infinity;
+  if (goal.has(from)) return 0;
+  const seen = new Set([from]);
+  let frontier = [from];
+  for (let d = 1; frontier.length; d++) {
+    const next: number[] = [];
+    for (const f of frontier)
+      for (const n of neighbors(f, board)) {
+        if (seen.has(n)) continue;
+        if (goal.has(n)) return d;
+        seen.add(n);
+        next.push(n);
+      }
+    frontier = next;
+  }
+  return Infinity;
+}

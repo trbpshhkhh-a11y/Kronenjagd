@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LobbyManager, HOST_ABWESEND_MS, INAKTIV_MS, RATE_LIMIT_FEHLVERSUCHE } from '../src/lobbies';
-import { seededRng, CODE_ALPHABET, startGame, setConnected } from '@kronen/shared';
+import { seededRng, CODE_ALPHABET, startGame, setConnected, addBot, canLead } from '@kronen/shared';
 
 function mk() {
   const clock = { now: 1_000_000 };
@@ -82,4 +82,41 @@ describe('Lobby-Codes', () => {
     expect(l.state.players).toHaveLength(0);
     expect(() => m.resume(l.code, a.token)).toThrow();
   });
+
+  it('Lobby ohne Hauptscreen: Ersteller spielt mit und leitet', () => {
+    const { m } = mk();
+    const { lobby, playerId, token } = m.createAsPlayer('Anna');
+    expect(lobby.state.screenMode).toBe(false);
+    expect(lobby.state.hostConnected).toBe(false);
+    expect(lobby.state.leaderId).toBe(playerId);
+    expect(canLead(lobby.state, playerId)).toBe(true);
+    expect(m.resume(lobby.code, token).playerId).toBe(playerId);
+    const b = m.join(lobby.code, 'Ben', 'ip2');
+    expect(canLead(lobby.state, b.playerId)).toBe(false);
+    expect(() => m.createAsPlayer('X')).toThrow(/2 bis 14/);
+  });
+
+  it('Hauptscreen kann sich auch nach dem Start dazuschalten, Spieler nicht', () => {
+    const { m, clock } = mk();
+    const { lobby } = m.createAsPlayer('Anna');
+    addBot(lobby.state, 'mittel');
+    startGame(lobby.state, { rng: seededRng(1), now: clock.now });
+    expect(() => m.join(lobby.code, 'Ben', 'ip')).toThrow(/begonnen/);
+    expect(m.joinScreen(lobby.code.toLowerCase(), 'ip').code).toBe(lobby.code);
+    expect(() => m.joinScreen('ZZZZZ', 'ip')).toThrow(/gibt es nicht/);
+  });
+
+  it('Lobby bleibt bestehen, solange ein Mensch verbunden ist, sonst nach 10 Minuten weg', () => {
+    const { m, clock } = mk();
+    const { lobby, playerId } = m.createAsPlayer('Anna');
+    clock.now += HOST_ABWESEND_MS * 2;
+    lobby.state.lastActivity = clock.now;
+    expect(m.cleanup()).toEqual([]);
+    setConnected(lobby.state, playerId, false, clock.now);
+    expect(m.cleanup()).toEqual([]);
+    clock.now += HOST_ABWESEND_MS + 1000;
+    lobby.state.lastActivity = clock.now;
+    expect(m.cleanup()).toEqual([lobby.code]);
+  });
 });
+

@@ -5,7 +5,7 @@ Web-App zum Weihnachts-Brettspiel **„Kronen sammeln“** mit zwei Spielmodi:
 | Modus | Wofür | Braucht |
 |---|---|---|
 | **🎲 Mit Spielbrett** | Ihr spielt am echten Brett. Die App ist der Spielleiter: Sie lost Startfelder, Krone, Spiele und Teams aus, zeigt Aufgaben an, erklärt die Regeln und berechnet die Bonusfelder. | nichts: reine statische Seite, offline nutzbar (PWA) |
-| **📺📱 Nur App** | Das ganze Spiel läuft in der App. Ein Fernseher oder Monitor (Querformat) zeigt das Brett, jeder Mitspieler steuert mit seinem Handy. | Internet + den kleinen Spielserver aus diesem Repo |
+| **📺📱 Nur App** | Das ganze Spiel läuft in der App. Jeder steuert mit seinem Handy. Optional zeigt ein Fernseher, Tablet oder Monitor das Brett als Hauptscreen. Fehlen Mitspieler, spielen Bots mit – man kann auch allein gegen Bots spielen. | Internet + den kleinen Spielserver aus diesem Repo |
 
 Die Oberfläche ist komplett auf Deutsch, im Look des Spielbretts (Holz, Weihnachtsrot, Tannengrün, Gold), mit großer Schrift für Fernseher und großen Touch-Flächen.
 
@@ -83,14 +83,23 @@ Optional kannst du unter **Settings → Secrets and variables → Actions → Va
 Der Spielstand liegt im `localStorage`. Versehentliches Neuladen schadet also nicht.
 
 ### Modus 2 – Nur App
-1. Auf dem Fernseher/Laptop: **Nur App → Neue Lobby erstellen**. Es erscheinen ein 5-stelliger Code und ein QR-Code.
-2. Auf jedem Handy: QR-Code scannen oder **Nur App → Beitreten**, Code und Namen eingeben.
-3. Der Hauptscreen stellt Kronen zum Sieg, aktive Spiele und Timer ein und startet das Spiel (2 bis 10 Spieler).
-4. Wer dran ist, würfelt auf dem Handy und wählt die Richtung so, wie sie auf dem Brett aussieht (z. B. „nach oben“, „nach rechts“). Die Feldnummern sind nur Orientierung. Kommt die Figur an eine **Abzweigung**, entscheidet der Spieler dort neu, wohin die restlichen Felder gehen. Der Brettausschnitt auf dem Handy lässt sich bis zum ganzen Brett herauszoomen („🗺 Ganzes Brett“), damit man sieht, wo die Kronen liegen.
-5. Es liegen immer **2 Kronen** auf dem Brett (30 % Chance auf eine **große Krone** mit 2 Punkten). Wer auf einer Krone landet oder über sie hinwegzieht, bekommt sie.
-6. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird auf dem Handy vom Stapel gezogen und auf dem Fernseher aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder für den nächsten Zug).
+**Lobby erstellen** (Nur App → Neue Lobby erstellen) – zwei Möglichkeiten:
+- **Ich spiele mit:** Namen eingeben, fertig. Es gibt keinen Hauptscreen, jeder sieht alles auf seinem Handy. Du leitest die Lobby (Einstellungen, Bots, Start). Verlässt du die Lobby oder bist länger als 60 Sekunden weg, übernimmt automatisch der nächste verbundene Mitspieler.
+- **Dieses Gerät ist der Hauptscreen:** Fernseher, Tablet oder Laptop zeigt das Brett für alle und spielt selbst nicht mit. Am schönsten im Querformat, das Hochformat geht aber auch.
 
-Verliert ein Handy die Verbindung (Bildschirm gesperrt, WLAN-Wechsel), verbindet es sich automatisch wieder. Wer länger als 60 Sekunden weg ist und dran wäre, wird übersprungen. Schließt der Hauptscreen versehentlich, bleibt die Lobby 10 Minuten bestehen.
+Ein Hauptscreen kann sich auch **nachträglich dazuschalten**, sogar während des Spiels: Auf dem Gerät „Nur App → Beitreten“, Code eingeben und „Als Hauptscreen beitreten“ tippen. Fällt er wieder weg, läuft das Spiel auf den Handys weiter.
+
+**Mitspieler:** QR-Code scannen oder „Nur App → Beitreten“, Code und Namen eingeben. Insgesamt 2 bis 10 Spieler, mindestens 1 Mensch.
+
+**Bots:** Die Lobby-Leitung tippt „🤖 Bot hinzufügen“ und wählt die Schwierigkeit (leicht, mittel, schwer, auch nachträglich änderbar). Bots spielen ganz normal mit: Sie würfeln, wählen Richtungen (schwere Bots steuern gezielt Kronen an), ziehen Karten und spielen Minispiele. Sie handeln mit kurzer Verzögerung, damit man zusehen kann. Bots schummeln nicht: Sie sehen nur, was ein Mensch in ihrer Rolle auch sieht. Wie oft sie richtig liegen, hängt von der Schwierigkeit ab. Bots können nicht zeichnen und nicht erklären. Bei Montagsmaler, Stirnraten und Begriffe erklären sind sie deshalb nur Rater, und diese Spiele kommen nur, wenn genug Menschen dabei sind.
+
+**Spielablauf:**
+1. Wer dran ist, würfelt auf dem Handy und wählt die Richtung so, wie sie auf dem Brett aussieht (z. B. „nach oben“, „nach rechts“). Die Feldnummern sind nur Orientierung. Kommt die Figur an eine **Abzweigung**, entscheidet der Spieler dort neu, wohin die restlichen Felder gehen. Der Brettausschnitt auf dem Handy lässt sich bis zum ganzen Brett herauszoomen („🗺 Ganzes Brett“), damit man sieht, wo die Kronen liegen.
+2. Es liegen immer **2 Kronen** auf dem Brett (30 % Chance auf eine **große Krone** mit 2 Punkten). Wer auf einer Krone landet oder über sie hinwegzieht, bekommt sie.
+3. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird vom Stapel gezogen und aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder für den nächsten Zug).
+4. Ohne Hauptscreen zeigt jedes Handy zusätzlich die Kronentafel, den Würfel, die Ereigniskarte und in den Minispielen alles, was sonst der Fernseher zeigt (Aufgaben, Bild bei „Gegenstände merken“, Zeichnung beim Montagsmaler live, Ranglisten). Geheime Inhalte bleiben geheim.
+
+Verliert ein Handy die Verbindung (Bildschirm gesperrt, WLAN-Wechsel), verbindet es sich automatisch wieder. Wer länger als 60 Sekunden weg ist und dran wäre, wird übersprungen. Die Lobby bleibt bestehen, solange ein Mensch oder Hauptscreen verbunden ist, und danach noch 10 Minuten.
 
 ---
 
@@ -102,6 +111,7 @@ shared/                      Gemeinsame Typen + komplette Spiellogik (reine Funk
   src/content/               Inhalte-Pools (Schätzfragen, Wissen, Begriffe, Kategorien, Gegenstände)
   src/mode2/engine.ts        Zustandsmaschine Modus 2 (Würfeln, Bewegen, Kronen, Karten, Minispiele)
   src/mode2/minigames.ts     Die 10 Minispiele für Modus 2
+  src/mode2/bots.ts          Bot-Entscheidungen (nur aus der eigenen Spieleransicht)
   src/mode2/views.ts         viewForHost / viewForPlayer: was welches Gerät sehen darf
   src/mode2/constants.ts     Schaltbare Regel-Annahmen (siehe unten)
   src/protocol.ts            Nachrichtenprotokoll Client ↔ Server
@@ -115,7 +125,7 @@ client/                      React + Vite + TypeScript (beide Modi, PWA)
 ```
 
 ### Inhalte erweitern
-Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Neue Einträge einfach anhängen. Innerhalb einer Sitzung wiederholt sich nichts, bis ein Pool leer ist. Dann wird er neu gemischt. Die Tests prüfen Mindestgrößen und Duplikate.
+Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Für Bots gibt es zusätzlich `slfAntworten.ts` (Antworten für Stadt Land Fluss je Kategorie) und `zahlenHinweise.ts` (Hinweisbegriffe von klein bis groß für „Zahlen erraten“). Neue Einträge einfach anhängen. Innerhalb einer Sitzung wiederholt sich nichts, bis ein Pool leer ist. Dann wird er neu gemischt. Die Tests prüfen Mindestgrößen und Duplikate.
 
 ### Feldkoordinaten / Brett austauschen
 - **`/#/dev/board-debug`** zeichnet Nummern, Feldtypen und Verbindungen über das Brettbild (Weichen pink).
@@ -126,6 +136,7 @@ Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Neue Eintr
 - `GELB_SPIELERTAUSCH` (Standard `true`)
 - `GROSSE_KRONE_CHANCE` (Standard `0.3`)
 - `SCHRITT_MS`, `GETRENNT_UEBERSPRINGEN_MS`, Spielerfarben, Standard-Timer
+- Bots: `BOT_ERFOLG` (Trefferquote je Schwierigkeit: 35 / 55 / 75 %), `BOT_GAME7_EINLOGGEN`, `BOT_VERZOEGERUNG`, `BOT_NAMEN`
 
 ### Datenschutz
 Es werden keine personenbezogenen Daten gespeichert. Lobbys existieren nur im Arbeitsspeicher des Servers und werden nach dem Spiel (spätestens nach 4 Stunden Inaktivität) gelöscht. Auf dem Gerät liegen nur der Spielstand (Modus 1) und das Wiederverbindungs-Token (Modus 2) im `localStorage`. Es gibt keine Cookies.
@@ -143,7 +154,7 @@ Vorgegebene, über Konstanten änderbare Annahmen:
 - +2 und −2 werden in Modus 2 automatisch ausgeführt, die Folgefelder lösen keine Effekte aus (Kronen werden dabei aber eingesammelt). +2 geht in Laufrichtung weiter (an einer Weiche geradeaus), −2 geht den gerade gelaufenen Weg zurück.
 - Bei Minispielen spielen **alle** mit, die Belohnung sind **Bonusfelder** für den nächsten Zug (keine Kronen).
 - Gezogen wird entlang der Strecke im Bild, nicht nach Feldnummern (siehe Hinweise zum Brett).
-- Der Host ist nur Hauptscreen und kein Mitspieler.
+- Ein Hauptscreen ist optional. Ist einer da, spielt er nicht mit.
 
 Eigene Annahmen (einfachste sinnvolle Lösung):
 - **Würfel-Einstellung:** Gespielt wird mit einem normalen Würfel (1 bis 6). In den Lobby-Einstellungen wird das nur angezeigt, nicht verändert.
@@ -161,6 +172,18 @@ Eigene Annahmen (einfachste sinnvolle Lösung):
 - **Ereigniskarten:** Läuft beim Spielertausch die Zeit ab (30 s), wird nicht getauscht. Bei „Spiel aussuchen“ wird dann aus dem Stapel gelost. Der Feldersprung kann auf jedes Feld außer dem aktuellen führen, das Zielfeld hat keinen Effekt.
 - **Kronen neu platzieren:** Eine Krone landet nie auf einem Feld, über das der ziehende Spieler im selben Zug noch läuft.
 - **Kronen zum Sieg** ist in Modus 1 von 1 bis 30 einstellbar (in Modus 2 wie vorgegeben 3 bis 15).
+
+Annahmen zu Bots und zum Spielen ohne Hauptscreen:
+- **Lobby-Leitung:** Ohne Hauptscreen leitet der Ersteller. Bei einer Hauptscreen-Lobby leitet der Hauptscreen, solange er verbunden ist; fällt er weg, übernimmt der erste verbundene Mitspieler. Die Leitung darf auch „Weiter“, „Überspringen“ und „Neue Runde“ tippen.
+- **Bot-Fähigkeiten** werden ausgewürfelt (Trefferquote je Schwierigkeit). Kopfrechenaufgaben rechnen Bots aus dem angezeigten Text aus; bei Schätzfragen schätzen sie mit zufälliger Abweichung (schwer = näher dran).
+- **Mehr Menschen nötig:** Stirnraten und Montagsmaler brauchen 2 Menschen (einen pro Team), Begriffe erklären einen Menschen pro Zweier-Team. Teams werden so gebildet, dass die Menschen zuerst auf die Teams verteilt werden.
+- **Zahlen erraten:** Hat ein Team Menschen und Bots, rät ein Bot und der Mensch ist Kenner. Besteht ein Team nur aus Bots, nennt der Bot-Kenner bis zu drei Hinweisbegriffe aus `zahlenHinweise.ts`, die alle sehen (wie laut gesagt). Ist ein Mensch Kenner und ein Bot Rater, wird die Treffsicherheit des Bots ausgewürfelt.
+- **Game of 7:** Ein Team nur aus Bots wirft virtuell. Gehört ein Mensch zum Team, wirft er den echten Ball und tippt selbst.
+- **Allgemeinwissen:** Bots übernehmen bei mittel/schwer meistens die Wahl ihres menschlichen Teampartners.
+- **Stadt Land Fluss:** Bots füllen ihre Antworten aus `slfAntworten.ts`, drücken nie „Stopp“, markieren in der Prüfphase nichts und sind sofort fertig. Für „Marke“, „Film oder Serie“ und „Sänger/in oder Band“ haben Bots keine Antworten und lassen das Feld leer.
+- **Spiel aussuchen** (Ereigniskarte): Bots wählen ein Spiel, das Bots gut spielen können.
+- **Lobby aufräumen:** Eine Lobby wird gelöscht, wenn 10 Minuten lang weder ein Mensch noch ein Hauptscreen verbunden ist (oder nach 4 Stunden ohne Aktivität). Bots halten eine Lobby nicht am Leben.
+- **Hochformat:** Der Hauptscreen ordnet im Hochformat alles untereinander an (Brett oben, darunter Status und Kronentafel). Ein schließbarer Hinweis empfiehlt das Querformat.
 
 ### Hinweise zum Spielbrett
 - Die Feldtypen im Bild stimmen mit der Vorgabe überein: grün +2 (4, 21, 30, 38), rot −2 (51, 64, 74), blau ?! (7, 14, 41, 45, 59), gelb (39, 55), lila (10, 35, 52, 57, 66, 69). Feld 23 ist normal.
