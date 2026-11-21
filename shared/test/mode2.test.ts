@@ -3,6 +3,7 @@ import {
   moveOptions, allowedNext, neighbors, BOARD, seededRng, crownValue, respawnCrown, playerAction, tick, currentPlayer,
   createGameState, addPlayer, renamePlayer, startGame, GameError, viewForHost, viewForPlayer, fieldType, fieldsOfType,
   hostAction, CARDS, newDeck, GameState, Rng, endTurn, startMinigame, setConnected, GETRENNT_UEBERSPRINGEN_MS, SCHRITT_MS,
+  relocateAllCrowns, freeCrownFields, drawCrownField, drawStartFields,
 } from '../src';
 import { setup, advance } from './helpers';
 
@@ -668,5 +669,49 @@ describe('Neue Runde', () => {
     expect(s.players).toHaveLength(3);
     expect(s.players.every((p) => p.kronen === 0)).toBe(true);
     expect(s.phase.k).toBe('intro');
+  });
+});
+
+describe('Kronen-Regel: nie auf besetzte Felder', () => {
+  it('Startkronen nie auf Startfeldern, nach Einsammeln nie auf besetzten Feldern', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { s, rng } = setup(10, seed);
+      const occ = s.players.map((p) => p.pos);
+      s.crowns.forEach((c) => expect(occ).not.toContain(c.field));
+      for (let i = 0; i < 200; i++) {
+        // Spieler zufällig auf normale Felder stellen, dann eine Krone neu auslosen
+        s.players.forEach((p) => (p.pos = 1 + Math.floor(rng() * 76)));
+        const c = s.crowns[i % 2];
+        respawnCrown(s, c.id, rng);
+        const occupied = new Set(s.players.map((p) => p.pos));
+        expect(occupied.has(c.field)).toBe(false);
+        expect(s.crowns[0].field).not.toBe(s.crowns[1].field);
+        expect(fieldType(c.field)).toBe('normal');
+      }
+    }
+  });
+  it('„Kronen neu platzieren“ meidet besetzte Felder', () => {
+    const { s, rng } = setup(10, 3);
+    for (let i = 0; i < 300; i++) {
+      s.players.forEach((p) => (p.pos = 1 + Math.floor(rng() * 76)));
+      relocateAllCrowns(s, rng);
+      const occupied = new Set(s.players.map((p) => p.pos));
+      s.crowns.forEach((c) => expect(occupied.has(c.field)).toBe(false));
+      expect(s.crowns[0].field).not.toBe(s.crowns[1].field);
+    }
+  });
+  it('freie Felder = normale Felder ohne Spieler und ohne andere Krone', () => {
+    const { s } = setup(3, 2);
+    const free = freeCrownFields(s);
+    for (const p of s.players) expect(free).not.toContain(p.pos);
+    for (const c of s.crowns) expect(free).not.toContain(c.field);
+    free.forEach((f) => expect(fieldType(f)).toBe('normal'));
+  });
+  it('Modus 1: erste Krone nie auf einem Startfeld', () => {
+    for (let seed = 0; seed < 300; seed++) {
+      const rng = seededRng(seed);
+      const starts = drawStartFields(rng, 10);
+      expect(starts).not.toContain(drawCrownField(rng, null, starts));
+    }
   });
 });

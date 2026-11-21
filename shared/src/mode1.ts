@@ -19,8 +19,12 @@ export function computeBonus(r: GameResult): Record<string, number> {
 /** Startfelder: eindeutig, 1..76 */
 export const drawStartFields = (rng: Rng, n: number) => uniqueFields(rng, n, 76);
 
-/** Neue Kronenposition, nicht dasselbe Feld wie zuvor */
-export const drawCrownField = (rng: Rng, previous: number | null) => randomField(rng, 76, previous ? [previous] : []);
+/**
+ * Neue Kronenposition: nicht dasselbe Feld wie zuvor und nicht auf ein besetztes Feld.
+ * In Modus 1 kennt die App nur die Startfelder (zu Spielbeginn), nicht die späteren Figurpositionen.
+ */
+export const drawCrownField = (rng: Rng, previous: number | null, occupied: number[] = []) =>
+  randomField(rng, 76, [...(previous ? [previous] : []), ...occupied]);
 
 /** Nächstes Spiel vom Stapel (erst wenn alle dran waren, wird neu gemischt) */
 export function drawNextGame(deck: DeckState, rng: Rng, playerCount: number): GameId | null {

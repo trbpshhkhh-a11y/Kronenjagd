@@ -217,12 +217,24 @@ export function updateSettings(s: GameState, patch: Partial<Settings>) {
 
 export const crownValue = (rng: Rng): 1 | 2 => (rng() < GROSSE_KRONE_CHANCE ? 2 : 1);
 
-/** Freies normales Feld für eine Krone. */
+/**
+ * Alle Felder, auf die eine Krone jetzt ausgelost werden darf:
+ * normale Felder, auf denen gerade kein Spieler steht und keine andere Krone liegt
+ * (dazu optional weitere ausgeschlossene Felder, z. B. das alte Kronenfeld).
+ */
+export function freeCrownFields(s: GameState, exclude: number[] = [], board: Board = BOARD): number[] {
+  const ex = new Set([...exclude, ...s.crowns.map((c) => c.field), ...s.players.map((p) => p.pos).filter((f) => f > 0)]);
+  return fieldsOfType(['normal'], board).filter((f) => !ex.has(f));
+}
+
+/** Freies normales Feld für eine Krone (zufällig aus der Liste der freien Felder, kein Neu-Würfeln). */
 export function crownField(s: GameState, rng: Rng, exclude: number[], board: Board = BOARD): number {
-  const ex = new Set([...exclude, ...s.crowns.map((c) => c.field)]);
-  const normal = fieldsOfType(['normal'], board).filter((f) => !ex.has(f));
-  if (normal.length === 0) return pick(rng, fieldsOfType(['normal'], board));
-  return pick(rng, normal);
+  const free = freeCrownFields(s, exclude, board);
+  if (free.length) return pick(rng, free);
+  // Notfall (praktisch unmöglich): nur besetzte Felder und Kronenfelder meiden
+  const fallback = freeCrownFields(s, [], board);
+  if (fallback.length) return pick(rng, fallback);
+  return pick(rng, fieldsOfType(['normal'], board));
 }
 
 /** Krone neu platzieren: neues normales Feld (nicht das alte, nicht das der anderen Krone), neuer Wert. */

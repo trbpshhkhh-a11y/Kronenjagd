@@ -168,7 +168,7 @@ function StartDraw() {
       <div className="row center">
         {!allDone && <button className="btn ghost" onClick={() => setRevealed(s.players.length)}>Überspringen</button>}
         <button className="btn gold big" disabled={!allDone} onClick={() => update((d) => {
-          d.crown = drawCrownField(cryptoRng, null);
+          d.crown = drawCrownField(cryptoRng, null, d.players.map((p) => p.start).filter((f): f is number => f !== null));
           d.phase = 'crownDraw';
         })}>👑 Weiter: Krone auslosen</button>
       </div>
