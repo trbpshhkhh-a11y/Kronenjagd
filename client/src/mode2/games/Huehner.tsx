@@ -299,7 +299,7 @@ export function HuehnerPhone({ v, send, inner }: { v: PlayerView; send: Send; in
         )}
       </div>
       <div className="hh-pad">
-        <Joystick onChange={onStick} size={Math.min(190, Math.round(window.innerHeight * 0.22))} />
+        <Joystick onChange={onStick} size={Math.min(190, Math.max(120, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.42)))} />
         <span className="small muted">Joystick oder auf die Welt tippen = vorwärts</span>
       </div>
     </div>

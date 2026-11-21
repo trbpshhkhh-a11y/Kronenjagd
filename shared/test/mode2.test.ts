@@ -650,7 +650,7 @@ describe('Minispiele & Ansichten', () => {
   });
 
   it('jedes Spiel läuft komplett durch (ohne Eingaben, nur Timer)', () => {
-    for (const game of ['game7', 'kopfrechnen', 'stirnraten', 'gegenstaende', 'slf', 'schaetzen', 'montagsmaler', 'zahlen', 'wissen', 'begriffe', 'flunker', 'huehner']) {
+    for (const game of ['game7', 'kopfrechnen', 'stirnraten', 'gegenstaende', 'slf', 'schaetzen', 'montagsmaler', 'zahlen', 'wissen', 'begriffe', 'flunker', 'huehner', 'flitzer']) {
       const { s, t, rng } = startMini(game, 5, 3);
       if (game === 'game7') hostAction(s, { t: 'beenden' }, { rng, now: t.now });
       advance(s, rng, t, 15 * 60 * 1000, 500);

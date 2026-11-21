@@ -185,7 +185,7 @@ describe('Bots im Spiel', () => {
     expect(games.size).toBeGreaterThan(0);
   });
   it('jedes Minispiel läuft mit Bots und ohne Hauptscreen durch', () => {
-    for (const game of ['game7', 'kopfrechnen', 'stirnraten', 'gegenstaende', 'slf', 'schaetzen', 'montagsmaler', 'zahlen', 'wissen', 'begriffe', 'flunker', 'huehner'] as const) {
+    for (const game of ['game7', 'kopfrechnen', 'stirnraten', 'gegenstaende', 'slf', 'schaetzen', 'montagsmaler', 'zahlen', 'wissen', 'begriffe', 'flunker', 'huehner', 'flitzer'] as const) {
       const { s, rng, t } = lobby(2, 3, { seed: 7 });
       startGame(s, { rng, now: 0 });
       advance(s, rng, t, 20000, 500);

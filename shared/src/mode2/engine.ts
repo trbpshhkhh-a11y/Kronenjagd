@@ -15,7 +15,7 @@ import {
   MAX_SPIELER, MIN_SPIELER, SPIELER_FARBEN, DEFAULT_TIMER, TimerSettings, BotLevel, BOT_LEVELS, BOT_NAMEN,
 } from './constants';
 import { CARDS, CardId, CARD_TEXT, Crown, Ctx, GameError, GameState, Player, Settings } from './types';
-import { MCtx, MiniAction, miniAction, miniDone, miniInit, miniResult, miniTick } from './minigames';
+import { MCtx, MiniAction, miniAction, miniDone, miniInit, miniResult, miniTick, miniRealtime } from './minigames';
 import { botPlan } from './bots';
 import { viewForPlayer } from './views';
 
@@ -482,6 +482,13 @@ function mctx(s: GameState, ctx: Ctx): MCtx {
   return { ...ctx, s, teams: s.mini?.teams ?? [], noScreen: !s.hostConnected };
 }
 
+/** Echtzeit-Minispiel (Autorennen) weiterrechnen – liefert einen Schnappschuss zum Verteilen oder null */
+export function realtimeTick(s: GameState, ctx: Ctx): unknown | null {
+  const m = s.mini;
+  if (!m || m.stage !== 'spiel') return null;
+  return miniRealtime(m.inner, mctx(s, ctx));
+}
+
 function miniStep(s: GameState, ctx: Ctx): boolean {
   const m = s.mini;
   if (!m) return false;
@@ -614,7 +621,7 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       if (!m || m.stage !== 'spiel' || !m.inner) throw new GameError('Gerade läuft kein Minispiel.');
       miniAction(m.inner, pid, a.a, mctx(s, ctx));
       // Striche, Hüpfer und Lenkwerte werden separat (Echtzeit) verteilt – kein voller Versand
-      if (a.a.k === 'strich' || a.a.k === 'hop' || a.a.k === 'raus') return;
+      if (a.a.k === 'strich' || a.a.k === 'hop' || a.a.k === 'raus' || a.a.k === 'lenk') return;
       if (!miniDone(m.inner)) miniTick(m.inner, mctx(s, ctx));
       if (miniDone(m.inner)) finishMini(s, ctx);
       break;

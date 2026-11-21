@@ -115,7 +115,7 @@ export function chooseSwap(v: PlayerView, level: BotLevel, rng: Rng): string {
 }
 
 /** Spiele, die Bots gut spielen können */
-export const BOT_FREUNDLICH: GameId[] = ['schaetzen', 'wissen', 'kopfrechnen', 'gegenstaende', 'slf', 'zahlen', 'flunker'];
+export const BOT_FREUNDLICH: GameId[] = ['schaetzen', 'wissen', 'kopfrechnen', 'gegenstaende', 'slf', 'zahlen', 'flunker', 'huehner', 'flitzer'];
 
 export function chooseGame(v: PlayerView, rng: Rng): GameId {
   const good = v.playableGames.filter((g) => BOT_FREUNDLICH.includes(g));

@@ -10,7 +10,8 @@ export type GameId =
   | 'wissen'
   | 'begriffe'
   | 'flunker'
-  | 'huehner';
+  | 'huehner'
+  | 'flitzer';
 
 /** einzel = jeder für sich, zweier = Zweier-Teams (ggf. ein Dreierteam), zweiTeams = 2 Teams */
 export type TeamMode = 'einzel' | 'zweier' | 'zweiTeams';
@@ -213,6 +214,21 @@ export const GAMES: GameDef[] = [
       gewinn: 'Bonusfelder nach Platz: 1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1.',
     },
     app: ['Alle hüpfen durch dieselbe Welt, die anderen Hühner siehst du halb durchsichtig. Bei Gleichstand gewinnt, wer die Reihe zuerst erreicht hat.'],
+  },
+  {
+    id: 'flitzer', nr: 13, name: 'Turbo-Flitzer', teamMode: 'einzel', minPlayers: 2, nurOnline: true,
+    rules: {
+      utensilien: 'nur eure Handys (im Querformat)',
+      teams: 'Jeder gegen jeden',
+      ablauf: [
+        'Jeder fährt ein kleines Auto in seiner Farbe – die ganze Strecke ist auf deinem Handy zu sehen.',
+        'Zeig mit dem Joystick, wohin dein Auto fahren soll. Je weiter du drückst, desto schneller fährt es.',
+        'Lässt du los, rollt das Auto aus. Auf dem Schnee bist du viel langsamer – bleib auf der Strecke!',
+        'Nach der Startampel geht’s los: Wer zuerst 3 Runden geschafft hat, gewinnt. Danach haben alle anderen noch 15 Sekunden.',
+      ],
+      gewinn: 'Bonusfelder nach Platz: 1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1.',
+    },
+    app: ['Wer nicht ins Ziel kommt, wird nach geschafften Runden gewertet.'],
   },
 ];
 

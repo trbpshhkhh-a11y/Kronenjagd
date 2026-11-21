@@ -20,3 +20,5 @@ export * from './mode2/flunker';
 export * from './mode2/huehner/world';
 export * from './mode2/huehner/game';
 export * from './mode2/huehner/huhn';
+export * from './mode2/flitzer/track';
+export * from './mode2/flitzer/game';
