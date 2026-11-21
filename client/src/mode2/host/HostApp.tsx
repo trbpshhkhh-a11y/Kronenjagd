@@ -4,7 +4,7 @@ import { useConnection } from '../connection';
 import { useRoute, go } from '../../lib/router';
 import { useWakeLock } from '../../lib/hooks';
 import { load, save } from '../../lib/storage';
-import { Stage, BoardLayer, CrownTable, statusText, useLeft, playerName, playerOf, useToast, usePortrait, displayName, tokenLetter } from '../common';
+import { Stage, BoardLayer, CrownTable, statusText, useLeft, playerName, playerOf, useToast, usePortrait, displayName, tokenLetter, RotateHint } from '../common';
 import { Die, Dot, FieldBadge, Confirm } from '../../components/ui';
 import { CrownSvg, TokenSvg } from '../../components/icons';
 import { Snow, Confetti } from '../../components/Decor';
@@ -12,7 +12,7 @@ import { SlotRoller, FIELD_NUMBERS } from '../../components/Roller';
 import { HostMini } from './HostMini';
 import { EventCardScene } from '../../components/EventCard';
 import { emitStroke } from '../LiveDrawing';
-import { PlayerManager, LobbySettings, JoinCode } from '../LobbyParts';
+import { PlayerShelf, SettingsButton, GiftTag } from '../LobbyParts';
 
 export default function HostApp() {
   const r = useRoute();
@@ -50,7 +50,7 @@ export default function HostApp() {
           <div className="badge red" style={{ position: 'absolute', bottom: 16, right: 16, fontSize: 24, zIndex: 50 }}>Verbindung wird wiederhergestellt …</div>
         )}
       </Stage>
-      <PortraitTip />
+      {!v?.started && <PortraitTip />}
     </div>
   );
 }
@@ -92,27 +92,24 @@ function Lobby({ v, send, error, clearError, onClose }: { v: HostView; send: Sen
   const humans = v.players.filter((p) => !p.bot).length;
   const canStart = v.players.length >= 2 && humans >= 1;
   return (
-    <div style={portrait ? { padding: 40, display: 'flex', flexDirection: 'column', gap: 28 } : { position: 'absolute', inset: 0, padding: 40, display: 'grid', gridTemplateColumns: '560px 1fr 640px', gap: 32 }}>
-      <div className="panel stack" style={{ alignItems: 'center', textAlign: 'center' }}>
-        <JoinCode code={v.code} qrSize={portrait ? 300 : 330} big />
-        <div className="grow" />
-        <button className="btn ghost sm" onClick={() => setAsk(true)}>Lobby schließen</button>
-      </div>
-      <div className="panel stack" style={{ fontSize: 30 }}>
-        <div className="row between">
-          <h2>Mitspieler ({v.players.length}/10)</h2>
-          <CrownSvg size={70} />
+    <div className="host-lobby" style={portrait ? { padding: 40, display: 'flex', flexDirection: 'column', gap: 30 } : { position: 'absolute', inset: 0, padding: '50px 70px', display: 'grid', gridTemplateColumns: '600px 1fr', gap: 60, alignItems: 'center' }}>
+      <div className="stack" style={{ alignItems: 'center', gap: 24 }}>
+        <div className="lobby-title" style={{ fontSize: 34 }}>
+          <span className="head gold">Kronen sammeln</span>
+          <span className="small">Nur App · Hauptscreen</span>
         </div>
-        <PlayerManager v={v} send={send} canEdit />
-        <div className="grow" />
-        {error && <p className="err">{error}</p>}
-        <button className="btn red huge" disabled={!canStart} onClick={() => send({ t: 'start' })}>
-          {v.players.length < 2 ? 'Mindestens 2 Spieler nötig' : humans < 1 ? 'Mindestens 1 Mensch nötig' : '🎲 Spiel starten'}
-        </button>
+        <GiftTag code={v.code} qr qrSize={portrait ? 300 : 320} />
       </div>
-      <div className="panel stack" style={{ fontSize: 22, overflow: 'auto' }}>
-        <h2>Einstellungen</h2>
-        <LobbySettings v={v} send={send} canEdit />
+      <div className="stack" style={{ gap: 24, fontSize: 30 }}>
+        <PlayerShelf v={v} send={send} canEdit big />
+        {error && <p className="err">{error}</p>}
+        <div className="row" style={{ gap: 16 }}>
+          <SettingsButton v={v} send={send} canEdit className="grow" showSummary />
+          <button className="btn ghost" onClick={() => setAsk(true)}>Lobby schließen</button>
+        </div>
+        <button className="btn red huge block" disabled={!canStart} onClick={() => send({ t: 'start' })}>
+          {v.players.length < 2 ? 'Mindestens 2 Spieler nötig' : humans < 1 ? 'Mindestens 1 Mensch nötig' : 'Spiel starten'}
+        </button>
       </div>
       {ask && <Confirm text="Lobby wirklich schließen?" yes="Ja, schließen" onYes={onClose} onNo={() => setAsk(false)} />}
     </div>
@@ -152,7 +149,8 @@ function Game({ v, send, onExit }: { v: HostView; send: Send; onExit: () => void
   if (portrait) {
     return (
       <div style={{ position: 'relative', minHeight: 'inherit' }}>
-        <div className="row between" style={{ padding: '16px 20px 8px' }}>
+        <div style={{ padding: '20px 20px 10px' }}><RotateHint big /></div>
+        <div className="row between" style={{ padding: '8px 20px' }}>
           <span className="head gold" style={{ fontSize: 40 }}>Kronen sammeln</span>
           <span className="badge" style={{ fontSize: 26 }}>Code {v.code}</span>
         </div>

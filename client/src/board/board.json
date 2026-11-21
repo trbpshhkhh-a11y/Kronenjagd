@@ -102,8 +102,7 @@
    "type": "minispiel",
    "neighbors": [
     9,
-    11,
-    76
+    11
    ]
   },
   {
@@ -170,11 +169,12 @@
    "id": 17,
    "x": 81.84,
    "y": 71.98,
-   "type": "normal",
+   "type": "minispiel",
    "neighbors": [
     16,
     18
-   ]
+   ],
+   "markieren": true
   },
   {
    "id": 18,
@@ -193,8 +193,7 @@
    "type": "normal",
    "neighbors": [
     18,
-    20,
-    42
+    20
    ]
   },
   {
@@ -232,11 +231,12 @@
    "id": 23,
    "x": 64.31,
    "y": 45.97,
-   "type": "normal",
+   "type": "minispiel",
    "neighbors": [
     22,
     24
-   ]
+   ],
+   "markieren": true
   },
   {
    "id": 24,
@@ -255,8 +255,7 @@
    "type": "normal",
    "neighbors": [
     24,
-    26,
-    53
+    26
    ]
   },
   {
@@ -317,8 +316,7 @@
    "type": "normal",
    "neighbors": [
     30,
-    32,
-    67
+    32
    ]
   },
   {
@@ -428,7 +426,6 @@
    "y": 49.8,
    "type": "normal",
    "neighbors": [
-    19,
     20,
     41
    ]
@@ -460,8 +457,7 @@
    "type": "ereignis",
    "neighbors": [
     44,
-    46,
-    54
+    46
    ]
   },
   {
@@ -541,7 +537,6 @@
    "y": 41.53,
    "type": "normal",
    "neighbors": [
-    25,
     26,
     52
    ]
@@ -552,7 +547,6 @@
    "y": 44.56,
    "type": "normal",
    "neighbors": [
-    45,
     46,
     55
    ]
@@ -683,7 +677,6 @@
    "y": 9.38,
    "type": "normal",
    "neighbors": [
-    31,
     32,
     66
    ]
@@ -775,7 +768,6 @@
    "type": "normal",
    "neighbors": [
     9,
-    10,
     75
    ]
   }

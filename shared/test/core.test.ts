@@ -170,8 +170,8 @@ describe('Spielbrett', () => {
     expect(ofType('minus2')).toEqual([51, 64, 74]);
     expect(ofType('ereignis')).toEqual([7, 14, 41, 45, 59]);
     expect(ofType('wiederholung')).toEqual([39, 55]);
-    expect(ofType('minispiel')).toEqual([10, 35, 52, 57, 66, 69]);
-    expect(BOARD.byId.get(23)!.type).toBe('normal');
+    expect(ofType('minispiel')).toEqual([10, 17, 23, 35, 52, 57, 66, 69]);
+    expect(BOARD.data.fields.filter((f) => f.markieren).map((f) => f.id)).toEqual([17, 23]);
     for (const f of BOARD.data.fields) {
       expect(f.x).toBeGreaterThan(0);
       expect(f.x).toBeLessThan(100);

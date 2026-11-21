@@ -26,18 +26,22 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
     const p = playerOf(v, id);
     return p ? displayName(p) : '?';
   };
-  return (
-    <div className="stack">
-      <div className="row between">
-        <h2 className="gold">🎮 {g.name}</h2>
-        <RulesButton id={g.id} mode2 className="sm" />
-      </div>
-      {!einzel && myTeam && m.stage !== 'auslosung' && (
-        <div className="chip" style={{ alignSelf: 'flex-start' }}>
-          <b className="gold">{myTeam.name}:</b>
-          {myTeam.members.map(nameOf).join(' & ')}
-        </div>
-      )}
+  const header = (
+    <div className="row between mini-head">
+      <h2 className="gold">{g.name}</h2>
+      <RulesButton id={g.id} mode2 className="sm" />
+    </div>
+  );
+  const teamChip = !einzel && myTeam && m.stage !== 'auslosung' && (
+    <div className="chip" style={{ alignSelf: 'flex-start' }}>
+      <b className="gold">{myTeam.name}:</b>
+      {myTeam.members.map(nameOf).join(' & ')}
+    </div>
+  );
+  // Linke Spalte (im Querformat): Infos – rechte Spalte: was ich tun muss
+  const info = (
+    <>
+      {teamChip}
       {m.stage === 'auslosung' &&
         (noScreen ? (
           <div className="stack" style={{ alignItems: 'center' }}>
@@ -50,6 +54,16 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
       {(m.stage === 'teams' || (m.stage === 'bereit' && noScreen)) && (
         noScreen ? <TeamList v={v} nameOf={nameOf} /> : <div className="card center"><h3>{einzel ? 'Jeder für sich!' : 'Die Teams stehen!'}</h3><p>Schau auf den Hauptscreen.</p></div>
       )}
+      {m.stage === 'spiel' && m.inner && noScreen && <PublicInfo v={v} inner={m.inner} />}
+      {m.stage === 'ergebnis' && m.result && (
+        <div className="panel list">
+          {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{i + 1}.</b><span className="grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span><span>{r.punkte} P.</span><span className="badge green">+{r.bonus}</span></div>)}
+        </div>
+      )}
+    </>
+  );
+  const action = (
+    <>
       {m.stage === 'bereit' && (
         <div className="stack" style={{ alignItems: 'center' }}>
           <p className="center">Lies die Regeln und bestätige, wenn du bereit bist.</p>
@@ -59,7 +73,6 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
         </div>
       )}
       {m.stage === 'spiel' && m.inner && <Inner v={v} send={send} inner={m.inner} />}
-      {m.stage === 'spiel' && m.inner && noScreen && <PublicInfo v={v} inner={m.inner} />}
       {m.stage === 'spiel' && m.game === 'game7' && v.iAmLeader && <button className="btn ghost sm" onClick={() => host({ t: 'beenden' })}>Game of 7 beenden</button>}
       {m.stage === 'ergebnis' && m.result && (
         <div className="stack">
@@ -68,12 +81,18 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
             <h3>Deine Bonusfelder für den nächsten Zug</h3>
             <div className="mega" style={{ color: 'var(--green)', textShadow: 'none' }}>+{m.result.bonus[v.me.id] ?? 0}</div>
           </div>
-          <div className="panel list">
-            {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{i + 1}.</b><span className="grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span><span>{r.punkte} P.</span><span className="badge green">+{r.bonus}</span></div>)}
-          </div>
           {v.iAmLeader && <button className="btn gold" onClick={() => host({ t: 'weiter' })}>Weiter</button>}
         </div>
       )}
+    </>
+  );
+  return (
+    <div className="mini-wrap">
+      {header}
+      <div className="mini-cols">
+        <div className="mini-col mini-info">{info}</div>
+        <div className="mini-col mini-action">{action}</div>
+      </div>
     </div>
   );
 }

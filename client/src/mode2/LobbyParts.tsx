@@ -1,58 +1,61 @@
 import { useState } from 'react';
 import {
-  BaseView, GAMES, GameId, TIMER_LABELS, TimerSettings, BOT_LEVELS, BOT_LEVEL_LABEL, BotLevel, MAX_SPIELER, requiredHumans,
+  BaseView, GAMES, GameId, TIMER_LABELS, TimerSettings, BOT_LEVELS, BOT_LEVEL_LABEL, MAX_SPIELER, requiredHumans,
 } from '@kronen/shared';
-import { Stepper, Die } from '../components/ui';
-import { TokenSvg } from '../components/icons';
+import { Stepper, Die, Modal } from '../components/ui';
+import { TokenSvg, CrownSvg } from '../components/icons';
 import { QR } from '../components/QR';
 import { absoluteUrl } from '../lib/router';
-import { displayName, tokenLetter } from './common';
+import { tokenLetter } from './common';
 
 type Send = (m: any) => void;
 
-/** Spielerliste der Lobby, mit Bots (hinzufügen, Schwierigkeit, entfernen) für die Lobby-Leitung */
-export function PlayerManager({ v, send, canEdit, meId }: { v: BaseView; send: Send; canEdit: boolean; meId?: string }) {
-  const [level, setLevel] = useState<BotLevel>('mittel');
+/**
+ * Spielerleiste der Lobby: Figuren auf einem Holzsims.
+ * Die Lobby-Leitung kann Bots hinzufügen (+ Bot), ihre Schwierigkeit umschalten (Antippen) und Spieler entfernen.
+ */
+export function PlayerShelf({ v, send, canEdit, meId, big }: { v: BaseView; send: Send; canEdit: boolean; meId?: string; big?: boolean }) {
   const full = v.players.length >= MAX_SPIELER;
+  const many = v.players.length + (canEdit ? 1 : 0) > 6;
+  const nextLevel = (l: (typeof BOT_LEVELS)[number]) => BOT_LEVELS[(BOT_LEVELS.indexOf(l) + 1) % BOT_LEVELS.length];
+  const showLeader = !v.screenMode || !v.hostConnected;
   return (
-    <div className="stack" style={{ gap: 10 }}>
-      {v.players.map((p) => (
-        <div key={p.id} className="list-item" style={{ flexWrap: 'wrap' }}>
-          <span style={{ width: '1.9em', height: '2.2em', flexShrink: 0 }}><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
-          <span className="head grow" style={{ minWidth: '6em' }}>
-            {displayName(p)}
-            {p.id === meId ? ' (du)' : ''} {p.id === v.leaderId && !p.bot && (!v.screenMode || !v.hostConnected) && <span className="leader-badge" title="leitet die Lobby">👑 Leitung</span>}
-          </span>
-          {p.bot ? (
-            canEdit ? (
-              <span className="level-btns">
-                {BOT_LEVELS.map((l) => (
-                  <button key={l} className={`btn sm ${p.bot === l ? 'gold' : 'ghost'}`} onClick={() => send({ t: 'botLevel', playerId: p.id, level: l })}>{BOT_LEVEL_LABEL[l]}</button>
-                ))}
-              </span>
-            ) : (
-              <span className="badge blue">{BOT_LEVEL_LABEL[p.bot]}</span>
-            )
-          ) : (
-            <span className={`badge ${p.connected ? 'green' : 'gray'}`}>{p.connected ? 'verbunden' : 'getrennt'}</span>
-          )}
-          {canEdit && p.id !== meId && (
-            <button className="btn sm red" onClick={() => send({ t: 'kick', playerId: p.id })} aria-label={`${p.name} entfernen`}>✕</button>
-          )}
-        </div>
-      ))}
-      {v.players.length === 0 && <p className="muted">Noch niemand da.</p>}
-      {canEdit && (
-        <div className="row" style={{ gap: 8 }}>
-          <button className="btn blue" disabled={full} onClick={() => send({ t: 'addBot', level })}>🤖 Bot hinzufügen</button>
-          <span className="level-btns">
-            {BOT_LEVELS.map((l) => (
-              <button key={l} className={`btn sm ${level === l ? 'gold' : 'ghost'}`} onClick={() => setLevel(l)}>{BOT_LEVEL_LABEL[l]}</button>
-            ))}
-          </span>
-        </div>
-      )}
-      {canEdit && full && <p className="small muted">Die Lobby ist voll (maximal {MAX_SPIELER} Spieler).</p>}
+    <div className={`shelf ${big ? 'big' : ''} ${many ? 'many' : ''}`}>
+      <div className="shelf-head">
+        <span className="head">Mitspieler</span>
+        <span className="shelf-count">{v.players.length}/{MAX_SPIELER}</span>
+      </div>
+      <div className="shelf-grid">
+        {v.players.map((p) => (
+          <div key={p.id} className={`ptile ${p.id === meId ? 'me' : ''}`}>
+            <span className="ptile-token"><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
+            <span className="ptile-name">
+              <span className="ellipsis">{p.bot ? p.name.replace(/^Bot /, '') : p.name}</span>
+              {p.bot ? (
+                canEdit ? (
+                  <button className="lvl" onClick={() => send({ t: 'botLevel', playerId: p.id, level: nextLevel(p.bot!) })} title="Schwierigkeit ändern (antippen)">
+                    {BOT_LEVEL_LABEL[p.bot]} ⟳
+                  </button>
+                ) : (
+                  <span className="lvl ro">{BOT_LEVEL_LABEL[p.bot]}</span>
+                )
+              ) : (
+                <span className={`conn ${p.connected ? 'on' : ''}`}>
+                  {showLeader && p.id === v.leaderId ? <><CrownSvg size="1em" /> Leitung</> : p.connected ? 'da' : 'getrennt'}
+                </span>
+              )}
+            </span>
+            {canEdit && p.id !== meId && (
+              <button className="ptile-x" onClick={() => send({ t: 'kick', playerId: p.id })} aria-label={`${p.name} entfernen`}>✕</button>
+            )}
+          </div>
+        ))}
+        {canEdit && !full && (
+          <button className="ptile add" onClick={() => send({ t: 'addBot', level: 'mittel' })}>
+            <span className="add-plus">+</span> Bot
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -88,14 +91,14 @@ export function LobbySettings({ v, send, canEdit }: { v: BaseView; send: Send; c
         <span className="row"><Die value={6} size="1.1em" /> 1 Würfel, Augen 1 bis 6</span>
       </div>
       <b>Aktive Spiele</b>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(11em, 1fr))', gap: 6 }}>
+      <div className="game-chips">
         {GAMES.map((g) => {
           const on = v.settings.aktiveSpiele.includes(g.id);
           const why = gameBlocker(v, g.id);
           return (
-            <button key={g.id} disabled={!canEdit} className={`btn sm ${on ? 'green' : 'ghost'}`} onClick={() => toggleGame(g.id)} title={why ?? ''} style={{ justifyContent: 'flex-start', flexDirection: 'column', alignItems: 'flex-start', opacity: why ? 0.65 : 1, gap: 0 }}>
-              <span>{on ? '✔' : '✖'} {g.name}</span>
-              {why && on && <span style={{ fontSize: '0.7em', fontWeight: 400 }}>{why}</span>}
+            <button key={g.id} disabled={!canEdit} className={`gchip ${on ? 'on' : ''} ${why ? 'warn' : ''}`} onClick={() => toggleGame(g.id)} title={why ?? ''}>
+              {on ? '✓' : '–'} {g.name}
+              {why && on && <span className="gchip-why">{why}</span>}
             </button>
           );
         })}
@@ -126,16 +129,51 @@ function TimerRow({ label, value, onChange, canEdit }: { label: string; value: n
   );
 }
 
-/** Code + QR-Code zum Beitreten */
-export function JoinCode({ code, qrSize = 220, big }: { code: string; qrSize?: number; big?: boolean }) {
-  const [qr, setQr] = useState(!!big);
+/** Kurze Zusammenfassung der Einstellungen + Button, der sie in einem eigenen Fenster öffnet */
+export function SettingsButton({ v, send, canEdit, className = '', showSummary }: { v: BaseView; send: Send; canEdit: boolean; className?: string; showSummary?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className={`btn ${className}`} onClick={() => setOpen(true)} title={`${v.settings.kronenZumSieg} Kronen zum Sieg · ${v.settings.aktiveSpiele.length} Spiele aktiv`}>
+        ⚙ Einstellungen{showSummary && <span className="small" style={{ fontWeight: 400 }}> · {v.settings.kronenZumSieg} Kronen · {v.settings.aktiveSpiele.length} Spiele</span>}
+      </button>
+      {open && (
+        <Modal onClose={() => setOpen(false)}>
+          <div className="panel stack">
+            <h2>Einstellungen</h2>
+            {!canEdit && <p className="small">Nur die Lobby-Leitung kann die Einstellungen ändern.</p>}
+            <LobbySettings v={v} send={send} canEdit={canEdit} />
+            <button className="btn gold" onClick={() => setOpen(false)}>Fertig</button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/** Lobby-Code als Geschenkanhänger, QR-Code auf Wunsch oder direkt */
+export function GiftTag({ code, qr = false, qrSize = 220 }: { code: string; qr?: boolean; qrSize?: number }) {
+  const [showQr, setShowQr] = useState(false);
   const url = absoluteUrl('/beitreten?c=' + code);
   return (
-    <div className="stack" style={{ alignItems: 'center', textAlign: 'center', gap: 10 }}>
-      <span className="small">Lobby-Code</span>
-      <div className="head gold" style={{ fontSize: big ? '4.7em' : '2.6em', letterSpacing: '0.12em', lineHeight: 1, textShadow: '0 4px 0 rgba(0,0,0,.4)' }}>{code}</div>
-      {qr ? <QR text={url} size={qrSize} /> : <button className="btn sm" onClick={() => setQr(true)}>QR-Code zeigen</button>}
-      <p className="small">QR-Code scannen oder „Nur App“ → „Beitreten“ wählen und den Code eingeben.</p>
+    <div className={`gift-tag ${qr ? 'with-qr' : ''}`}>
+      <span className="gift-hole" aria-hidden />
+      <span className="gift-main">
+        <span className="gift-label">Lobby-Code</span>
+        <span className="gift-code">{code}</span>
+        {qr && <span className="gift-hint">Code eingeben oder QR-Code scannen</span>}
+      </span>
+      {qr ? <QR text={url} size={qrSize} /> : <button className="btn sm gift-qr" onClick={() => setShowQr(true)}>QR</button>}
+      {showQr && (
+        <Modal onClose={() => setShowQr(false)}>
+          <div className="card stack center" style={{ alignItems: 'center' }}>
+            <h2>{code}</h2>
+            <QR text={url} size={260} />
+            <p>Mit der Handy-Kamera scannen</p>
+            <button className="btn" onClick={() => setShowQr(false)}>Schließen</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
