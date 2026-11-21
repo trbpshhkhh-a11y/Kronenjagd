@@ -8,14 +8,16 @@ import { GAME_IDS, GameId, gameById, isPlayable } from '../games';
 import { newDeck, drawIndex } from '../deck';
 import { newPools } from '../pools';
 import { randInt, shuffle, pick, uniqueFields, Rng } from '../rng';
-import { makeTeams } from '../teams';
+import { makeTeamsHumansFirst } from '../teams';
 import { BOARD, Board, fieldType, fieldsOfType, moveOptions, autoPath, allowedNext } from '../board';
 import {
   KRONE_AUCH_BEIM_VORBEIGEHEN, GELB_SPIELERTAUSCH, GROSSE_KRONE_CHANCE, SCHRITT_MS, GETRENNT_UEBERSPRINGEN_MS,
-  MAX_SPIELER, MIN_SPIELER, SPIELER_FARBEN, DEFAULT_TIMER, TimerSettings,
+  MAX_SPIELER, MIN_SPIELER, SPIELER_FARBEN, DEFAULT_TIMER, TimerSettings, BotLevel, BOT_LEVELS, BOT_NAMEN,
 } from './constants';
 import { CARDS, CardId, CARD_TEXT, Crown, Ctx, GameError, GameState, Player, Settings } from './types';
 import { MCtx, MiniAction, miniAction, miniDone, miniInit, miniResult, miniTick } from './minigames';
+import { botPlan } from './bots';
+import { viewForPlayer } from './views';
 
 export type PlayerAction =
   | { t: 'roll' }
@@ -30,7 +32,8 @@ export type HostAction = { t: 'weiter' } | { t: 'beenden' } | { t: 'neueRunde' }
 
 export const defaultSettings = (): Settings => ({ kronenZumSieg: 5, aktiveSpiele: [...GAME_IDS], timer: { ...DEFAULT_TIMER } });
 
-export function createGameState(code: string, now: number): GameState {
+export function createGameState(code: string, now: number, opts: { screenMode?: boolean } = {}): GameState {
+  const screenMode = opts.screenMode ?? true;
   return {
     code,
     version: 1,
@@ -48,7 +51,10 @@ export function createGameState(code: string, now: number): GameState {
     toast: null,
     started: false,
     lastActivity: now,
-    hostConnected: true,
+    hostConnected: screenMode,
+    screenMode,
+    leaderId: null,
+    turnNo: 0,
     trail: [],
   };
 }
@@ -62,6 +68,9 @@ function toast(s: GameState, text: string, kind: 'krone' | 'info' | 'feld' = 'in
 }
 
 export const playerById = (s: GameState, id: string) => s.players.find((p) => p.id === id);
+/** Anzeigename mit Bot-Symbol */
+export const label = (p: Player) => (p.bot ? '🤖 ' + p.name : p.name);
+export const humans = (s: GameState) => s.players.filter((p) => !p.bot);
 export const currentPlayer = (s: GameState): Player | undefined => playerById(s, s.order[s.turn]);
 
 /* ------------------------------------------------------------------ */
@@ -86,11 +95,67 @@ export function addPlayer(s: GameState, rawName: unknown, id: string, token: str
   if (nameTaken(s, name)) throw new GameError('Dieser Name ist schon vergeben.');
   const used = new Set(s.players.map((p) => p.color));
   const color = SPIELER_FARBEN.find((c) => !used.has(c)) ?? SPIELER_FARBEN[0];
-  const p: Player = { id, name, color, token, connected: true, disconnectedAt: null, kronen: 0, bonus: 0, pos: 0, start: 0 };
+  const p: Player = { id, name, color, token, connected: true, disconnectedAt: null, kronen: 0, bonus: 0, pos: 0, start: 0, bot: null, botAt: null, botSig: null };
+  s.players.push(p);
+  if (!s.leaderId) s.leaderId = p.id;
+  s.lastActivity = now;
+  touch(s);
+  return p;
+}
+
+/* ------------------------------ Bots ------------------------------ */
+
+function validLevel(level: unknown): BotLevel {
+  if (!BOT_LEVELS.includes(level as BotLevel)) throw new GameError('Ungültige Schwierigkeit');
+  return level as BotLevel;
+}
+
+export function addBot(s: GameState, level: unknown = 'mittel', now = 0): Player {
+  if (s.started) throw new GameError('Bots können nur vor dem Start hinzugefügt werden.');
+  if (s.players.length >= MAX_SPIELER) throw new GameError(`Die Lobby ist voll (maximal ${MAX_SPIELER} Spieler).`);
+  const lvl = validLevel(level);
+  const idx = BOT_NAMEN.findIndex((n) => !nameTaken(s, n));
+  if (idx < 0) throw new GameError('Keine Bot-Namen mehr frei.');
+  const used = new Set(s.players.map((p) => p.color));
+  const color = SPIELER_FARBEN.find((c) => !used.has(c)) ?? SPIELER_FARBEN[0];
+  const id = 'bot' + idx;
+  const p: Player = { id, name: BOT_NAMEN[idx], color, token: `bot:${id}:${Math.random().toString(36).slice(2)}`, connected: true, disconnectedAt: null, kronen: 0, bonus: 0, pos: 0, start: 0, bot: lvl, botAt: null, botSig: null };
   s.players.push(p);
   s.lastActivity = now;
   touch(s);
   return p;
+}
+
+export function setBotLevel(s: GameState, id: string, level: unknown) {
+  const p = playerById(s, id);
+  if (!p?.bot) throw new GameError('Das ist kein Bot.');
+  p.bot = validLevel(level);
+  touch(s);
+}
+
+/* -------------------------- Lobby-Leitung ------------------------- */
+
+/** Darf dieser Spieler die Lobby leiten? (Hauptscreen-Lobbys leitet der Hauptscreen, solange er verbunden ist) */
+export function canLead(s: GameState, pid: string | null): boolean {
+  return !!pid && pid === s.leaderId && (!s.screenMode || !s.hostConnected);
+}
+
+/** Leitung an den nächsten verbundenen Menschen geben, wenn der Leiter weg ist. true = geändert */
+export function maintainLeader(s: GameState, now: number): boolean {
+  const cur = s.leaderId ? playerById(s, s.leaderId) : undefined;
+  const ok = cur && !cur.bot && (cur.connected || (cur.disconnectedAt !== null && now - cur.disconnectedAt < GETRENNT_UEBERSPRINGEN_MS));
+  if (ok) return false;
+  const next = s.players.find((p) => !p.bot && p.connected && p.id !== s.leaderId);
+  if (!next) {
+    if (s.leaderId && !cur) {
+      s.leaderId = null;
+      return true;
+    }
+    return false;
+  }
+  s.leaderId = next.id;
+  if (s.started && !s.screenMode) toast(s, `${next.name} leitet jetzt die Lobby.`, 'info');
+  return true;
 }
 
 export function renamePlayer(s: GameState, id: string, rawName: unknown) {
@@ -103,15 +168,19 @@ export function renamePlayer(s: GameState, id: string, rawName: unknown) {
   touch(s);
 }
 
-export function removePlayer(s: GameState, id: string) {
+export function removePlayer(s: GameState, id: string, now = 0) {
   if (s.started) throw new GameError('Spieler können nur vor dem Start entfernt werden.');
   s.players = s.players.filter((p) => p.id !== id);
+  if (s.leaderId === id) {
+    s.leaderId = null;
+    maintainLeader(s, now);
+  }
   touch(s);
 }
 
 export function setConnected(s: GameState, id: string, connected: boolean, now: number) {
   const p = playerById(s, id);
-  if (!p) return;
+  if (!p || p.bot) return;
   if (p.connected === connected) return;
   p.connected = connected;
   p.disconnectedAt = connected ? null : now;
@@ -204,7 +273,7 @@ function collectAt(s: GameState, p: Player, field: number, rng: Rng, avoid: numb
     if (c.field !== field) continue;
     const pts = c.value;
     respawnCrown(s, c.id, rng, avoid);
-    if (giveCrownPoints(s, p, pts, pts === 2 ? `${p.name} schnappt sich die GROSSE Krone! +2` : `${p.name} schnappt sich eine Krone! +1`)) return true;
+    if (giveCrownPoints(s, p, pts, pts === 2 ? `${label(p)} schnappt sich die GROSSE Krone! +2` : `${label(p)} schnappt sich eine Krone! +1`)) return true;
   }
   return false;
 }
@@ -219,6 +288,7 @@ export const INTRO_REIHENFOLGE_MS = 4000;
 export function startGame(s: GameState, ctx: Ctx) {
   if (s.players.length < MIN_SPIELER) throw new GameError(`Mindestens ${MIN_SPIELER} Spieler nötig.`);
   if (s.players.length > MAX_SPIELER) throw new GameError(`Maximal ${MAX_SPIELER} Spieler.`);
+  if (humans(s).length < 1) throw new GameError('Mindestens ein Mensch muss mitspielen.');
   s.started = true;
   const forbidden = fieldsOfType(['minispiel', 'ereignis']);
   const starts = uniqueFields(ctx.rng, s.players.length, BOARD.data.fields.length, forbidden);
@@ -227,7 +297,10 @@ export function startGame(s: GameState, ctx: Ctx) {
     p.pos = starts[i];
     p.kronen = 0;
     p.bonus = 0;
+    p.botAt = null;
+    p.botSig = null;
   });
+  s.turnNo = 0;
   s.order = shuffle(ctx.rng, s.players.map((p) => p.id));
   s.turn = 0;
   s.cardDeck = newDeck(CARDS.length);
@@ -245,6 +318,7 @@ export function startGame(s: GameState, ctx: Ctx) {
 /* ------------------------------------------------------------------ */
 
 function beginTurn(s: GameState) {
+  s.turnNo++;
   s.phase = { k: 'wuerfeln' };
   s.mini = null;
   s.trail = [];
@@ -291,20 +365,20 @@ function onLanded(s: GameState, p: Player, effects: boolean, ctx: Ctx) {
   const type = fieldType(p.pos);
   switch (type) {
     case 'plus2':
-      toast(s, `+2! ${p.name} geht 2 Felder weiter.`, 'feld');
+      toast(s, `+2! ${label(p)} geht 2 Felder weiter.`, 'feld');
       return startMove(s, autoPath(p.pos, prevField(s), 2), 0, false, 'plus2', ctx.now + 500);
     case 'minus2':
-      toast(s, `−2! ${p.name} muss 2 Felder zurück.`, 'feld');
+      toast(s, `−2! ${label(p)} muss 2 Felder zurück.`, 'feld');
       return startMove(s, backPath(s, 2), 0, false, 'minus2', ctx.now + 500);
     case 'wiederholung':
       if (GELB_SPIELERTAUSCH) {
-        toast(s, `Gelbes Feld! ${p.name} darf mit einem Mitspieler tauschen.`, 'feld');
+        toast(s, `Gelbes Feld! ${label(p)} darf mit einem Mitspieler tauschen.`, 'feld');
         s.phase = { k: 'karte', card: 'tausch', stage: 'wahl', until: ctx.now + 30000, feld: true };
         return;
       }
       return endTurn(s);
     case 'ereignis':
-      toast(s, `${p.name} zieht eine Ereigniskarte!`, 'feld');
+      toast(s, `${label(p)} zieht eine Ereigniskarte!`, 'feld');
       s.phase = { k: 'karteZiehen', until: ctx.now + 30000 };
       return;
     case 'minispiel':
@@ -345,13 +419,13 @@ function resolveCardShown(s: GameState, ctx: Ctx) {
   const ph = s.phase;
   if (ph.card === 'sprung' && ph.ziel) {
     p.pos = ph.ziel;
-    toast(s, `${p.name} springt auf Feld ${ph.ziel}!`, 'feld');
+    toast(s, `${label(p)} springt auf Feld ${ph.ziel}!`, 'feld');
     if (collectAt(s, p, p.pos, ctx.rng)) return;
   } else if (ph.card === 'kronenNeu') {
     relocateAllCrowns(s, ctx.rng);
     toast(s, 'Die Kronen wurden neu platziert!', 'feld');
   } else if (ph.card === 'krone') {
-    if (giveCrownPoints(s, p, 1, `${p.name} bekommt einen Kronenpunkt!`)) return;
+    if (giveCrownPoints(s, p, 1, `${label(p)} bekommt einen Kronenpunkt!`)) return;
   }
   s.phase = { ...ph, stage: 'fertig', until: ctx.now + 2500 };
 }
@@ -360,8 +434,20 @@ function resolveCardShown(s: GameState, ctx: Ctx) {
 /* Minispiele                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Wie viele Menschen braucht ein Spiel mindestens? Bots können nicht zeichnen und nicht erklären,
+ * deshalb braucht jedes Team bei Montagsmaler, Stirnraten und Begriffe erklären einen Menschen.
+ */
+export function requiredHumans(game: GameId, total: number): number {
+  if (game === 'stirnraten' || game === 'montagsmaler') return 2;
+  if (game === 'begriffe') return Math.max(1, Math.floor(total / 2));
+  return 1;
+}
+
 export function playableGames(s: GameState): GameId[] {
-  return s.settings.aktiveSpiele.filter((g) => isPlayable(g, s.players.length));
+  const n = s.players.length;
+  const h = humans(s).length;
+  return s.settings.aktiveSpiele.filter((g) => isPlayable(g, n) && h >= requiredHumans(g, n));
 }
 
 export function startMinigame(s: GameState, forced: GameId | null, chosenBy: string | null, ctx: Ctx) {
@@ -380,7 +466,7 @@ export function startMinigame(s: GameState, forced: GameId | null, chosenBy: str
 }
 
 function mctx(s: GameState, ctx: Ctx): MCtx {
-  return { ...ctx, s, teams: s.mini?.teams ?? [] };
+  return { ...ctx, s, teams: s.mini?.teams ?? [], noScreen: !s.hostConnected };
 }
 
 function miniStep(s: GameState, ctx: Ctx): boolean {
@@ -389,14 +475,14 @@ function miniStep(s: GameState, ctx: Ctx): boolean {
   switch (m.stage) {
     case 'auslosung':
       if (ctx.now < (m.until ?? 0)) return false;
-      m.teams = makeTeams(ctx.rng, s.players.map((p) => p.id), gameById(m.game).teamMode);
+      m.teams = makeTeamsHumansFirst(ctx.rng, s.players.map((p) => p.id), gameById(m.game).teamMode, (id) => !playerById(s, id)?.bot);
       m.stage = 'teams';
       m.until = ctx.now + (gameById(m.game).teamMode === 'einzel' ? 2000 : 4500);
       return true;
     case 'teams':
       if (ctx.now < (m.until ?? 0)) return false;
       m.stage = 'bereit';
-      m.ready = [];
+      m.ready = s.players.filter((p) => p.bot).map((p) => p.id); // Bots sind immer bereit
       m.until = ctx.now + 60000;
       return true;
     case 'bereit': {
@@ -459,7 +545,8 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
   const p = playerById(s, pid);
   if (!p) throw new GameError('Unbekannter Spieler');
   if (!s.started) throw new GameError('Das Spiel hat noch nicht begonnen.');
-  s.lastActivity = ctx.now;
+  if (a?.t === 'mini' && (a.a?.k === 'skill' || a.a?.k === 'hinweis') && !p.bot) throw new GameError('Ungültige Aktion');
+  if (!p.bot) s.lastActivity = ctx.now;
   const ph = s.phase;
   switch (a?.t) {
     case 'roll': {
@@ -492,8 +579,8 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       const tmp = p.pos;
       p.pos = other.pos;
       other.pos = tmp;
-      toast(s, `${p.name} tauscht mit ${other.name}!`, 'feld');
-      s.phase = { ...ph, stage: 'fertig', until: ctx.now + 2500, info: other.name };
+      toast(s, `${label(p)} tauscht mit ${label(other)}!`, 'feld');
+      s.phase = { ...ph, stage: 'fertig', until: ctx.now + 2500, info: label(other) };
       break;
     }
     case 'spielWahl': {
@@ -558,15 +645,54 @@ export function hostAction(s: GameState, a: HostAction, ctx: Ctx) {
 
 /** Zeitgesteuerte Übergänge. Gibt true zurück, wenn sich etwas geändert hat. */
 export function tick(s: GameState, ctx: Ctx): boolean {
-  if (!s.started) return false;
-  let changed = false;
+  let changed = maintainLeader(s, ctx.now);
+  if (!s.started) {
+    if (changed) touch(s);
+    return changed;
+  }
   // Mehrere Übergänge pro Tick zulassen (z. B. nach langer Pause), aber begrenzt
   for (let guard = 0; guard < 50; guard++) {
     const step = tickOnce(s, ctx);
     if (!step) break;
     changed = true;
   }
+  if (botTick(s, ctx)) changed = true;
   if (changed) touch(s);
+  return changed;
+}
+
+/**
+ * Bots: Jeder Bot entscheidet nur anhand seiner eigenen Spieleransicht (viewForPlayer).
+ * Er plant eine Aktion mit natürlicher Verzögerung und führt sie dann aus.
+ */
+export function botTick(s: GameState, ctx: Ctx): boolean {
+  let changed = false;
+  for (const p of s.players) {
+    if (!p.bot) continue;
+    const v = viewForPlayer(s, p.id, ctx.now);
+    const plan = v ? botPlan(v, p.bot) : null;
+    if (!plan) {
+      p.botSig = null;
+      p.botAt = null;
+      continue;
+    }
+    if (plan.sig !== p.botSig) {
+      p.botSig = plan.sig;
+      p.botAt = ctx.now + randInt(ctx.rng, plan.delay[0], Math.max(plan.delay[0], plan.delay[1]));
+      continue;
+    }
+    if (p.botAt === null || ctx.now < p.botAt) continue;
+    p.botAt = null;
+    if (plan.repeat) p.botSig = null;
+    const a = plan.act(ctx.rng);
+    if (!a) continue;
+    try {
+      playerAction(s, p.id, a, ctx);
+      changed = true;
+    } catch {
+      /* Situation hat sich geändert – nächste Runde neu planen */
+    }
+  }
   return changed;
 }
 
@@ -582,7 +708,7 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
       if (!p || p.connected || p.disconnectedAt === null) return false;
       if (ctx.now - p.disconnectedAt < GETRENNT_UEBERSPRINGEN_MS) return false;
       if (!s.players.some((x) => x.connected)) return false;
-      toast(s, `${p.name} ist nicht verbunden – Zug wird übersprungen.`, 'info');
+      toast(s, `${label(p)} ist nicht verbunden – Zug wird übersprungen.`, 'info');
       endTurn(s);
       return true;
     }

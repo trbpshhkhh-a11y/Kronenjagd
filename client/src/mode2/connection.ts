@@ -32,17 +32,29 @@ export interface Conn<V> {
  * Das geheime Token liegt im localStorage; nach einem Abbruch (Handy gesperrt,
  * WLAN-Wechsel) meldet sich die App damit automatisch wieder an.
  */
-export function useConnection<V extends HostView | PlayerView>(role: Role, opts: { create?: boolean; onStroke?: (s: Stroke) => void } = {}): Conn<V> {
+export interface ConnOptions {
+  /** Hauptscreen: neue Lobby erstellen */
+  create?: boolean;
+  /** Spieler: neue Lobby ohne Hauptscreen erstellen (mit diesem Namen) */
+  createPlay?: string;
+  /** Hauptscreen: einer bestehenden Lobby beitreten (Code) */
+  joinScreen?: string;
+  onStroke?: (s: Stroke) => void;
+}
+
+export function useConnection<V extends HostView | PlayerView>(role: Role, opts: ConnOptions = {}): Conn<V> {
   const key = role === 'host' ? HOST_KEY : PLAYER_KEY;
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed'>('connecting');
   const [view, setView] = useState<V | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [closed, setClosed] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(() => (opts.create ? null : loadSession(key)));
+  const [session, setSession] = useState<Session | null>(() => (opts.create || opts.createPlay || opts.joinScreen ? null : loadSession(key)));
   const wsRef = useRef<WebSocket | null>(null);
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const createRef = useRef(!!opts.create);
+  const createPlayRef = useRef(opts.createPlay ?? null);
+  const joinScreenRef = useRef(opts.joinScreen ?? null);
   const strokeRef = useRef(opts.onStroke);
   strokeRef.current = opts.onStroke;
   const queue = useRef<ClientMessage[]>([]);
@@ -70,8 +82,10 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
         const s = sessionRef.current;
         if (role === 'host') {
           if (s) ws.send(JSON.stringify({ t: 'resumeHost', code: s.code, token: s.token }));
+          else if (joinScreenRef.current) ws.send(JSON.stringify({ t: 'joinScreen', code: joinScreenRef.current }));
           else if (createRef.current) ws.send(JSON.stringify({ t: 'create' }));
         } else if (s) ws.send(JSON.stringify({ t: 'resume', code: s.code, token: s.token }));
+        else if (createPlayRef.current) ws.send(JSON.stringify({ t: 'createPlay', name: createPlayRef.current }));
         for (const m of queue.current.splice(0)) ws.send(JSON.stringify(m));
         ping = setInterval(() => ws.readyState === 1 && ws.send('{"t":"ping"}'), 20000);
       };
@@ -94,6 +108,7 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
             save(key, s);
             setSession(s);
             createRef.current = false;
+            joinScreenRef.current = null;
             break;
           }
           case 'joined': {
@@ -101,6 +116,7 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
             save(key, s);
             setSession(s);
             setError(null);
+            createPlayRef.current = null;
             break;
           }
           case 'error':
@@ -109,7 +125,12 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
               setSession(null);
               setView(null);
               setClosed(m.message);
-            } else setError(m.message);
+            } else {
+              // Fehler beim Erstellen/Beitreten als Hauptscreen: nicht endlos wiederholen
+              joinScreenRef.current = null;
+              createPlayRef.current = null;
+              setError(m.message);
+            }
             break;
           case 'closed':
             remove(key);

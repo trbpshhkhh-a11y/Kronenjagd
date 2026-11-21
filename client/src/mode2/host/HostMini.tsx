@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { HostView, GAMES, gameById, Stroke, formatNumber } from '@kronen/shared';
-import { useLeft, playerName, playerOf } from '../common';
+import { useMemo } from 'react';
+import { HostView, GAMES, gameById, formatNumber } from '@kronen/shared';
+import { useLeft, playerName, playerOf, usePortrait, displayName } from '../common';
+import { LiveDrawing } from '../LiveDrawing';
 import { SlotRoller } from '../../components/Roller';
 import { RulesContent } from '../../components/Rules';
 import { TimerRing, Dot } from '../../components/ui';
@@ -9,15 +10,16 @@ import { Tiles } from '../../mode1/games';
 
 type Send = (m: any) => void;
 
-export function HostMini({ v, send, strokeListeners }: { v: HostView; send: Send; strokeListeners: Set<(s: Stroke) => void> }) {
+export function HostMini({ v, send }: { v: HostView; send: Send }) {
+  const P = usePortrait();
   const m = v.mini!;
   const g = gameById(m.game);
   const left = useLeft(v, m.until);
   const names = useMemo(() => GAMES.map((x) => x.name), []);
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 30, background: 'rgba(25,12,4,0.93)', padding: '30px 50px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 30, background: 'rgba(25,12,4,0.95)', padding: P ? '30px 30px 80px' : '30px 50px', display: 'flex', flexDirection: 'column', gap: 24, overflowY: P ? 'auto' : 'hidden' }}>
       <div className="row between">
-        <h1 className="gold" style={{ fontSize: 72 }}>🎮 {g.name}</h1>
+        <h1 className="gold" style={{ fontSize: P ? 60 : 72 }}>🎮 {g.name}</h1>
         <div className="row" style={{ gap: 16 }}>
           {m.stage === 'bereit' && left !== null && <span className="head" style={{ fontSize: 34 }}>Start in {left}s</span>}
           {(m.stage === 'bereit' || m.stage === 'ergebnis' || m.stage === 'teams') && (
@@ -30,12 +32,12 @@ export function HostMini({ v, send, strokeListeners }: { v: HostView; send: Send
         {m.stage === 'auslosung' && (
           <div className="stack" style={{ alignItems: 'center', justifyContent: 'center', flex: 1, gap: 40 }}>
             <h2 style={{ fontSize: 60 }}>{m.chosenBy ? `${playerName(v, m.chosenBy)} hat ausgesucht:` : 'Das Minispiel ist …'}</h2>
-            {m.chosenBy ? <div className="slot done"><div className="slot-text">{g.name}</div></div> : <SlotRoller options={names} final={g.name} duration={3000} render={(x) => x} style={{ width: 1100 }} />}
+            {m.chosenBy ? <div className="slot done"><div className="slot-text">{g.name}</div></div> : <SlotRoller options={names} final={g.name} duration={3000} render={(x) => x} style={{ width: P ? '100%' : 1100 }} />}
           </div>
         )}
         {m.stage === 'teams' && <TeamsView v={v} />}
         {m.stage === 'bereit' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 30, fontSize: 30 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: P ? '1fr' : '1.3fr 1fr', gap: 30, fontSize: 30 }}>
             <RulesContent id={m.game} mode2 />
             <div className="stack">
               <TeamsView v={v} small />
@@ -44,7 +46,7 @@ export function HostMini({ v, send, strokeListeners }: { v: HostView; send: Send
                 <div className="row">
                   {v.players.map((p) => (
                     <span key={p.id} className="chip" style={{ opacity: m.ready.includes(p.id) ? 1 : 0.45 }}>
-                      {m.ready.includes(p.id) ? '✔' : '…'} <Dot color={p.color} /> {p.name}
+                      {m.ready.includes(p.id) ? '✔' : '…'} <Dot color={p.color} /> {displayName(p)}
                     </span>
                   ))}
                 </div>
@@ -52,12 +54,12 @@ export function HostMini({ v, send, strokeListeners }: { v: HostView; send: Send
             </div>
           </div>
         )}
-        {m.stage === 'spiel' && m.inner && <GameView v={v} inner={m.inner} strokeListeners={strokeListeners} />}
+        {m.stage === 'spiel' && m.inner && <GameView v={v} inner={m.inner} />}
         {m.stage === 'ergebnis' && m.result && (
           <div className="stack" style={{ alignItems: 'center', gap: 20 }}>
             <Confetti duration={3000} />
             <h2 style={{ fontSize: 56 }}>Rangliste – Bonusfelder für den nächsten Zug</h2>
-            <div className="stack" style={{ width: 1200, gap: 12 }}>
+            <div className="stack" style={{ width: P ? '100%' : 1200, gap: 12 }}>
               {m.result.rows.map((r, i) => (
                 <div key={i} className="list-item" style={{ fontSize: 38 }}>
                   <span className="head gold" style={{ width: 70 }}>{i + 1}.</span>
@@ -75,24 +77,25 @@ export function HostMini({ v, send, strokeListeners }: { v: HostView; send: Send
 }
 
 function TeamsView({ v, small }: { v: HostView; small?: boolean }) {
+  const P = usePortrait();
   const m = v.mini!;
   const einzel = gameById(m.game).teamMode === 'einzel';
   if (einzel)
     return (
       <div className="panel">
         <h2 style={{ fontSize: small ? 32 : 56 }}>Jeder für sich!</h2>
-        <div className="row" style={{ marginTop: 10 }}>{v.players.map((p) => <span key={p.id} className="chip" style={{ fontSize: small ? 24 : 36 }}><Dot color={p.color} /> {p.name}</span>)}</div>
+        <div className="row" style={{ marginTop: 10 }}>{v.players.map((p) => <span key={p.id} className="chip" style={{ fontSize: small ? 24 : 36 }}><Dot color={p.color} /> {displayName(p)}</span>)}</div>
       </div>
     );
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(m.teams.length, small ? 2 : 3)}, 1fr)`, gap: 20 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(m.teams.length, small || P ? 2 : 3)}, 1fr)`, gap: 20 }}>
       {m.teams.map((t, i) => (
         <div key={i} className="card" style={small ? undefined : { animation: `cardIn .5s ${i * 0.3}s both` }}>
           <h2 style={{ fontSize: small ? 28 : 46 }}>{t.name}</h2>
           <div className="row" style={{ marginTop: 8 }}>
             {t.members.map((id) => {
               const p = playerOf(v, id);
-              return <span key={id} className="chip head" style={{ fontSize: small ? 22 : 34, color: 'var(--cream)', background: 'rgba(60,30,10,.85)' }}><Dot color={p?.color ?? '#999'} /> {p?.name}</span>;
+              return <span key={id} className="chip head" style={{ fontSize: small ? 22 : 34, color: 'var(--cream)', background: 'rgba(60,30,10,.85)' }}><Dot color={p?.color ?? '#999'} /> {p ? displayName(p) : '?'}</span>;
             })}
           </div>
         </div>
@@ -107,7 +110,8 @@ function BigTimer({ v, until, total }: { v: HostView; until: number; total: numb
   return <TimerRing left={left} total={total} size={190} />;
 }
 
-function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; strokeListeners: Set<(s: Stroke) => void> }) {
+function GameView({ v, inner }: { v: HostView; inner: any }) {
+  const P = usePortrait();
   const t = v.settings.timer;
   switch (inner.game) {
     case 'game7':
@@ -116,7 +120,7 @@ function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; stro
           <h2 className="center" style={{ fontSize: 56 }}>
             {inner.finished ? 'Fertig!' : <>Dran: <span className="gold">{inner.teams[inner.current]?.label}</span> – exakt <span className="gold">{inner.target}</span> {inner.target === 1 ? 'Aufprall' : 'Aufpraller'}</>}
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(5, inner.teams.length)}, 1fr)`, gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(P ? 2 : 5, inner.teams.length)}, 1fr)`, gap: 20 }}>
             {inner.teams.map((tm: any, i: number) => (
               <div key={i} className="card stack" style={i === inner.current && !inner.finished ? { boxShadow: '0 0 0 8px #66bb6a' } : undefined}>
                 <h2 style={{ fontSize: 40 }}>{tm.label}</h2>
@@ -151,6 +155,7 @@ function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; stro
           {inner.stage === 'start' && <p className="head" style={{ fontSize: 44 }}>Gleich geht’s los … Handys bereit!</p>}
           {inner.stage === 'laeuft' && <BigTimer v={v} until={inner.until} total={total} />}
           {inner.stage === 'pause' && <p className="head" style={{ fontSize: 50 }}>⏰ Zeit ist um!</p>}
+          {inner.botInfo && inner.stage === 'laeuft' && <BotLine info={inner.botInfo} />}
           <div className="row center" style={{ fontSize: 40 }}>
             {inner.correct.map((c: any, i: number) => <span key={i} className="chip" style={i === inner.teamIdx ? { borderColor: 'var(--gold)' } : undefined}>{c.label}: <b className="gold">{c.n}</b> richtig</span>)}
           </div>
@@ -164,7 +169,7 @@ function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; stro
           {inner.stage === 'zeigen' && (
             <>
               <BigTimer v={v} until={inner.until} total={10} />
-              <div style={{ width: 1500 }}><Tiles items={inner.items} /></div>
+              <div style={{ width: P ? '100%' : 1500 }}><Tiles items={inner.items} /></div>
             </>
           )}
           {inner.stage === 'abfrage' && (
@@ -177,7 +182,7 @@ function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; stro
           )}
           {inner.stage === 'aufloesung' && (
             <>
-              <div style={{ width: 1300 }}><Tiles items={inner.items} /></div>
+              <div style={{ width: P ? '100%' : 1300 }}><Tiles items={inner.items} /></div>
               <div className="row center" style={{ fontSize: 32 }}>{inner.scores?.map((r: any) => <span key={r.label} className="chip">{r.label}: <b className="gold">{r.punkte}</b>/10</span>)}</div>
             </>
           )}
@@ -185,7 +190,7 @@ function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; stro
       );
     case 'slf':
       return inner.stage !== 'pruefung' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '520px 1fr 260px', gap: 40, alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: P ? '1fr' : '520px 1fr 260px', gap: 40, alignItems: 'center' }}>
           <div className="card center"><div className="head" style={{ fontSize: 340, lineHeight: 1, color: 'var(--red-dark)' }}>{inner.letter}</div></div>
           <div className="stack" style={{ fontSize: 48 }}>
             {inner.cats.map((c: string, i: number) => <div key={i} className="list-item head">{i + 1}. {c}</div>)}
@@ -237,19 +242,20 @@ function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; stro
         </div>
       );
     case 'montagsmaler':
-      return <MalHost v={v} inner={inner} strokeListeners={strokeListeners} />;
+      return <MalHost v={v} inner={inner} />;
     case 'zahlen':
       return (
         <div className="stack" style={{ alignItems: 'center', gap: 26 }}>
           {inner.stage === 'raten' && <BigTimer v={v} until={inner.until} total={t.zahlen} />}
           {inner.stage === 'raten' && <p className="head center" style={{ fontSize: 34 }}>Rater nennen abwechselnd eine Kategorie, Kenner nennen einen passenden Begriff (1 = winzig, 10 = riesig).</p>}
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(5, inner.teams.length)}, 1fr)`, gap: 20, width: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(P ? 2 : 5, inner.teams.length)}, 1fr)`, gap: 20, width: '100%' }}>
             {inner.teams.map((tm: any, i: number) => (
               <div key={i} className="card" style={{ fontSize: 28 }}>
                 <h2>{tm.label}</h2>
                 <p>🔎 Rater: <b>{tm.rater}</b> {tm.hatGetippt && inner.stage === 'raten' ? '✔ getippt' : ''}</p>
                 <p>🧠 Kenner: <b>{tm.kenner.join(', ')}</b></p>
                 {inner.stage === 'aufgedeckt' && <p className="head" style={{ fontSize: 40 }}>Tipp: {tm.tipp ?? '–'} → <span style={{ color: 'var(--green)' }}>+{tm.bonus}</span></p>}
+                {(inner.hints as any[]).filter((h) => h.team === i).map((h, k) => <p key={k}>💬 {h.name}: <b>{h.kategorie} → {h.begriff}</b></p>)}
               </div>
             ))}
           </div>
@@ -281,52 +287,13 @@ function GameView({ v, inner, strokeListeners }: { v: HostView; inner: any; stro
 }
 
 /** Montagsmaler: Zeichnung live auf dem Hauptscreen */
-function MalHost({ v, inner, strokeListeners }: { v: HostView; inner: any; strokeListeners: Set<(s: Stroke) => void> }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const strokes = useRef<Map<number, Stroke>>(new Map());
-  const [, force] = useState(0);
-  const redraw = () => {
-    const c = canvas.current;
-    if (!c) return;
-    const ctx = c.getContext('2d')!;
-    ctx.fillStyle = '#fffdf6';
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (const s of strokes.current.values()) {
-      ctx.strokeStyle = s.color;
-      ctx.lineWidth = (s.w * c.width) / 1000;
-      ctx.beginPath();
-      for (let i = 0; i < s.pts.length; i += 2) {
-        const x = (s.pts[i] / 1000) * c.width;
-        const y = (s.pts[i + 1] / 1000) * c.height;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      if (s.pts.length === 2) ctx.lineTo((s.pts[0] / 1000) * c.width + 0.1, (s.pts[1] / 1000) * c.height);
-      ctx.stroke();
-    }
-  };
-  // voller Zustand (z. B. nach Wiederverbinden oder Löschen)
-  useEffect(() => {
-    strokes.current = new Map((inner.strokes as Stroke[]).map((s) => [s.id, { ...s, pts: [...s.pts] }]));
-    redraw();
-  }, [JSON.stringify((inner.strokes as Stroke[]).map((s) => [s.id, s.pts.length])), inner.lastSolved, inner.round]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Live-Striche
-  useEffect(() => {
-    const on = (s: Stroke) => {
-      const ex = strokes.current.get(s.id);
-      if (ex) ex.pts.push(...s.pts);
-      else strokes.current.set(s.id, { ...s, pts: [...s.pts] });
-      redraw();
-      force((x) => x + 1);
-    };
-    strokeListeners.add(on);
-    return () => void strokeListeners.delete(on);
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+function MalHost({ v, inner }: { v: HostView; inner: any }) {
+  const P = usePortrait();
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 460px', gap: 30, flex: 1, minHeight: 0 }}>
-      <canvas ref={canvas} width={1200} height={900} style={{ height: 780, width: 1040, background: '#fffdf6', borderRadius: 18, border: '6px solid var(--wood-900)', justifySelf: 'center' }} />
+    <div style={{ display: 'grid', gridTemplateColumns: P ? '1fr' : '1fr 460px', gap: 30, flex: 1, minHeight: 0 }}>
+      <div style={{ width: P ? '100%' : 1040, justifySelf: 'center' }}>
+        <LiveDrawing strokes={inner.strokes} resetKey={`${inner.round}-${inner.lastSolved}`} style={{ borderWidth: 6, borderRadius: 18 }} />
+      </div>
       <div className="stack" style={{ fontSize: 30 }}>
         <h2 style={{ fontSize: 48 }}>{inner.team}</h2>
         <p>✏️ Zeichner: <b className="gold">{inner.drawer}</b></p>
@@ -341,5 +308,14 @@ function MalHost({ v, inner, strokeListeners }: { v: HostView; inner: any; strok
         {inner.correct.map((c: any, i: number) => <span key={i} className="chip">{c.label}: <b className="gold">{c.n}</b></span>)}
       </div>
     </div>
+  );
+}
+
+/** Was ein Bot gerade „gesagt“ hat (z. B. beim Raten) */
+export function BotLine({ info }: { info: { seq: number; name: string; text: string; ok: boolean } }) {
+  return (
+    <p key={info.seq} className="head" style={{ fontSize: '1.3em', color: info.ok ? '#a5e89a' : '#ffcc80', animation: 'pop .4s' }}>
+      {info.name} {info.text}
+    </p>
   );
 }

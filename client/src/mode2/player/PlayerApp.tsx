@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { PlayerView, normalizeCode, CODE_LENGTH, CARD_TEXT, gameById, fieldType } from '@kronen/shared';
 import { useConnection, loadSession, PLAYER_KEY } from '../connection';
-import { go } from '../../lib/router';
+import { go, useRoute } from '../../lib/router';
 import { useWakeLock } from '../../lib/hooks';
-import { BoardSnippet, OPTION_COLORS, statusText, useLeft, playerName, ConnBanner, useToast } from '../common';
+import { BoardSnippet, OPTION_COLORS, statusText, useLeft, playerName, ConnBanner, useToast, CrownTable, displayName, tokenLetter } from '../common';
+import { emitStroke } from '../LiveDrawing';
+import { PlayerManager, LobbySettings, JoinCode } from '../LobbyParts';
 import { Die, Dot, FieldBadge, Modal, Confirm } from '../../components/ui';
 import { CrownSvg, FieldIcon, TokenSvg, FIELD_TYPE_LABEL } from '../../components/icons';
 import { Confetti } from '../../components/Decor';
@@ -11,24 +13,32 @@ import { EventCardScene } from '../../components/EventCard';
 import { PlayerMini } from './PlayerMini';
 
 export default function PlayerApp({ initialCode = '' }: { initialCode?: string }) {
-  const conn = useConnection<PlayerView>('player');
+  const r = useRoute();
+  const createName = r.query.get('neu') ?? undefined;
+  const conn = useConnection<PlayerView>('player', { createPlay: createName, onStroke: emitStroke });
   useWakeLock(!!conn.view);
+  useEffect(() => {
+    if (createName && conn.session) history.replaceState(null, '', '#/spieler');
+  }, [createName, conn.session]);
   const v = conn.view;
   const toast = useToast(v);
   if (conn.closed && !v && !loadSession(PLAYER_KEY)) {
     return <JoinForm initialCode={initialCode} conn={conn} notice={conn.closed} />;
   }
   if (!v) {
+    if (createName && !conn.error) return <div className="screen center"><h2>Lobby wird erstellt …</h2></div>;
+    if (createName && conn.error) return <div className="screen center"><h2 className="err">{conn.error}</h2><button className="btn" onClick={() => go('/nur-app')}>Zurück</button></div>;
     if (conn.session) return <div className="screen center"><h2>Verbinde mit Lobby {conn.session.code} …</h2><button className="btn ghost" onClick={conn.forget}>Abbrechen</button></div>;
     return <JoinForm initialCode={initialCode} conn={conn} />;
   }
+  const leave = () => { conn.send({ t: 'leave' }); conn.forget(); go('/nur-app'); };
   return (
     <div className="screen" style={{ maxWidth: 680, gap: 14, paddingTop: 30 }}>
       <Header v={v} />
       {toast && <div className={`toast mobile-toast ${toast.kind}`}>{toast.text}</div>}
       {conn.error && <Modal onClose={conn.clearError}><div className="card stack center"><p className="head" style={{ fontSize: '1.2em' }}>{conn.error}</p><button className="btn" onClick={conn.clearError}>OK</button></div></Modal>}
-      {!v.started ? <WaitingRoom v={v} send={conn.send} onLeave={() => { conn.send({ t: 'leave' }); conn.forget(); go('/nur-app'); }} /> : <Playing v={v} send={conn.send} onExit={() => { conn.forget(); go('/'); }} />}
-      <ConnBanner status={conn.status} hostConnected={v.hostConnected} />
+      {!v.started ? <WaitingRoom v={v} send={conn.send} onLeave={leave} /> : <Playing v={v} send={conn.send} onExit={() => { conn.forget(); go('/'); }} onClose={() => { conn.send({ t: 'close' }); conn.forget(); go('/'); }} />}
+      <ConnBanner status={conn.status} />
     </div>
   );
 }
@@ -60,6 +70,10 @@ function JoinForm({ initialCode, conn, notice }: { initialCode: string; conn: Re
         {conn.error && <p className="err">{conn.error}</p>}
         <button className="btn green big" type="submit" disabled={!valid || busy}>{busy ? 'Trete bei …' : 'Beitreten'}</button>
       </form>
+      <div className="panel stack" style={{ alignItems: 'center', textAlign: 'center' }}>
+        <p className="small">Dieses Gerät soll das Brett für alle zeigen (Fernseher, Tablet, Laptop) und nicht mitspielen?</p>
+        <button className="btn" disabled={code.length !== CODE_LENGTH} onClick={() => go('/host?c=' + code)}>📺 Als Hauptscreen beitreten</button>
+      </div>
     </div>
   );
 }
@@ -69,8 +83,9 @@ function Header({ v }: { v: PlayerView }) {
   return (
     <div className="panel dark row between" style={{ padding: '10px 14px' }}>
       <span className="row" style={{ gap: 10 }}>
-        <span style={{ width: 44, height: 52 }}><TokenSvg color={me.color} letter={me.name[0]?.toUpperCase() ?? '?'} /></span>
+        <span style={{ width: 44, height: 52 }}><TokenSvg color={me.color} letter={tokenLetter(me)} /></span>
         <b className="head" style={{ fontSize: '1.25em' }}>{me.name}</b>
+        {v.iAmLeader && <span className="badge" title="Du leitest die Lobby" style={{ fontSize: '0.7em' }}>Leitung</span>}
       </span>
       <span className="row" style={{ gap: 8 }}>
         {me.bonus > 0 && <span className="badge green">+{me.bonus} Bonus</span>}
@@ -84,22 +99,37 @@ function WaitingRoom({ v, send, onLeave }: { v: PlayerView; send: Send; onLeave:
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState(v.me.name);
   const [ask, setAsk] = useState(false);
+  const leader = v.players.find((p) => p.id === v.leaderId);
+  const humans = v.players.filter((p) => !p.bot).length;
+  const canStart = v.players.length >= 2 && humans >= 1;
   return (
     <>
       <div className="card center">
-        <h2>Du bist in Lobby {v.code}</h2>
-        <p>Warte, bis der Hauptscreen das Spiel startet.</p>
+        <JoinCode code={v.code} />
+        {!v.iAmLeader && (
+          <p style={{ marginTop: 8 }}>
+            {v.screenMode && v.hostConnected ? 'Warte, bis der Hauptscreen das Spiel startet.' : `Warte, bis ${leader ? leader.name : 'die Lobby-Leitung'} das Spiel startet.`}
+          </p>
+        )}
       </div>
       <div className="panel stack">
-        <h3>Mitspieler ({v.players.length})</h3>
-        {v.players.map((p) => (
-          <div key={p.id} className="list-item">
-            <Dot color={p.color} />
-            <b className="grow">{p.name}{p.id === v.me.id ? ' (du)' : ''}</b>
-            <span className={`badge ${p.connected ? 'green' : 'gray'}`}>{p.connected ? 'da' : 'getrennt'}</span>
-          </div>
-        ))}
+        <h3>Mitspieler ({v.players.length}/10)</h3>
+        <PlayerManager v={v} send={send} canEdit={v.iAmLeader} meId={v.me.id} />
       </div>
+      {v.iAmLeader && (
+        <>
+          <details className="panel">
+            <summary className="head" style={{ cursor: 'pointer' }}>⚙ Einstellungen</summary>
+            <div style={{ marginTop: 12 }}>
+              <LobbySettings v={v} send={send} canEdit />
+            </div>
+          </details>
+          <button className="btn red huge block" disabled={!canStart} onClick={() => send({ t: 'start' })}>
+            {v.players.length < 2 ? 'Füge Mitspieler oder Bots hinzu' : '🎲 Spiel starten'}
+          </button>
+          {!v.hostConnected && <p className="small center muted">Ohne Hauptscreen sieht jeder alles auf seinem Handy. Ein Fernseher kann sich jederzeit mit dem Code als Hauptscreen dazuschalten.</p>}
+        </>
+      )}
       {edit ? (
         <form className="panel row" onSubmit={(e) => { e.preventDefault(); send({ t: 'rename', name }); setEdit(false); }}>
           <input className="input" style={{ flex: 1 }} value={name} maxLength={14} onChange={(e) => setName(e.target.value)} />
@@ -116,9 +146,10 @@ function WaitingRoom({ v, send, onLeave }: { v: PlayerView; send: Send; onLeave:
   );
 }
 
-function Playing({ v, send, onExit }: { v: PlayerView; send: Send; onExit: () => void }) {
+function Playing({ v, send, onExit, onClose }: { v: PlayerView; send: Send; onExit: () => void; onClose: () => void }) {
   const ph = v.phase;
   const myTurn = v.turnPlayerId === v.me.id;
+  const noScreen = !v.hostConnected;
   const left = useLeft(v, 'until' in ph ? (ph as { until: number }).until : null);
   if (ph.k === 'sieg') {
     const won = ph.winner === v.me.id;
@@ -128,21 +159,78 @@ function Playing({ v, send, onExit }: { v: PlayerView; send: Send; onExit: () =>
         <CrownSvg size={160} big className="crown-big" />
         <h1 className="gold">{won ? 'Du hast gewonnen!' : `${playerName(v, ph.winner)} gewinnt!`}</h1>
         <div className="panel list" style={{ width: '100%' }}>
-          {[...v.players].sort((a, b) => b.kronen - a.kronen).map((p, i) => <div key={p.id} className="list-item"><b>{i + 1}.</b><Dot color={p.color} /><span className="grow">{p.name}</span>👑 {p.kronen}</div>)}
+          {[...v.players].sort((a, b) => b.kronen - a.kronen).map((p, i) => <div key={p.id} className="list-item"><b>{i + 1}.</b><Dot color={p.color} /><span className="grow">{displayName(p)}</span>👑 {p.kronen}</div>)}
         </div>
-        <p className="small">Der Hauptscreen kann eine neue Runde starten.</p>
-        <button className="btn ghost" onClick={onExit}>Spiel verlassen</button>
+        {v.iAmLeader ? (
+          <div className="stack" style={{ width: '100%' }}>
+            <button className="btn red big block" onClick={() => send({ t: 'host', a: { t: 'neueRunde' } })}>🔁 Neue Runde mit denselben Spielern</button>
+            <button className="btn ghost block" onClick={onClose}>Lobby beenden</button>
+          </div>
+        ) : (
+          <>
+            <p className="small">{v.screenMode && v.hostConnected ? 'Der Hauptscreen' : 'Die Lobby-Leitung'} kann eine neue Runde starten.</p>
+            <button className="btn ghost" onClick={onExit}>Spiel verlassen</button>
+          </>
+        )}
       </div>
     );
   }
   if (ph.k === 'minispiel' && v.mini) return <PlayerMini v={v} send={send} />;
+  if (ph.k === 'intro') return <IntroPhone v={v} send={send} />;
   return (
     <>
       <div className="card center" style={{ padding: 14 }}>
         <p className="head" style={{ fontSize: '1.2em', color: 'var(--red-dark)' }}>{myTurn && ph.k === 'wuerfeln' ? 'Du bist dran!' : statusText(v)}</p>
       </div>
+      {noScreen && ph.k === 'gewuerfelt' && !myTurn && <DiceShow v={v} />}
       {myTurn ? <MyTurn v={v} send={send} left={left} /> : <Spectate v={v} />}
+      {noScreen && (
+        <details className="panel" open style={{ padding: 10 }}>
+          <summary className="head" style={{ cursor: 'pointer' }}>👑 Kronentafel</summary>
+          <div style={{ marginTop: 8 }}><CrownTable view={v} compact /></div>
+        </details>
+      )}
     </>
+  );
+}
+
+/** Startfelder und Reihenfolge (ohne Hauptscreen auf dem Handy) */
+function IntroPhone({ v, send }: { v: PlayerView; send: Send }) {
+  return (
+    <div className="stack">
+      <h2 className="gold center">Startfelder & Reihenfolge</h2>
+      <div className="panel list">
+        {v.order.map((id, i) => {
+          const p = v.players.find((x) => x.id === id)!;
+          return (
+            <div key={id} className="list-item" style={{ animation: `cardIn .4s ${i * 0.3}s both` }}>
+              <b className="head gold">{i + 1}.</b>
+              <span style={{ width: 34, height: 40 }}><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
+              <span className="grow head">{displayName(p)}{p.id === v.me.id ? ' (du)' : ''}</span>
+              <FieldBadge n={p.start} showIcon={false} />
+            </div>
+          );
+        })}
+      </div>
+      {v.iAmLeader && <button className="btn ghost" onClick={() => send({ t: 'host', a: { t: 'weiter' } })}>Überspringen</button>}
+    </div>
+  );
+}
+
+/** Würfelanimation für alle (ohne Hauptscreen) */
+function DiceShow({ v }: { v: PlayerView }) {
+  const ph = v.phase;
+  const [rolling, setRolling] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setRolling(false), 1000);
+    return () => clearTimeout(t);
+  }, []);
+  if (ph.k !== 'gewuerfelt') return null;
+  return (
+    <div className="row center" style={{ gap: 16 }}>
+      <Die value={ph.wurf} rolling={rolling} size="4em" />
+      {!rolling && <span className="head gold" style={{ fontSize: '2em', animation: 'pop .4s' }}>{ph.bonus ? `${ph.wurf}+${ph.bonus}=${ph.total}` : `${ph.wurf}!`}</span>}
+    </div>
   );
 }
 
@@ -150,11 +238,12 @@ function Spectate({ v }: { v: PlayerView }) {
   const ph = v.phase;
   return (
     <>
-      {ph.k === 'gewuerfelt' && (
+      {ph.k === 'gewuerfelt' && v.hostConnected && (
         <div className="row center"><Die value={ph.wurf} size="4em" /><span className="head" style={{ fontSize: '2em' }}>{ph.bonus ? `${ph.wurf}+${ph.bonus}=${ph.total}` : ph.wurf}</span></div>
       )}
+      {ph.k === 'karteZiehen' && !v.hostConnected && <div className="row center" style={{ marginBottom: 20 }}><EventCardScene width={110} card={null} drawing /></div>}
       {ph.k === 'karte' && <div className="row center"><EventCardScene width={ph.feld ? 170 : 120} card={ph.card} feld={ph.feld} ziel={ph.ziel} info={ph.info} /></div>}
-      <BoardSnippet view={v} center={v.me.pos} highlight={v.me.id} zoom={2.6} />
+      <BoardSnippet view={v} center={v.me.pos} highlight={v.turnPlayerId} zoom={2.6} previews={ph.k === 'richtung' && !v.hostConnected ? ph.options : undefined} />
       <p className="center small">Deine Figur steht auf Feld {v.me.pos}.</p>
     </>
   );

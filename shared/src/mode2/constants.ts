@@ -64,3 +64,16 @@ export const TIMER_LABELS: Record<keyof TimerSettings, string> = {
   wissen: 'Allgemeinwissen je Frage',
   begriffe: 'Begriffe erklären je Durchgang',
 };
+
+/* ---------------------------- Bots ---------------------------- */
+
+export type BotLevel = 'leicht' | 'mittel' | 'schwer';
+export const BOT_LEVELS: BotLevel[] = ['leicht', 'mittel', 'schwer'];
+export const BOT_LEVEL_LABEL: Record<BotLevel, string> = { leicht: 'Leicht', mittel: 'Mittel', schwer: 'Schwer' };
+/** Erfolgswahrscheinlichkeit der Bots in Minispielen je Schwierigkeit */
+export const BOT_ERFOLG: Record<BotLevel, number> = { leicht: 0.35, mittel: 0.55, schwer: 0.75 };
+/** Ab dieser Stufe loggen Bots bei Game of 7 ein */
+export const BOT_GAME7_EINLOGGEN: Record<BotLevel, number> = { leicht: 2, mittel: 3, schwer: 4 };
+/** Grundverzögerung der Bots in ms (natürlich wirkend) */
+export const BOT_VERZOEGERUNG: [number, number] = [1000, 3000];
+export const BOT_NAMEN = ['Bot Rudi', 'Bot Flocke', 'Bot Zimt', 'Bot Keks', 'Bot Frosti', 'Bot Nuss', 'Bot Lametta', 'Bot Mandel', 'Bot Sternchen', 'Bot Glöckchen'];

@@ -3,7 +3,7 @@ import type { DeckState } from '../deck';
 import type { PoolState } from '../pools';
 import type { MoveOption } from '../board';
 import type { Team } from '../teams';
-import type { TimerSettings } from './constants';
+import type { TimerSettings, BotLevel } from './constants';
 import type { MiniInner } from './minigames';
 
 export interface Settings {
@@ -23,6 +23,11 @@ export interface Player {
   bonus: number;
   pos: number;
   start: number;
+  /** null = Mensch, sonst Schwierigkeit des Bots */
+  bot: BotLevel | null;
+  /** Bot-Planung (nur Server-intern, wird nicht verschickt) */
+  botAt: number | null;
+  botSig: string | null;
 }
 
 export interface Crown {
@@ -98,7 +103,14 @@ export interface GameState {
   toast: Toast | null;
   started: boolean;
   lastActivity: number;
+  /** Ist gerade ein Hauptscreen verbunden? */
   hostConnected: boolean;
+  /** true = Lobby wurde von einem Hauptscreen erstellt (der dann die Lobby leitet) */
+  screenMode: boolean;
+  /** Spieler, der die Lobby leitet (wenn kein Hauptscreen leitet) */
+  leaderId: string | null;
+  /** Zähler der Züge (für eindeutige Bot-Entscheidungen) */
+  turnNo: number;
   /** Felder, die im aktuellen Zug betreten wurden (inkl. Start) */
   trail: number[];
 }

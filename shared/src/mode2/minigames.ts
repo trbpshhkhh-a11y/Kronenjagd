@@ -13,19 +13,43 @@ import {
   drawSchaetzfragen, drawWissen, drawKategorien, drawGegenstaende, drawBegriff, distractors, wissenOptions, SLF_BUCHSTABEN,
 } from '../pools';
 import type { Gegenstand, Schaetzfrage } from '../content';
+import { BEGRIFFE, ZAHLEN_HINWEISE } from '../content';
 import { closestIds, zahlenBonus } from '../bonus';
 import { normalize, startsWithLetter, fuzzyEquals } from '../text';
 
 export interface MCtx extends Ctx {
   s: GameState;
   teams: Team<string>[];
+  /** true = kein Hauptscreen verbunden: die Handys zeigen auch das, was sonst nur der Hauptscreen zeigt */
+  noScreen?: boolean;
 }
 
 const sec = (c: MCtx, key: keyof GameState['settings']['timer']) => c.s.settings.timer[key] * 1000;
 const allIds = (c: MCtx) => c.teams.flatMap((t) => t.members);
 const connectedIds = (c: MCtx) => allIds(c).filter((id) => c.s.players.find((p) => p.id === id)?.connected);
 const teamOf = (c: MCtx, pid: string) => c.teams.findIndex((t) => t.members.includes(pid));
-const nameOf = (c: MCtx, pid: string) => c.s.players.find((p) => p.id === pid)?.name ?? '?';
+const playerOf = (c: MCtx, pid: string) => c.s.players.find((p) => p.id === pid);
+const nameOf = (c: MCtx, pid: string) => {
+  const p = playerOf(c, pid);
+  return p ? (p.bot ? '🤖 ' + p.name : p.name) : '?';
+};
+const isBot = (c: MCtx, pid: string) => !!playerOf(c, pid)?.bot;
+const humansIn = (c: MCtx, members: string[]) => members.filter((m) => !isBot(c, m));
+/** Zufallszahl mit Standardnormalverteilung (Box-Muller) */
+function gauss(rng: () => number) {
+  const u = Math.max(1e-9, rng());
+  const v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+export interface BotInfo {
+  seq: number;
+  name: string;
+  text: string;
+  ok: boolean;
+}
+function setBotInfo(st: { botInfo: BotInfo | null }, name: string, text: string, ok: boolean) {
+  st.botInfo = { seq: (st.botInfo?.seq ?? 0) + 1, name, text, ok };
+}
 const teamLabel = (c: MCtx, i: number) =>
   c.teams[i].members.length === 1 ? nameOf(c, c.teams[i].members[0]) : c.teams[i].name;
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -62,6 +86,7 @@ export interface StirnState {
   rater: string;
   term: string;
   correct: number[];
+  botInfo: BotInfo | null;
 }
 
 export interface GegenState {
@@ -128,6 +153,8 @@ export interface ZahlenState {
   stage: 'raten' | 'aufgedeckt';
   until: number;
   tips: Record<string, number>;
+  /** Hinweise von Bot-Kennern (öffentlich, wie laut gesagt) */
+  hints: { team: number; name: string; kategorie: string; begriff: string }[];
 }
 
 export interface WissenState {
@@ -150,6 +177,7 @@ export interface BegriffeState {
   until: number;
   term: string;
   correct: number[];
+  botInfo: BotInfo | null;
 }
 
 export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState;
@@ -171,7 +199,11 @@ export type MiniAction =
   | { k: 'strich'; id: number; pts: number[]; color?: string; w?: number }
   | { k: 'loeschen' }
   | { k: 'zahlTipp'; value: number }
-  | { k: 'waehlen'; opt: number };
+  | { k: 'waehlen'; opt: number }
+  /** nur Bots: simulierte Fähigkeit (Erfolg ausgewürfelt), wird im Minispiel aufgelöst */
+  | { k: 'skill'; success: boolean }
+  /** nur Bots als Kenner bei Zahlen erraten */
+  | { k: 'hinweis'; kategorie: string; begriff: string };
 
 interface Impl<S extends MiniInner> {
   init(c: MCtx): S;
@@ -181,6 +213,8 @@ interface Impl<S extends MiniInner> {
   result(st: S, c: MCtx): MiniResult;
   host(st: S, c: MCtx): unknown;
   player(st: S, pid: string, c: MCtx): unknown;
+  /** Bot-Fähigkeit auflösen (Bot "weiß" etwas mit Wahrscheinlichkeit) */
+  skill?(st: S, pid: string, success: boolean, c: MCtx): void;
 }
 
 function teamResult(c: MCtx, scores: number[]): MiniResult {
@@ -328,12 +362,17 @@ const kopf: Impl<KopfState> = {
 function stirnStartRound(st: StirnState, c: MCtx) {
   st.stage = 'start';
   st.until = c.now + 5000;
-  st.rater = pick(c.rng, c.teams[st.round].members);
+  // Bots können nicht erklären: Es muss mindestens ein Mensch als Erklärer übrig bleiben.
+  const members = c.teams[st.round].members;
+  const humans = humansIn(c, members);
+  const candidates = members.filter((m) => humans.filter((h) => h !== m).length >= 1);
+  st.rater = pick(c.rng, candidates.length ? candidates : members);
   st.term = drawBegriff(c.s.pools, c.rng);
+  st.botInfo = null;
 }
 const stirn: Impl<StirnState> = {
   init(c) {
-    const st: StirnState = { game: 'stirnraten', round: 0, stage: 'start', until: 0, rater: '', term: '', correct: c.teams.map(() => 0) };
+    const st: StirnState = { game: 'stirnraten', round: 0, stage: 'start', until: 0, rater: '', term: '', correct: c.teams.map(() => 0), botInfo: null };
     stirnStartRound(st, c);
     return st;
   },
@@ -369,7 +408,16 @@ const stirn: Impl<StirnState> = {
     teamIdx: st.round,
     rater: nameOf(c, st.rater),
     correct: st.correct.map((n, i) => ({ label: teamLabel(c, i), n })),
+    botInfo: st.botInfo,
   }),
+  skill(st, pid, success, c) {
+    if (st.stage !== 'laeuft' || pid !== st.rater) return;
+    if (success) {
+      setBotInfo(st, nameOf(c, pid), `hat „${st.term}“ erraten!`, true);
+      st.correct[st.round]++;
+      st.term = drawBegriff(c.s.pools, c.rng);
+    } else setBotInfo(st, nameOf(c, pid), 'rät daneben …', false);
+  },
   player(st, pid, c) {
     const base = stirn.host(st, c) as object;
     const role = pid === st.rater ? 'rater' : teamOf(c, pid) === st.round ? 'erklaerer' : 'zuschauer';
@@ -450,11 +498,18 @@ const gegen: Impl<GegenState> = {
     const h = gegen.host(st, c) as { nr: number | null };
     return {
       ...(h as object),
-      items: st.stage === 'aufloesung' ? st.items : null,
+      items: st.stage === 'aufloesung' || (c.noScreen && st.stage === 'zeigen') ? st.items : null,
       options: st.stage === 'abfrage' ? st.options : null,
       meineWahl: h.nr !== null ? st.answers[pid]?.[h.nr] ?? null : null,
       meineAntworten: st.stage === 'aufloesung' ? st.answers[pid] ?? {} : null,
     };
+  },
+  skill(st, pid, success, c) {
+    if (st.stage !== 'abfrage') return;
+    const nr = st.order[st.q];
+    const right = st.items[nr - 1].emoji;
+    const wrong = st.options.filter((o) => o.emoji !== right);
+    (st.answers[pid] ??= {})[nr] = success ? right : pick(c.rng, wrong).emoji;
   },
 };
 
@@ -619,6 +674,18 @@ const schaetz: Impl<SchaetzState> = {
     };
   },
   player: (st, pid, c) => ({ ...(schaetz.host(st, c) as object), meine: st.answers[pid] ?? null }),
+  skill(st, pid, success, c) {
+    if (st.stage !== 'frage' || st.answers[pid] !== undefined) return;
+    const lvl = playerOf(c, pid)?.bot ?? 'mittel';
+    const sigma = success ? { leicht: 0.15, mittel: 0.1, schwer: 0.05 }[lvl] : { leicht: 0.6, mittel: 0.45, schwer: 0.3 }[lvl];
+    const wert = st.qs[st.idx].wert;
+    let est = wert * (1 + gauss(c.rng) * sigma);
+    if (wert > 0) est = Math.max(0, est);
+    // sinnvoll runden: ganze Zahlen bleiben ganz, große Zahlen auf 2–3 Stellen
+    const mag = Math.abs(est) >= 1000 ? Math.pow(10, Math.floor(Math.log10(Math.abs(est))) - 2) : Number.isInteger(wert) ? 1 : 0.1;
+    st.answers[pid] = Math.round(est / mag) * mag;
+    st.answers[pid] = Math.round(st.answers[pid] * 1000) / 1000;
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -627,7 +694,9 @@ const schaetz: Impl<SchaetzState> = {
 function malStartRound(st: MalState, c: MCtx) {
   st.stage = 'start';
   st.until = c.now + 5000;
-  st.drawer = pick(c.rng, c.teams[st.round].members);
+  // Bots können nicht zeichnen: Zeichner ist immer ein Mensch (falls es einen gibt)
+  const humans = humansIn(c, c.teams[st.round].members);
+  st.drawer = pick(c.rng, humans.length ? humans : c.teams[st.round].members);
   st.terms = Array.from({ length: 8 }, () => drawBegriff(c.s.pools, c.rng));
   st.termIdx = 0;
   st.strokes = [];
@@ -715,11 +784,23 @@ const mal: Impl<MalState> = {
     const h = mal.host(st, c) as Record<string, unknown>;
     return {
       ...h,
-      strokes: undefined,
+      strokes: c.noScreen ? h.strokes : undefined,
       role,
       term: role === 'zeichner' && st.stage === 'laeuft' ? st.terms[st.termIdx] ?? null : null,
       begriffNr: st.termIdx + 1,
     };
+  },
+  skill(st, pid, success, c) {
+    if (st.stage !== 'laeuft' || pid === st.drawer || teamOf(c, pid) !== st.round) return;
+    const term = st.terms[st.termIdx];
+    if (success) {
+      st.guesses.push({ name: nameOf(c, pid), text: term, ok: true });
+      malNext(st, true, c);
+    } else {
+      const wrong = pick(c.rng, BEGRIFFE.filter((b) => b !== term));
+      st.guesses.push({ name: nameOf(c, pid), text: wrong, ok: false });
+    }
+    if (st.guesses.length > 12) st.guesses.shift();
   },
 };
 
@@ -729,13 +810,28 @@ const mal: Impl<MalState> = {
 const zahlen: Impl<ZahlenState> = {
   init: (c) => ({
     game: 'zahlen',
-    raters: c.teams.map((t) => pick(c.rng, t.members)),
+    // Kenner möglichst Menschen: Hat ein Team Bots, rät ein Bot.
+    raters: c.teams.map((t) => {
+      const bots = t.members.filter((m) => isBot(c, m));
+      return pick(c.rng, bots.length && bots.length < t.members.length ? bots : t.members);
+    }),
     secret: randInt(c.rng, 1, 10),
     stage: 'raten',
     until: c.now + sec(c, 'zahlen'),
     tips: {},
+    hints: [],
   }),
-  action(st, pid, a) {
+  action(st, pid, a, c) {
+    if (a.k === 'hinweis') {
+      if (st.stage !== 'raten') return;
+      const t = teamOf(c, pid);
+      if (t < 0 || st.raters.includes(pid) || !isBot(c, pid)) throw new GameError('Nur Bot-Kenner geben Hinweise.');
+      const kat = ZAHLEN_HINWEISE.find((k) => k.kategorie === a.kategorie);
+      if (!kat || !kat.begriffe.includes(a.begriff)) throw new GameError('Ungültiger Hinweis');
+      if (st.hints.filter((h) => h.team === t).length >= 3) return;
+      st.hints.push({ team: t, name: nameOf(c, pid), kategorie: kat.kategorie, begriff: a.begriff });
+      return;
+    }
     if (a.k !== 'zahlTipp' || !isNum(a.value) || !Number.isInteger(a.value) || a.value < 1 || a.value > 10) throw new GameError('Bitte eine Zahl von 1 bis 10 wählen.');
     if (st.stage !== 'raten') return;
     if (!st.raters.includes(pid)) throw new GameError('Nur die Rater geben einen Tipp ab.');
@@ -771,9 +867,20 @@ const zahlen: Impl<ZahlenState> = {
         hatGetippt: st.tips[st.raters[i]] !== undefined,
         tipp: reveal ? st.tips[st.raters[i]] ?? null : null,
         bonus: reveal ? zahlenBonus(st.secret, st.tips[st.raters[i]]) : null,
+        raterId: st.raters[i],
+        kennerIds: t.members.filter((m) => m !== st.raters[i]),
       })),
+      hints: st.hints,
       zahl: reveal ? st.secret : null,
     };
+  },
+  skill(st, pid, success, c) {
+    if (st.stage !== 'raten' || !st.raters.includes(pid) || st.tips[pid] !== undefined) return;
+    const sign = c.rng() < 0.5 ? -1 : 1;
+    const dev = success ? (c.rng() < 0.5 ? 0 : 1) : randInt(c.rng, 2, 4);
+    let tip = st.secret + sign * dev;
+    if (tip < 1 || tip > 10) tip = st.secret - sign * dev;
+    st.tips[pid] = Math.min(10, Math.max(1, tip));
   },
   player(st, pid, c) {
     const role = st.raters.includes(pid) ? 'rater' : 'kenner';
@@ -867,6 +974,13 @@ const wissen: Impl<WissenState> = {
       myTeam: t,
     };
   },
+  skill(st, pid, success, c) {
+    if (st.stage !== 'frage') return;
+    const q = st.qs[st.idx];
+    const right = q.options.indexOf(q.antwort);
+    const opt = success ? right : pick(c.rng, [0, 1, 2, 3].filter((i) => i !== right));
+    wissen.action(st, pid, { k: 'waehlen', opt }, c);
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -876,8 +990,14 @@ export const BEGRIFFE_DURCHGAENGE = 2;
 const begriffe: Impl<BegriffeState> = {
   init(c) {
     const seq: { team: number; explainer: string }[] = [];
-    for (let r = 0; r < BEGRIFFE_DURCHGAENGE; r++) c.teams.forEach((t, i) => seq.push({ team: i, explainer: t.members[r % t.members.length] }));
-    return { game: 'begriffe', seq, idx: 0, stage: 'start', until: c.now + 5000, term: drawBegriff(c.s.pools, c.rng), correct: c.teams.map(() => 0) };
+    // Bots können nicht erklären: Erklärer sind (abwechselnd) die Menschen im Team
+    for (let r = 0; r < BEGRIFFE_DURCHGAENGE; r++)
+      c.teams.forEach((t, i) => {
+        const humans = humansIn(c, t.members);
+        const list = humans.length ? humans : t.members;
+        seq.push({ team: i, explainer: list[r % list.length] });
+      });
+    return { game: 'begriffe', seq, idx: 0, stage: 'start', until: c.now + 5000, term: drawBegriff(c.s.pools, c.rng), correct: c.teams.map(() => 0), botInfo: null };
   },
   action(st, pid, a, c) {
     if (st.stage !== 'laeuft') return;
@@ -900,6 +1020,7 @@ const begriffe: Impl<BegriffeState> = {
         st.stage = 'start';
         st.until = c.now + 5000;
         st.term = drawBegriff(c.s.pools, c.rng);
+        st.botInfo = null;
       }
     }
     return true;
@@ -918,7 +1039,17 @@ const begriffe: Impl<BegriffeState> = {
       teamIdx: cur.team,
       erklaerer: nameOf(c, cur.explainer),
       correct: st.correct.map((n, i) => ({ label: teamLabel(c, i), n })),
+      botInfo: st.botInfo,
     };
+  },
+  skill(st, pid, success, c) {
+    const cur = st.seq[st.idx];
+    if (!cur || st.stage !== 'laeuft' || pid === cur.explainer || teamOf(c, pid) !== cur.team) return;
+    if (success) {
+      setBotInfo(st, nameOf(c, pid), `hat „${st.term}“ erraten!`, true);
+      st.correct[cur.team]++;
+      st.term = drawBegriff(c.s.pools, c.rng);
+    } else setBotInfo(st, nameOf(c, pid), 'rät daneben …', false);
   },
   player(st, pid, c) {
     const cur = st.seq[Math.min(st.idx, st.seq.length - 1)];
@@ -934,7 +1065,14 @@ const IMPLS: Record<GameId, Impl<any>> = {
 };
 
 export const miniInit = (game: GameId, c: MCtx): MiniInner => IMPLS[game].init(c);
-export const miniAction = (st: MiniInner, pid: string, a: MiniAction, c: MCtx) => IMPLS[st.game].action(st, pid, a, c);
+export const miniAction = (st: MiniInner, pid: string, a: MiniAction, c: MCtx) => {
+  if (a.k === 'skill') {
+    const f = IMPLS[st.game].skill;
+    if (!f) throw new GameError('Ungültige Aktion');
+    return f(st, pid, a.success === true, c);
+  }
+  return IMPLS[st.game].action(st, pid, a, c);
+};
 export const miniTick = (st: MiniInner, c: MCtx): boolean => IMPLS[st.game].tick(st, c);
 export const miniDone = (st: MiniInner): boolean => IMPLS[st.game].done(st);
 export const miniResult = (st: MiniInner, c: MCtx): MiniResult => IMPLS[st.game].result(st, c);

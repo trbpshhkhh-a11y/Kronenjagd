@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   ClientMessage, ServerMessage, viewForHost, viewForPlayer, startGame, updateSettings, renamePlayer, playerAction, hostAction,
-  tick, setConnected, GameError, cryptoRng, startMinigame, GameId,
+  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer,
 } from '@kronen/shared';
 import { LobbyManager, Lobby, LobbyError } from './lobbies';
 
@@ -116,9 +116,20 @@ function detach(c: Conn) {
   broadcast(lobby);
 }
 
-function requireHost(c: Conn): Lobby {
-  if (c.role !== 'host' || !c.lobby) throw new GameError('Nur der Hauptscreen darf das.');
-  return c.lobby;
+/** Lobby-Leiter: der Hauptscreen oder (ohne Hauptscreen) der leitende Spieler */
+function requireLeader(c: Conn): Lobby {
+  if (c.lobby && c.role === 'host') return c.lobby;
+  if (c.lobby && c.role === 'player' && canLead(c.lobby.state, c.playerId)) return c.lobby;
+  throw new GameError('Das darf nur die Lobby-Leitung.');
+}
+function closeLobby(lobby: Lobby, reason: string, except?: Conn) {
+  manager.close(lobby.code);
+  for (const o of conns) if (o.lobby === lobby) {
+    if (o !== except) send(o, { t: 'closed', reason });
+    o.lobby = null;
+    o.role = null;
+    o.playerId = null;
+  }
 }
 function requirePlayer(c: Conn): { lobby: Lobby; playerId: string } {
   if (c.role !== 'player' || !c.lobby || !c.playerId) throw new GameError('Nicht in einer Lobby.');
@@ -136,6 +147,28 @@ function handle(c: Conn, msg: ClientMessage) {
       attachHost(c, lobby);
       send(c, { t: 'created', code: lobby.code, token: lobby.hostToken });
       return broadcast(lobby, true);
+    }
+    case 'createPlay': {
+      const { lobby, playerId, token } = manager.createAsPlayer(String(msg.name ?? ''));
+      attachPlayer(c, lobby, playerId);
+      send(c, { t: 'joined', code: lobby.code, token, playerId });
+      return broadcast(lobby, true);
+    }
+    case 'joinScreen': {
+      const lobby = manager.joinScreen(String(msg.code), c.ip);
+      attachHost(c, lobby);
+      send(c, { t: 'created', code: lobby.code, token: lobby.hostToken });
+      return broadcast(lobby, true);
+    }
+    case 'addBot': {
+      const lobby = requireLeader(c);
+      addBot(lobby.state, msg.level ?? 'mittel', now);
+      return broadcast(lobby);
+    }
+    case 'botLevel': {
+      const lobby = requireLeader(c);
+      setBotLevel(lobby.state, String(msg.playerId), msg.level);
+      return broadcast(lobby);
     }
     case 'resumeHost': {
       const lobby = manager.resumeHost(String(msg.code), String(msg.token));
@@ -161,6 +194,10 @@ function handle(c: Conn, msg: ClientMessage) {
       c.lobby = null;
       c.role = null;
       c.playerId = null;
+      // Kein Mensch und kein Hauptscreen mehr in einer offenen Lobby: Lobby schließen
+      if (!lobby.state.started && lobby.hostConnections === 0 && !lobby.state.players.some((p) => !p.bot)) {
+        return closeLobby(lobby, 'Alle haben die Lobby verlassen.');
+      }
       return broadcast(lobby, true);
     }
     case 'rename': {
@@ -169,8 +206,14 @@ function handle(c: Conn, msg: ClientMessage) {
       return broadcast(lobby);
     }
     case 'kick': {
-      const lobby = requireHost(c);
+      const lobby = requireLeader(c);
       const pid = String(msg.playerId);
+      if (pid === c.playerId) throw new GameError('Du kannst dich nicht selbst entfernen.');
+      const target = lobby.state.players.find((p) => p.id === pid);
+      if (target?.bot) {
+        removePlayer(lobby.state, pid, now);
+        return broadcast(lobby);
+      }
       manager.kick(lobby, pid);
       for (const o of conns) if (o.lobby === lobby && o.playerId === pid) {
         send(o, { t: 'kicked' });
@@ -181,18 +224,18 @@ function handle(c: Conn, msg: ClientMessage) {
       return broadcast(lobby);
     }
     case 'settings': {
-      const lobby = requireHost(c);
+      const lobby = requireLeader(c);
       updateSettings(lobby.state, msg.settings ?? {});
       return broadcast(lobby);
     }
     case 'start': {
-      const lobby = requireHost(c);
+      const lobby = requireLeader(c);
       if (lobby.state.started) return;
       startGame(lobby.state, ctx);
       return broadcast(lobby);
     }
     case 'host': {
-      const lobby = requireHost(c);
+      const lobby = requireLeader(c);
       hostAction(lobby.state, msg.a, ctx);
       return broadcast(lobby);
     }
@@ -206,7 +249,12 @@ function handle(c: Conn, msg: ClientMessage) {
         const inner = lobby.state.mini?.inner;
         if (inner?.game === 'montagsmaler') {
           const st = inner.strokes.find((x) => x.id === strich.id);
-          if (st) for (const o of conns) if (o.lobby === lobby && o.role === 'host') send(o, { t: 'stroke', stroke: { ...st, pts: strich.pts } });
+          // Ohne Hauptscreen sehen alle anderen Handys die Zeichnung live
+          const toPlayers = !lobby.state.hostConnected;
+          if (st)
+            for (const o of conns)
+              if (o.lobby === lobby && (o.role === 'host' || (toPlayers && o.role === 'player' && o.playerId !== playerId)))
+                send(o, { t: 'stroke', stroke: { ...st, pts: strich.pts } });
         }
         return;
       }
@@ -215,14 +263,14 @@ function handle(c: Conn, msg: ClientMessage) {
     case 'debugMini' as string: {
       // Nur für Entwickler-Tests (KJ_DEBUG=1): ein bestimmtes Minispiel sofort starten
       if (process.env.KJ_DEBUG !== '1') throw new GameError('Unbekannte Nachricht');
-      const lobby = requireHost(c);
+      const lobby = requireLeader(c);
       startMinigame(lobby.state, (msg as unknown as { game: GameId }).game, null, ctx);
       lobby.state.version++;
       return broadcast(lobby);
     }
     case 'debugPhase' as string: {
       if (process.env.KJ_DEBUG !== '1') throw new GameError('Unbekannte Nachricht');
-      const lobby = requireHost(c);
+      const lobby = requireLeader(c);
       const d = msg as unknown as { card?: number; winner?: boolean; pos?: number };
       if (d.pos) {
         const cur = lobby.state.players.find((p) => p.id === lobby.state.order[lobby.state.turn]);
@@ -237,15 +285,8 @@ function handle(c: Conn, msg: ClientMessage) {
       return broadcast(lobby);
     }
     case 'close': {
-      const lobby = requireHost(c);
-      manager.close(lobby.code);
-      for (const o of conns) if (o.lobby === lobby) {
-        if (o !== c) send(o, { t: 'closed', reason: 'Der Hauptscreen hat die Lobby beendet.' });
-        o.lobby = null;
-        o.role = null;
-        o.playerId = null;
-      }
-      return;
+      const lobby = requireLeader(c);
+      return closeLobby(lobby, 'Die Lobby wurde beendet.', c);
     }
     default:
       throw new GameError('Unbekannte Nachricht');

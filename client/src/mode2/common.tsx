@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BOARD, BaseView, PublicPlayer, Crown, MoveOption, gameById, CARD_TEXT } from '@kronen/shared';
 import boardImg from '@assets/spielbrett.png';
 import { TokenSvg, CrownSvg } from '../components/icons';
@@ -6,19 +6,40 @@ import { useServerClock } from '../lib/hooks';
 
 export { boardImg };
 
-/** Feste 16:9-Bühne (1920×1080), die auf jede Bildschirmgröße skaliert wird */
+/** true = der Hauptscreen läuft im Hochformat */
+const PortraitCtx = createContext(false);
+export const usePortrait = () => useContext(PortraitCtx);
+
+/**
+ * Bühne für den Hauptscreen.
+ * Querformat: feste 16:9-Bühne (1920×1080), die auf jede Bildschirmgröße skaliert wird.
+ * Hochformat: 1080 px breite Spalte, skaliert auf die Gerätebreite, nach unten scrollbar.
+ */
 export function Stage({ children }: { children: ReactNode }) {
-  const [scale, setScale] = useState(1);
+  const [dim, setDim] = useState({ w: window.innerWidth, h: window.innerHeight });
   useLayoutEffect(() => {
-    const on = () => setScale(Math.min(window.innerWidth / 1920, window.innerHeight / 1080));
+    const on = () => setDim({ w: window.innerWidth, h: window.innerHeight });
     on();
     window.addEventListener('resize', on);
     return () => window.removeEventListener('resize', on);
   }, []);
+  if (dim.h > dim.w) {
+    const scale = dim.w / 1080;
+    return (
+      <PortraitCtx.Provider value={true}>
+        <div className="pstage-outer">
+          <div className="pstage" style={{ zoom: scale, minHeight: dim.h / scale } as React.CSSProperties}>{children}</div>
+        </div>
+      </PortraitCtx.Provider>
+    );
+  }
+  const scale = Math.min(dim.w / 1920, dim.h / 1080);
   return (
-    <div className="stage-outer">
-      <div className="stage" style={{ transform: `scale(${scale})` }}>{children}</div>
-    </div>
+    <PortraitCtx.Provider value={false}>
+      <div className="stage-outer">
+        <div className="stage" style={{ transform: `scale(${scale})` }}>{children}</div>
+      </div>
+    </PortraitCtx.Provider>
   );
 }
 
@@ -29,7 +50,14 @@ export function useLeft(view: BaseView | null, until: number | null | undefined)
   return Math.max(0, Math.ceil((until - now) / 1000));
 }
 
-export const playerName = (v: BaseView, id: string | null | undefined) => v.players.find((p) => p.id === id)?.name ?? '?';
+/** Anzeigename mit Bot-Symbol */
+export const displayName = (p: { name: string; bot?: unknown }) => (p.bot ? '🤖 ' + p.name : p.name);
+/** Buchstabe bzw. Symbol auf der Spielfigur */
+export const tokenLetter = (p: { name: string; bot?: unknown }) => (p.bot ? '🤖' : p.name.slice(0, 1).toUpperCase());
+export const playerName = (v: BaseView, id: string | null | undefined) => {
+  const p = v.players.find((x) => x.id === id);
+  return p ? displayName(p) : '?';
+};
 export const playerOf = (v: BaseView, id: string | null | undefined) => v.players.find((p) => p.id === id);
 
 function fieldXY(id: number) {
@@ -92,7 +120,7 @@ export function BoardLayer({ view, previews, highlight, jump }: BoardProps) {
         const dx = off.get(p.id) ?? 0;
         return (
           <div key={p.id} className={`token ${highlight === p.id ? 'turn' : ''} ${jump ? 'jump' : ''}`} style={{ left: `${x + dx}%`, top: `${y}%` }} title={p.name}>
-            <TokenSvg color={p.color} letter={p.name.slice(0, 1).toUpperCase()} />
+            <TokenSvg color={p.color} letter={tokenLetter(p)} />
           </div>
         );
       })}
@@ -170,7 +198,7 @@ export function CrownTable({ view, compact }: { view: BaseView; compact?: boolea
           <div key={p.id} className="row" style={{ gap: 10, opacity: p.connected ? 1 : 0.5 }}>
             <span className="dot" style={{ background: p.color }} />
             <span className="grow" style={{ fontWeight: 800, outline: view.turnPlayerId === p.id ? undefined : undefined }}>
-              {view.turnPlayerId === p.id ? '▶ ' : ''}{p.name}
+              {view.turnPlayerId === p.id ? '▶ ' : ''}{displayName(p)}
             </span>
             {p.bonus > 0 && <span className="badge green">+{p.bonus}</span>}
             <span className="head" style={{ minWidth: '1.6em', textAlign: 'right' }}>{p.kronen}</span>
@@ -210,11 +238,11 @@ export function statusText(v: BaseView): string {
   }
 }
 
-export function ConnBanner({ status, hostConnected }: { status: string; hostConnected?: boolean }) {
-  if (status === 'open' && hostConnected !== false) return null;
+export function ConnBanner({ status }: { status: string }) {
+  if (status === 'open') return null;
   return (
     <div style={{ position: 'fixed', bottom: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 80 }} className="badge red">
-      {status !== 'open' ? 'Verbindung wird wiederhergestellt …' : 'Der Hauptscreen ist gerade nicht verbunden.'}
+      Verbindung wird wiederhergestellt …
     </div>
   );
 }
