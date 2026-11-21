@@ -5,6 +5,7 @@ import { go, useRoute } from '../../lib/router';
 import { useWakeLock } from '../../lib/hooks';
 import { ConnBanner, useToast } from '../common';
 import { emitStroke } from '../LiveDrawing';
+import { emitRt } from '../rtBus';
 import { PlayerShelf, SettingsButton, GiftTag } from '../LobbyParts';
 import { Modal, Confirm } from '../../components/ui';
 import { PlayerMini } from './PlayerMini';
@@ -13,7 +14,7 @@ import { BoardGame } from './BoardGame';
 export default function PlayerApp({ initialCode = '' }: { initialCode?: string }) {
   const r = useRoute();
   const createName = r.query.get('neu') ?? undefined;
-  const conn = useConnection<PlayerView>('player', { createPlay: createName, onStroke: emitStroke });
+  const conn = useConnection<PlayerView>('player', { createPlay: createName, onStroke: emitStroke, onRt: emitRt });
   useWakeLock(!!conn.view);
   useEffect(() => {
     if (createName && conn.session) history.replaceState(null, '', '#/spieler');

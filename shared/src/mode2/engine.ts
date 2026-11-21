@@ -15,7 +15,7 @@ import {
   MAX_SPIELER, MIN_SPIELER, SPIELER_FARBEN, DEFAULT_TIMER, TimerSettings, BotLevel, BOT_LEVELS, BOT_NAMEN,
 } from './constants';
 import { CARDS, CardId, CARD_TEXT, Crown, Ctx, GameError, GameState, Player, Settings } from './types';
-import { MCtx, MiniAction, miniAction, miniDone, miniInit, miniResult, miniTick } from './minigames';
+import { MCtx, MiniAction, miniAction, miniDone, miniInit, miniResult, miniTick, miniRealtime } from './minigames';
 import { botPlan } from './bots';
 import { viewForPlayer } from './views';
 
@@ -217,12 +217,24 @@ export function updateSettings(s: GameState, patch: Partial<Settings>) {
 
 export const crownValue = (rng: Rng): 1 | 2 => (rng() < GROSSE_KRONE_CHANCE ? 2 : 1);
 
-/** Freies normales Feld für eine Krone. */
+/**
+ * Alle Felder, auf die eine Krone jetzt ausgelost werden darf:
+ * normale Felder, auf denen gerade kein Spieler steht und keine andere Krone liegt
+ * (dazu optional weitere ausgeschlossene Felder, z. B. das alte Kronenfeld).
+ */
+export function freeCrownFields(s: GameState, exclude: number[] = [], board: Board = BOARD): number[] {
+  const ex = new Set([...exclude, ...s.crowns.map((c) => c.field), ...s.players.map((p) => p.pos).filter((f) => f > 0)]);
+  return fieldsOfType(['normal'], board).filter((f) => !ex.has(f));
+}
+
+/** Freies normales Feld für eine Krone (zufällig aus der Liste der freien Felder, kein Neu-Würfeln). */
 export function crownField(s: GameState, rng: Rng, exclude: number[], board: Board = BOARD): number {
-  const ex = new Set([...exclude, ...s.crowns.map((c) => c.field)]);
-  const normal = fieldsOfType(['normal'], board).filter((f) => !ex.has(f));
-  if (normal.length === 0) return pick(rng, fieldsOfType(['normal'], board));
-  return pick(rng, normal);
+  const free = freeCrownFields(s, exclude, board);
+  if (free.length) return pick(rng, free);
+  // Notfall (praktisch unmöglich): nur besetzte Felder und Kronenfelder meiden
+  const fallback = freeCrownFields(s, [], board);
+  if (fallback.length) return pick(rng, fallback);
+  return pick(rng, fieldsOfType(['normal'], board));
 }
 
 /** Krone neu platzieren: neues normales Feld (nicht das alte, nicht das der anderen Krone), neuer Wert. */
@@ -439,7 +451,8 @@ function resolveCardShown(s: GameState, ctx: Ctx) {
  * deshalb braucht jedes Team bei Montagsmaler, Stirnraten und Begriffe erklären einen Menschen.
  */
 export function requiredHumans(game: GameId, total: number): number {
-  if (game === 'stirnraten' || game === 'montagsmaler') return 2;
+  // Flunker-Quiz: Bots schreiben keine Finten – mit nur einem Menschen gäbe es nichts zu raten
+  if (game === 'stirnraten' || game === 'montagsmaler' || game === 'flunker') return 2;
   if (game === 'begriffe') return Math.max(1, Math.floor(total / 2));
   return 1;
 }
@@ -469,6 +482,13 @@ function mctx(s: GameState, ctx: Ctx): MCtx {
   return { ...ctx, s, teams: s.mini?.teams ?? [], noScreen: !s.hostConnected };
 }
 
+/** Echtzeit-Minispiel (Autorennen) weiterrechnen – liefert einen Schnappschuss zum Verteilen oder null */
+export function realtimeTick(s: GameState, ctx: Ctx): unknown | null {
+  const m = s.mini;
+  if (!m || m.stage !== 'spiel') return null;
+  return miniRealtime(m.inner, mctx(s, ctx));
+}
+
 function miniStep(s: GameState, ctx: Ctx): boolean {
   const m = s.mini;
   if (!m) return false;
@@ -477,7 +497,8 @@ function miniStep(s: GameState, ctx: Ctx): boolean {
       if (ctx.now < (m.until ?? 0)) return false;
       m.teams = makeTeamsHumansFirst(ctx.rng, s.players.map((p) => p.id), gameById(m.game).teamMode, (id) => !playerById(s, id)?.bot);
       m.stage = 'teams';
-      m.until = ctx.now + (gameById(m.game).teamMode === 'einzel' ? 2000 : 4500);
+      // Online-Spiele (jeder gegen jeden): Team-Auslosung überspringen
+      m.until = gameById(m.game).nurOnline ? ctx.now : ctx.now + (gameById(m.game).teamMode === 'einzel' ? 2000 : 4500);
       return true;
     case 'teams':
       if (ctx.now < (m.until ?? 0)) return false;
@@ -599,7 +620,8 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       const m = s.mini;
       if (!m || m.stage !== 'spiel' || !m.inner) throw new GameError('Gerade läuft kein Minispiel.');
       miniAction(m.inner, pid, a.a, mctx(s, ctx));
-      if (a.a.k === 'strich') return; // Striche werden separat verteilt (kein voller Versand)
+      // Striche, Hüpfer und Lenkwerte werden separat (Echtzeit) verteilt – kein voller Versand
+      if (a.a.k === 'strich' || a.a.k === 'hop' || a.a.k === 'raus' || a.a.k === 'lenk') return;
       if (!miniDone(m.inner)) miniTick(m.inner, mctx(s, ctx));
       if (miniDone(m.inner)) finishMini(s, ctx);
       break;

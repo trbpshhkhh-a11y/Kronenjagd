@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { serverNow } from './clock';
 
 /** Aktuelle Zeit, die regelmäßig neu rendert */
 export function useNow(intervalMs = 250): number {
@@ -63,14 +64,10 @@ export function useWakeLock(active = true) {
   }, [active]);
 }
 
-/** Server-Zeitversatz berechnen und Restzeit liefern */
-export function useServerClock(serverNow: number | undefined) {
-  const offset = useRef(0);
-  useEffect(() => {
-    if (serverNow) offset.current = serverNow - Date.now();
-  }, [serverNow]);
-  const now = useNow(200);
-  return now + offset.current;
+/** Aktuelle Serverzeit (Uhr-Abgleich per Ping), regelmäßig neu gerendert */
+export function useServerClock(_serverNow?: number) {
+  useNow(200);
+  return serverNow();
 }
 
 export function useLatest<T>(value: T) {

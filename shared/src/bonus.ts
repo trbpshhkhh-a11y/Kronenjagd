@@ -41,3 +41,31 @@ export function addBonus(current: Record<string, number>, add: Record<string, nu
   for (const [k, v] of Object.entries(add)) out[k] = (out[k] ?? 0) + v;
   return out;
 }
+
+/** Bonusfelder nach Platz für die Online-Minispiele: 1. Platz 5, dann 4, 3, 2, 1 */
+export const RANG_BONUS = [5, 4, 3, 2, 1];
+
+/**
+ * Plätze aus einer Rangliste in Gruppen (gleicher Platz bei Gleichstand).
+ * groups[0] = alle Erstplatzierten usw. Ergebnis: Platz und Bonusfelder je Spieler.
+ */
+export function rankBonus(groups: string[][]): Record<string, { place: number; bonus: number }> {
+  const out: Record<string, { place: number; bonus: number }> = {};
+  let place = 1;
+  for (const g of groups) {
+    for (const id of g) out[id] = { place, bonus: RANG_BONUS[place - 1] ?? 0 };
+    place += g.length;
+  }
+  return out;
+}
+
+/** Spieler nach einem Vergleich in Gleichstands-Gruppen sortieren (cmp < 0 = a besser) */
+export function groupRanking<T>(items: T[], cmp: (a: T, b: T) => number, id: (t: T) => string): string[][] {
+  const sorted = [...items].sort(cmp);
+  const groups: string[][] = [];
+  sorted.forEach((it, i) => {
+    if (i > 0 && cmp(sorted[i - 1], it) === 0) groups[groups.length - 1].push(id(it));
+    else groups.push([id(it)]);
+  });
+  return groups;
+}

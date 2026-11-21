@@ -75,7 +75,7 @@ Optional kannst du unter **Settings → Secrets and variables → Actions → Va
 
 ### Modus 1 – Mit Spielbrett
 1. Mitspieler eintragen (mindestens 2), optional „Kronen zum Sieg“ (Standard 5, abschaltbar) und Timer für Stadt Land Fluss einstellen.
-2. Die App lost die **Startfelder** und die **Position der Krone** aus (mit Animation).
+2. Die App lost die **Startfelder** und die **Position der Krone** aus (mit Animation). Die erste Krone landet nie auf einem Startfeld. Wo die Figuren später stehen, weiß die App in Modus 1 nicht – beim Weiterlosen achtet ihr selbst darauf.
 3. **Übersicht**: Kronen, Startfelder und Bonusfelder aller Spieler sowie die Kronenposition. Buttons „Nächstes Spiel auslosen“, „Krone zuordnen“ und „Bonusfelder verbraucht“.
 4. Nach jedem Spiel tragt ihr die Ergebnisse ein. Die App berechnet daraus die **Bonusfelder**, die man in der nächsten Runde zusätzlich zur Augenzahl vorgehen darf.
 5. **Geheime Inhalte** (Montagsmaler, Begriffe erklären, Zahlen erraten) erscheinen nie auf dem Hauptscreen. Die App zeigt einen **QR-Code**: Der Zeichner/Erklärer/Kenner scannt ihn mit dem eigenen Handy. Der Inhalt steckt verschlüsselt in der URL, dafür ist kein Server nötig. Alternativ gibt es „Auf diesem Gerät anzeigen“ mit Gedrückthalten.
@@ -96,9 +96,14 @@ Ein Hauptscreen kann sich auch **nachträglich dazuschalten**, sogar während de
 **Spielablauf:**
 1. Sobald das Spiel läuft, wird im **Querformat** gespielt: Das ganze Brett füllt den Bildschirm, Kronentafel, Status und der Würfeln-Button liegen am Rand. (Hochkant erscheint ein Hinweis zum Drehen, auf Android gibt es einen Button „Vollbild & Querformat“.)
 2. Wer dran ist, würfelt und **tippt die Richtung direkt auf dem Brett an**: Die möglichen Wege leuchten in verschiedenen Farben, angetippt werden kann jedes leuchtende Feld. Die Feldnummern sind nur Orientierung, gezogen wird entlang der Strecke im Bild. Kommt die Figur an eine **Abzweigung**, entscheidet der Spieler dort neu, wohin die restlichen Felder gehen.
-3. Es liegen immer **2 Kronen** auf dem Brett (30 % Chance auf eine **große Krone** mit 2 Punkten). Wer auf einer Krone landet oder über sie hinwegzieht, bekommt sie.
+3. Es liegen immer **2 Kronen** auf dem Brett (30 % Chance auf eine **große Krone** mit 2 Punkten). Wer auf einer Krone landet oder über sie hinwegzieht, bekommt sie. Kronen werden **nie auf ein Feld gelost, auf dem gerade ein Spieler steht** (oder eine andere Krone liegt).
 4. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird vom Stapel gezogen und aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder für den nächsten Zug). Minispiele laufen auf dem Handy ebenfalls im Querformat, zweispaltig.
 5. Ohne Hauptscreen zeigt jedes Handy zusätzlich die Kronentafel, den Würfel, die Ereigniskarte und in den Minispielen alles, was sonst der Fernseher zeigt (Aufgaben, Bild bei „Gegenstände merken“, Zeichnung beim Montagsmaler live, Ranglisten). Geheime Inhalte bleiben geheim.
+
+**Online-Minispiele (nur Modus 2):** Drei Minispiele gibt es nur in der App, weil jedes Handy mitspielt. Alle spielen jeder gegen jeden, die Belohnung sind Bonusfelder nach Platz (1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1, bei Gleichstand teilen sich alle den Platz). Sie erscheinen ganz normal in der Auslosung und bei „Spiel aussuchen“ und lassen sich in den Einstellungen abschalten. Alle Geräte starten mit einem gemeinsamen 3-2-1-Countdown (die Uhren werden per Ping abgeglichen).
+- **Flunker-Quiz** (Hochformat): Zu einer kniffligen Frage denkt sich jeder eine glaubwürdige falsche Antwort aus (60 s). Dann werden echte Antwort und Finten gemischt, und jeder tippt auf die Antwort, die er für echt hält (30 s, die eigene Finte ist gesperrt). +1 Punkt für jeden, den man reinlegt, +1 Punkt für die echte Antwort. 3 Runden. Finten, die zu nah an der Wahrheit sind, werden abgelehnt, gleiche Finten zusammengelegt (beide Autoren bekommen die Punkte). Braucht mindestens 2 Menschen, Bots schreiben keine Finten, stimmen aber ab.
+- **Hühnerhüpfer** (Hochformat): 30 Sekunden lang hüpft jeder sein Huhn so weit wie möglich über Straßen, Flüsse und Gleise (3D-Klötzchenwelt, Joystick oder Tippen). Alle hüpfen durch dieselbe Welt, die anderen Hühner sieht man halb durchsichtig mit Namen. Wer rausfliegt, wartet 2 Sekunden und startet auf der letzten Wiese neu. Es zählt die weiteste Reihe, bei Gleichstand wer sie zuerst erreicht hat. Der Hauptscreen zeigt Timer, Rangliste und eine Fortschrittsleiste.
+- **Turbo-Flitzer** (Querformat): Autorennen von oben auf einer von 3 Strecken (Oval, S-Kurven, L-Kurs), die den ganzen Bildschirm füllt; der Joystick liegt in der Ecke (mit ⇄ auf die andere Seite). Der Joystick zeigt, wohin das Auto fahren soll, die Auslenkung ist das Gas, Loslassen = ausrollen. Neben der Strecke nur 40 % Tempo. Startampel, 3 Runden mit Kontrollpunkten, nach dem ersten Zieleinlauf noch 15 Sekunden, höchstens 2 Minuten. Der Server rechnet das Rennen, die Handys schicken nur den Joystick.
 
 Verliert ein Handy die Verbindung (Bildschirm gesperrt, WLAN-Wechsel), verbindet es sich automatisch wieder. Wer länger als 60 Sekunden weg ist und dran wäre, wird übersprungen. Die Lobby bleibt bestehen, solange ein Mensch oder Hauptscreen verbunden ist, und danach noch 10 Minuten.
 
@@ -111,7 +116,10 @@ assets/spielbrett.png        Spielbrett (Bild)
 shared/                      Gemeinsame Typen + komplette Spiellogik (reine Funktionen)
   src/content/               Inhalte-Pools (Schätzfragen, Wissen, Begriffe, Kategorien, Gegenstände)
   src/mode2/engine.ts        Zustandsmaschine Modus 2 (Würfeln, Bewegen, Kronen, Karten, Minispiele)
-  src/mode2/minigames.ts     Die 10 Minispiele für Modus 2
+  src/mode2/minigames.ts     Die Minispiele für Modus 2
+  src/mode2/flunker.ts       Flunker-Quiz (Online-Minispiel)
+  src/mode2/huehner/         Hühnerhüpfer: Welt aus Startwert, Huhn-Steuerung, Server-Teil
+  src/mode2/flitzer/         Turbo-Flitzer: Strecken, Fahrphysik, Rundenzählung, Server-Teil
   src/mode2/bots.ts          Bot-Entscheidungen (nur aus der eigenen Spieleransicht)
   src/mode2/views.ts         viewForHost / viewForPlayer: was welches Gerät sehen darf
   src/mode2/constants.ts     Schaltbare Regel-Annahmen (siehe unten)
@@ -122,6 +130,8 @@ client/                      React + Vite + TypeScript (beide Modi, PWA)
   src/board/board.json       Feldgeometrie: Mittelpunkt (Prozent), Feldtyp, Nachbarfelder (Streckennetz)
   src/mode1/                 Spielleiter-Modus
   src/mode2/                 Hauptscreen- und Handy-Ansichten
+  src/mode2/games/           Online-Minispiele (Hühnerhüpfer mit Three.js, wird erst beim Spielen geladen)
+  src/components/Joystick.tsx  Joystick für Echtzeit-Spiele
   src/dev/                   Entwickler-Werkzeuge für das Brett
 ```
 
@@ -186,6 +196,14 @@ Annahmen zu Bots und zum Spielen ohne Hauptscreen:
 - **Lobby aufräumen:** Eine Lobby wird gelöscht, wenn 10 Minuten lang weder ein Mensch noch ein Hauptscreen verbunden ist (oder nach 4 Stunden ohne Aktivität). Bots halten eine Lobby nicht am Leben.
 - **Hoch- und Querformat:** Die Lobby funktioniert in beiden Ausrichtungen und passt ohne Scrollen auf den Bildschirm. Sobald das Spiel läuft, wird auf allen Geräten im Querformat gespielt. Hochkant erscheint ein Hinweis zum Drehen, das Brett bleibt verkleinert sichtbar. Das PWA-Manifest legt die Ausrichtung nicht fest, damit Lobby und Modus 1 frei bleiben.
 - **Richtung antippen:** Tippflächen sind mindestens 44 px groß. Überlappen sie sich, zählt das Feld, das dem Finger am nächsten ist.
+
+Annahmen zu den Online-Minispielen:
+- **Belohnung nach Platz** statt Team-Wertung: 5 / 4 / 3 / 2 / 1 Bonusfelder, ab Platz 6 nichts. Bei Gleichstand teilen sich alle denselben Platz, der nächste Platz wird übersprungen.
+- **Keine Teamauslosung:** Die Teamanzeige wird bei diesen Spielen übersprungen.
+- **Bots:** Im Flunker-Quiz stimmen Bots ab (Trefferquote je Schwierigkeit), schreiben aber keine Finten. Im Hühnerhüpfer bekommen Bots ein ausgewürfeltes Ergebnis (leicht 8–14, mittel 13–21, schwer 19–28 Reihen) und erscheinen nur in Rangliste und Fortschrittsleiste. Im Turbo-Flitzer fahren Bots als einfache KI-Fahrer den Kontrollpunkten nach.
+- **Hühnerhüpfer:** Zusammenstöße prüft jedes Handy selbst (alle haben dieselbe Welt und dieselbe Zeit), der Server prüft nur, ob Hüpfer plausibel sind. Zurück geht es höchstens 3 Reihen hinter die beste Reihe.
+- **Turbo-Flitzer:** Der Server ist maßgeblich (rechnet 60 Schritte pro Sekunde, verschickt ca. 20 Schnappschüsse pro Sekunde). Das eigene Auto wird auf dem Handy kurz vorausgerechnet, damit sich das Lenken direkt anfühlt. Autos von getrennten Spielern bleiben stehen und blockieren niemanden; wer im Ziel ist, fährt durch die anderen hindurch. Nicht ins Ziel Gekommene werden nach Fortschritt (Kontrollpunkte) gewertet.
+- **Flunker-Quiz:** Die eigene Finte bringt keinen Punkt, wenn man sie selbst wählen würde (deshalb gesperrt). Eine Finte gilt als „zu nah an der Wahrheit“, wenn sie bis auf ein bis zwei Tippfehler gleich ist oder die echte Antwort enthält.
 
 ### Hinweise zum Spielbrett
 - Feldtypen: grün +2 (4, 21, 30, 38), rot −2 (51, 64, 74), blau ?! (7, 14, 41, 45, 59), gelb (39, 55), lila Minispiel (10, 17, 23, 35, 52, 57, 66, 69). Die Felder **17 und 23** sind im Brettbild noch normale Holzfelder. Die App zeichnet dort in Modus 2 eine lila Markierung (in `board.json` mit `"markieren": true`), in Modus 1 erscheint bei diesen Feldern das Controller-Symbol.

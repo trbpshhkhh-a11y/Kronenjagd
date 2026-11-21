@@ -68,7 +68,8 @@ export function gameBlocker(v: BaseView, id: GameId): string | null {
   if (n < g.minPlayers) return `ab ${g.minPlayers} Spielern`;
   const need = requiredHumans(id, n);
   // Ohne Menschen kann ohnehin nicht gestartet werden – dann keinen Hinweis je Spiel
-  if (humans > 0 && humans < need) return `braucht ${need} ${need === 1 ? 'Mensch' : 'Menschen'} (Bots können nicht zeichnen/erklären)`;
+  const warum = id === 'flunker' ? 'Bots schreiben keine Finten' : 'Bots können nicht zeichnen/erklären';
+  if (humans > 0 && humans < need) return `braucht ${need} ${need === 1 ? 'Mensch' : 'Menschen'} (${warum})`;
   return null;
 }
 

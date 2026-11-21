@@ -115,7 +115,7 @@ export function chooseSwap(v: PlayerView, level: BotLevel, rng: Rng): string {
 }
 
 /** Spiele, die Bots gut spielen können */
-export const BOT_FREUNDLICH: GameId[] = ['schaetzen', 'wissen', 'kopfrechnen', 'gegenstaende', 'slf', 'zahlen'];
+export const BOT_FREUNDLICH: GameId[] = ['schaetzen', 'wissen', 'kopfrechnen', 'gegenstaende', 'slf', 'zahlen', 'flunker', 'huehner', 'flitzer'];
 
 export function chooseGame(v: PlayerView, rng: Rng): GameId {
   const good = v.playableGames.filter((g) => BOT_FREUNDLICH.includes(g));
@@ -280,6 +280,10 @@ function miniPlan(v: PlayerView, level: BotLevel, opts: BotOptions): BotPlan | n
       // Mensch ist Kenner: Der Bot "hört zu" – Treffsicherheit wird ausgewürfelt
       return { sig: 'ztipp-mensch', delay: before([35000, 70000], inner.until, now, 8000), act: skill(level) };
     }
+    case 'flunker':
+      // Bots schreiben keine Finten, stimmen aber ab (Trefferquote je Schwierigkeit)
+      if (inner.stage !== 'abstimmen' || inner.meineStimme !== null) return null;
+      return { sig: `fl-${inner.round}`, delay: before([3000, 12000], inner.until, now), act: skill(level) };
     default:
       return null;
   }

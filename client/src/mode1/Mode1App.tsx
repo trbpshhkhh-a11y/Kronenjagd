@@ -168,7 +168,7 @@ function StartDraw() {
       <div className="row center">
         {!allDone && <button className="btn ghost" onClick={() => setRevealed(s.players.length)}>Überspringen</button>}
         <button className="btn gold big" disabled={!allDone} onClick={() => update((d) => {
-          d.crown = drawCrownField(cryptoRng, null);
+          d.crown = drawCrownField(cryptoRng, null, d.players.map((p) => p.start).filter((f): f is number => f !== null));
           d.phase = 'crownDraw';
         })}>👑 Weiter: Krone auslosen</button>
       </div>
@@ -335,7 +335,7 @@ function GameDraw() {
   const { s, update } = useM1();
   const [done, setDone] = useState(false);
   const g = gameById(s.game!.id);
-  const names = useMemo(() => GAMES.map((x) => x.name), []);
+  const names = useMemo(() => GAMES.filter((x) => !x.nurOnline).map((x) => x.name), []);
   return (
     <div className="screen">
       <TopBar />

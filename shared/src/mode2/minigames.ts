@@ -16,6 +16,9 @@ import type { Gegenstand, Schaetzfrage } from '../content';
 import { BEGRIFFE, ZAHLEN_HINWEISE } from '../content';
 import { closestIds, zahlenBonus } from '../bonus';
 import { normalize, startsWithLetter, fuzzyEquals } from '../text';
+import { flunkerImpl, type FlunkerState } from './flunker';
+import { huehnerImpl, type HuehnerState } from './huehner/game';
+import { flitzerImpl, flitzerAdvance, flitzerSnapshot, type FlitzerState } from './flitzer/game';
 
 export interface MCtx extends Ctx {
   s: GameState;
@@ -180,7 +183,7 @@ export interface BegriffeState {
   botInfo: BotInfo | null;
 }
 
-export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState;
+export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState | FlunkerState | HuehnerState | FlitzerState;
 
 /** Aktionen der Spieler in Minispielen */
 export type MiniAction =
@@ -200,12 +203,17 @@ export type MiniAction =
   | { k: 'loeschen' }
   | { k: 'zahlTipp'; value: number }
   | { k: 'waehlen'; opt: number }
+  | { k: 'finte'; text: string }
+  | { k: 'stimme'; opt: number }
+  | { k: 'hop'; row: number; col: number; safe?: boolean }
+  | { k: 'raus' }
+  | { k: 'lenk'; a: number; m: number }
   /** nur Bots: simulierte Fähigkeit (Erfolg ausgewürfelt), wird im Minispiel aufgelöst */
   | { k: 'skill'; success: boolean }
   /** nur Bots als Kenner bei Zahlen erraten */
   | { k: 'hinweis'; kategorie: string; begriff: string };
 
-interface Impl<S extends MiniInner> {
+export interface Impl<S extends MiniInner> {
   init(c: MCtx): S;
   action(st: S, pid: string, a: MiniAction, c: MCtx): void;
   tick(st: S, c: MCtx): boolean;
@@ -1062,6 +1070,9 @@ const begriffe: Impl<BegriffeState> = {
 
 const IMPLS: Record<GameId, Impl<any>> = {
   game7, kopfrechnen: kopf, stirnraten: stirn, gegenstaende: gegen, slf, schaetzen: schaetz, montagsmaler: mal, zahlen, wissen, begriffe,
+  flunker: flunkerImpl,
+  huehner: huehnerImpl,
+  flitzer: flitzerImpl,
 };
 
 export const miniInit = (game: GameId, c: MCtx): MiniInner => IMPLS[game].init(c);
@@ -1078,3 +1089,13 @@ export const miniDone = (st: MiniInner): boolean => IMPLS[st.game].done(st);
 export const miniResult = (st: MiniInner, c: MCtx): MiniResult => IMPLS[st.game].result(st, c);
 export const miniHostView = (st: MiniInner, c: MCtx): any => IMPLS[st.game].host(st, c);
 export const miniPlayerView = (st: MiniInner, pid: string, c: MCtx): any => IMPLS[st.game].player(st, pid, c);
+
+/**
+ * Echtzeit-Schritt (vom Server ca. 30× pro Sekunde): rechnet ein laufendes Autorennen weiter
+ * und liefert einen kleinen Schnappschuss zum Verteilen – sonst null.
+ */
+export function miniRealtime(st: MiniInner | null | undefined, c: MCtx): unknown | null {
+  if (!st || st.game !== 'flitzer' || st.stage !== 'rennen') return null;
+  flitzerAdvance(st, c, c.now);
+  return flitzerSnapshot(st);
+}

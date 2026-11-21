@@ -37,6 +37,8 @@ export interface TimerSettings {
   zahlen: number;
   wissen: number;
   begriffe: number;
+  flunker: number;
+  flunkerAbstimmen: number;
 }
 
 export const DEFAULT_TIMER: TimerSettings = {
@@ -50,6 +52,8 @@ export const DEFAULT_TIMER: TimerSettings = {
   zahlen: 180,
   wissen: 20,
   begriffe: 30,
+  flunker: 60,
+  flunkerAbstimmen: 30,
 };
 
 export const TIMER_LABELS: Record<keyof TimerSettings, string> = {
@@ -63,6 +67,8 @@ export const TIMER_LABELS: Record<keyof TimerSettings, string> = {
   zahlen: 'Zahlen erraten',
   wissen: 'Allgemeinwissen je Frage',
   begriffe: 'Begriffe erklären je Durchgang',
+  flunker: 'Flunker-Quiz: Finte schreiben',
+  flunkerAbstimmen: 'Flunker-Quiz: Abstimmen',
 };
 
 /* ---------------------------- Bots ---------------------------- */

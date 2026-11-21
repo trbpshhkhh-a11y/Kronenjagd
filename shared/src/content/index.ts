@@ -5,3 +5,4 @@ export * from './kategorien';
 export * from './gegenstaende';
 export * from './zahlenHinweise';
 export * from './slfAntworten';
+export * from './flunkerFragen';

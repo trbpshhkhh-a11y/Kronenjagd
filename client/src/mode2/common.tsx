@@ -189,14 +189,14 @@ export async function lockLandscape() {
 }
 
 /** Hinweis im Hochformat während des Spiels */
-export function RotateHint({ big }: { big?: boolean }) {
+export function RotateHint({ big, text }: { big?: boolean; text?: string }) {
   return (
     <div className="rotate-banner" style={big ? { fontSize: 34, padding: '18px 26px' } : undefined}>
       <span className="rotate-icon" aria-hidden>📱</span>
       <span className="grow">
         <b>Bitte Gerät drehen</b>
         <br />
-        <span className="small">Gespielt wird im Querformat – dann füllt das Brett den ganzen Bildschirm.</span>
+        <span className="small">{text ?? 'Gespielt wird im Querformat – dann füllt das Brett den ganzen Bildschirm.'}</span>
       </span>
       {canLockLandscape() && <button className="btn sm gold" onClick={lockLandscape}>Vollbild & Querformat</button>}
     </div>

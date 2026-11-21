@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   seededRng, uniqueFields, makeTeams, computeBonus, zahlenBonus, closestIds, mathRound, drawCrownField, drawStartFields,
   newDeck, drawIndex, drawNextGame, GAME_IDS, SCHAETZFRAGEN, WISSEN, BEGRIFFE, KATEGORIEN, GEGENSTAENDE, newPools,
-  drawBegriffe, fuzzyEquals, startsWithLetter, normalize, BOARD, GAMES,
+  drawBegriffe, fuzzyEquals, startsWithLetter, normalize, BOARD, GAMES, BRETT_GAME_IDS,
 } from '../src';
 
 describe('Auslosungen', () => {
@@ -29,7 +29,7 @@ describe('Auslosungen', () => {
   });
   it('Spielestapel: alle 10 Spiele kommen, bevor einer doppelt kommt', () => {
     const rng = seededRng(9);
-    const deck = newDeck(GAME_IDS.length);
+    const deck = newDeck(BRETT_GAME_IDS.length);
     for (let round = 0; round < 5; round++) {
       const seen = new Set<string>();
       for (let i = 0; i < 10; i++) seen.add(drawNextGame(deck, rng, 6)!);
@@ -38,7 +38,7 @@ describe('Auslosungen', () => {
   });
   it('Spiele mit 2 Teams werden bei 3 Spielern nicht gezogen', () => {
     const rng = seededRng(2);
-    const deck = newDeck(GAME_IDS.length);
+    const deck = newDeck(BRETT_GAME_IDS.length);
     for (let i = 0; i < 50; i++) {
       const g = drawNextGame(deck, rng, 3)!;
       expect(['stirnraten', 'montagsmaler']).not.toContain(g);
@@ -179,7 +179,8 @@ describe('Spielbrett', () => {
       expect(f.y).toBeLessThan(100);
     }
   });
-  it('genau 10 Spiele', () => {
-    expect(GAMES).toHaveLength(10);
+  it('genau 10 Spiele für Modus 1', () => {
+    expect(BRETT_GAME_IDS).toHaveLength(10);
+    expect(GAMES.filter((g) => !g.nurOnline)).toHaveLength(10);
   });
 });

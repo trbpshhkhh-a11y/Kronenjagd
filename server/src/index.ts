@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   ClientMessage, ServerMessage, viewForHost, viewForPlayer, startGame, updateSettings, renamePlayer, playerAction, hostAction,
-  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer,
+  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick,
 } from '@kronen/shared';
 import { LobbyManager, Lobby, LobbyError } from './lobbies';
 
@@ -141,7 +141,7 @@ function handle(c: Conn, msg: ClientMessage) {
   const ctx = { rng: cryptoRng, now };
   switch (msg.t) {
     case 'ping':
-      return send(c, { t: 'pong' });
+      return send(c, { t: 'pong', c: typeof msg.c === 'number' ? msg.c : undefined, s: Date.now() });
     case 'create': {
       const lobby = manager.create();
       attachHost(c, lobby);
@@ -258,6 +258,16 @@ function handle(c: Conn, msg: ClientMessage) {
         }
         return;
       }
+      if (act?.t === 'mini' && (act.a?.k === 'hop' || act.a?.k === 'raus')) {
+        // Hühnerhüpfer: aktuellen Stand des Huhns sofort an alle anderen (Geister)
+        const inner = lobby.state.mini?.inner;
+        const r = inner?.game === 'huehner' ? inner.runners[playerId] : undefined;
+        if (r)
+          for (const o of conns)
+            if (o.lobby === lobby && o !== c)
+              send(o, { t: 'rt', d: { g: 'h', id: playerId, row: r.row, col: r.col, out: r.out, best: r.best, s: now } });
+        return;
+      }
       return broadcast(lobby);
     }
     case 'debugMini' as string: {
@@ -341,6 +351,24 @@ setInterval(() => {
     broadcast(lobby);
   }
 }, 100);
+
+// Echtzeit-Minispiele (Autorennen): ca. 30× pro Sekunde rechnen, ca. 20× pro Sekunde verteilen
+const lastRt = new WeakMap<Lobby, number>();
+setInterval(() => {
+  const now = Date.now();
+  for (const lobby of manager.lobbies.values()) {
+    let snap: unknown | null = null;
+    try {
+      snap = realtimeTick(lobby.state, { rng: cryptoRng, now });
+    } catch (e) {
+      console.error('realtime', lobby.code, e);
+    }
+    if (!snap || now - (lastRt.get(lobby) ?? 0) < 45) continue;
+    lastRt.set(lobby, now);
+    const msg = JSON.stringify({ t: 'rt', d: snap });
+    for (const c of conns) if (c.lobby === lobby && c.ws.readyState === WebSocket.OPEN) c.ws.send(msg);
+  }
+}, 33);
 
 setInterval(() => {
   for (const code of manager.cleanup()) {

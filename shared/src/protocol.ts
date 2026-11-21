@@ -24,7 +24,8 @@ export type ClientMessage =
   | { t: 'host'; a: HostAction }
   | { t: 'act'; a: PlayerAction }
   | { t: 'close' }
-  | { t: 'ping' };
+  /** Uhr-Abgleich: c = Gerätezeit beim Senden */
+  | { t: 'ping'; c?: number };
 
 export type ServerMessage =
   | { t: 'created'; code: string; token: string }
@@ -34,7 +35,10 @@ export type ServerMessage =
   | { t: 'error'; code: ErrorCode; message: string }
   | { t: 'closed'; reason: string }
   | { t: 'kicked' }
-  | { t: 'pong' };
+  /** c = Gerätezeit aus dem Ping, s = Serverzeit */
+  | { t: 'pong'; c?: number; s?: number }
+  /** Echtzeit-Daten für Minispiele (Hüpfer, Autos …), ohne vollen Zustand */
+  | { t: 'rt'; d: unknown };
 
 export type ErrorCode = 'bad_code' | 'rate_limited' | 'game' | 'bad_token' | 'invalid' | 'not_allowed';
 

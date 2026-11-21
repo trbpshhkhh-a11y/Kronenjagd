@@ -9,6 +9,9 @@ import { RulesButton } from '../../components/Rules';
 import { TimerRing } from '../../components/ui';
 import { Confetti } from '../../components/Decor';
 import { DrawCanvas } from './DrawCanvas';
+import { FlunkerPlayer } from '../games/Flunker';
+import { HuehnerPhone } from '../games/Huehner';
+import { FlitzerPhone } from '../games/Flitzer';
 
 type Send = (m: any) => void;
 const act = (send: Send, a: any) => send({ t: 'act', a: { t: 'mini', a } });
@@ -21,6 +24,9 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
   const einzel = g.teamMode === 'einzel';
   const noScreen = !v.hostConnected;
   const names = useMemo(() => GAMES.map((x) => x.name), []);
+  // Echtzeit-Spiele nehmen den ganzen Bildschirm ein
+  if (m.stage === 'spiel' && m.inner?.game === 'huehner') return <HuehnerPhone key={m.inner.seed} v={v} send={send} inner={m.inner} />;
+  if (m.stage === 'spiel' && m.inner?.game === 'flitzer') return <FlitzerPhone key={m.inner.startAt} v={v} send={send} inner={m.inner} />;
   const host = (a: any) => send({ t: 'host', a });
   const nameOf = (id: string) => {
     const p = playerOf(v, id);
@@ -57,7 +63,7 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
       {m.stage === 'spiel' && m.inner && noScreen && <PublicInfo v={v} inner={m.inner} />}
       {m.stage === 'ergebnis' && m.result && (
         <div className="panel list">
-          {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{i + 1}.</b><span className="grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span><span>{r.punkte} P.</span><span className="badge green">+{r.bonus}</span></div>)}
+          {m.result.rows.map((r, i) => <div key={i} className="list-item"><b>{r.platz ?? i + 1}.</b><span className="grow">{r.label}{r.members.length > 1 && <span className="small muted"> ({r.members.join(' & ')})</span>}</span><span>{r.anzeige ?? `${r.punkte} P.`}</span><span className="badge green">+{r.bonus}</span></div>)}
         </div>
       )}
     </>
@@ -277,6 +283,8 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
       );
     case 'montagsmaler':
       return <MalPlayer v={v} send={send} inner={inner} />;
+    case 'flunker':
+      return <FlunkerPlayer v={v} send={send} inner={inner} />;
     case 'zahlen':
       return (
         <div className="stack">
