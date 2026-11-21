@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, ServerMessage, HostView, PlayerView, Stroke } from '@kronen/shared';
 import { wsUrl } from '../lib/server';
 import { load, save, remove } from '../lib/storage';
+import { onPong, hintServerTime } from '../lib/clock';
 
 export interface Session {
   code: string;
@@ -40,6 +41,8 @@ export interface ConnOptions {
   /** Hauptscreen: einer bestehenden Lobby beitreten (Code) */
   joinScreen?: string;
   onStroke?: (s: Stroke) => void;
+  /** Echtzeit-Daten der Minispiele */
+  onRt?: (d: any) => void;
 }
 
 export function useConnection<V extends HostView | PlayerView>(role: Role, opts: ConnOptions = {}): Conn<V> {
@@ -57,6 +60,8 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
   const joinScreenRef = useRef(opts.joinScreen ?? null);
   const strokeRef = useRef(opts.onStroke);
   strokeRef.current = opts.onStroke;
+  const rtRef = useRef(opts.onRt);
+  rtRef.current = opts.onRt;
   const queue = useRef<ClientMessage[]>([]);
   const stopped = useRef(false);
 
@@ -87,7 +92,14 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
         } else if (s) ws.send(JSON.stringify({ t: 'resume', code: s.code, token: s.token }));
         else if (createPlayRef.current) ws.send(JSON.stringify({ t: 'createPlay', name: createPlayRef.current }));
         for (const m of queue.current.splice(0)) ws.send(JSON.stringify(m));
-        ping = setInterval(() => ws.readyState === 1 && ws.send('{"t":"ping"}'), 20000);
+        // Uhr-Abgleich: anfangs schnell mehrere Pings, danach alle 10 s
+        let n = 0;
+        const sendPing = () => ws.readyState === 1 && ws.send(JSON.stringify({ t: 'ping', c: Date.now() }));
+        sendPing();
+        ping = setInterval(() => {
+          n++;
+          if (n < 6 || n % 10 === 0) sendPing();
+        }, 1000);
       };
       ws.onmessage = (e) => {
         let m: ServerMessage;
@@ -98,7 +110,14 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
         }
         switch (m.t) {
           case 'view':
+            hintServerTime(m.view.serverNow);
             setView(m.view as V);
+            break;
+          case 'pong':
+            if (typeof m.c === 'number' && typeof m.s === 'number') onPong(m.c, m.s);
+            break;
+          case 'rt':
+            rtRef.current?.(m.d);
             break;
           case 'stroke':
             strokeRef.current?.(m.stroke);

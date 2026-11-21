@@ -141,7 +141,7 @@ function handle(c: Conn, msg: ClientMessage) {
   const ctx = { rng: cryptoRng, now };
   switch (msg.t) {
     case 'ping':
-      return send(c, { t: 'pong' });
+      return send(c, { t: 'pong', c: typeof msg.c === 'number' ? msg.c : undefined, s: Date.now() });
     case 'create': {
       const lobby = manager.create();
       attachHost(c, lobby);

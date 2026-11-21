@@ -588,3 +588,11 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 .host-lobby .shelf { font-size: 40px; }
 .host-lobby .gift-tag { font-size: 36px; }
 .host-lobby .lobby-title { font-size: 44px !important; }
+
+/* ---------- Joystick ---------- */
+.joystick { position: relative; border-radius: 50%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; flex-shrink: 0; }
+.joystick-ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255, 246, 227, 0.14) 0%, rgba(255, 246, 227, 0.06) 60%, rgba(0, 0, 0, 0.25) 100%); border: 4px solid rgba(255, 246, 227, 0.45); box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25), 0 6px 16px rgba(0, 0, 0, 0.4); }
+.joystick.active .joystick-ring { border-color: var(--gold-light); }
+.joystick-knob { position: absolute; left: 50%; top: 50%; width: 44%; height: 44%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff8a80, var(--red) 55%, var(--red-dark)); border: 4px solid #4d0d0d; box-shadow: 0 6px 0 #4d0d0d, 0 10px 16px rgba(0, 0, 0, 0.5), inset 0 3px 0 rgba(255, 255, 255, 0.35); pointer-events: none; transition: transform 0.05s; }
+.joystick:not(.active) .joystick-knob { transition: transform 0.15s ease-out; }
+.joystick-label { position: absolute; left: 50%; bottom: -1.6em; transform: translateX(-50%); font-size: 0.75em; opacity: 0.8; white-space: nowrap; }

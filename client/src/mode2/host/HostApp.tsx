@@ -12,13 +12,14 @@ import { SlotRoller, FIELD_NUMBERS } from '../../components/Roller';
 import { HostMini } from './HostMini';
 import { EventCardScene } from '../../components/EventCard';
 import { emitStroke } from '../LiveDrawing';
+import { emitRt } from '../rtBus';
 import { PlayerShelf, SettingsButton, GiftTag } from '../LobbyParts';
 
 export default function HostApp() {
   const r = useRoute();
   const create = r.query.get('neu') === '1';
   const joinCode = r.query.get('c') ?? undefined;
-  const conn = useConnection<HostView>('host', { create, joinScreen: joinCode, onStroke: emitStroke });
+  const conn = useConnection<HostView>('host', { create, joinScreen: joinCode, onStroke: emitStroke, onRt: emitRt });
   useWakeLock(true);
   useEffect(() => {
     if ((create || joinCode) && conn.session) history.replaceState(null, '', '#/host');
