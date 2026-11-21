@@ -451,7 +451,8 @@ function resolveCardShown(s: GameState, ctx: Ctx) {
  * deshalb braucht jedes Team bei Montagsmaler, Stirnraten und Begriffe erklären einen Menschen.
  */
 export function requiredHumans(game: GameId, total: number): number {
-  if (game === 'stirnraten' || game === 'montagsmaler') return 2;
+  // Flunker-Quiz: Bots schreiben keine Finten – mit nur einem Menschen gäbe es nichts zu raten
+  if (game === 'stirnraten' || game === 'montagsmaler' || game === 'flunker') return 2;
   if (game === 'begriffe') return Math.max(1, Math.floor(total / 2));
   return 1;
 }
@@ -612,7 +613,8 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       const m = s.mini;
       if (!m || m.stage !== 'spiel' || !m.inner) throw new GameError('Gerade läuft kein Minispiel.');
       miniAction(m.inner, pid, a.a, mctx(s, ctx));
-      if (a.a.k === 'strich') return; // Striche werden separat verteilt (kein voller Versand)
+      // Striche, Hüpfer und Lenkwerte werden separat (Echtzeit) verteilt – kein voller Versand
+      if (a.a.k === 'strich' || a.a.k === 'hop' || a.a.k === 'raus') return;
       if (!miniDone(m.inner)) miniTick(m.inner, mctx(s, ctx));
       if (miniDone(m.inner)) finishMini(s, ctx);
       break;

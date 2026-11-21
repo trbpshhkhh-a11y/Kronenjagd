@@ -258,6 +258,16 @@ function handle(c: Conn, msg: ClientMessage) {
         }
         return;
       }
+      if (act?.t === 'mini' && (act.a?.k === 'hop' || act.a?.k === 'raus')) {
+        // Hühnerhüpfer: aktuellen Stand des Huhns sofort an alle anderen (Geister)
+        const inner = lobby.state.mini?.inner;
+        const r = inner?.game === 'huehner' ? inner.runners[playerId] : undefined;
+        if (r)
+          for (const o of conns)
+            if (o.lobby === lobby && o !== c)
+              send(o, { t: 'rt', d: { g: 'h', id: playerId, row: r.row, col: r.col, out: r.out, best: r.best, s: now } });
+        return;
+      }
       return broadcast(lobby);
     }
     case 'debugMini' as string: {

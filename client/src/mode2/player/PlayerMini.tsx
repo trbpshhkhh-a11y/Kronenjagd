@@ -10,6 +10,7 @@ import { TimerRing } from '../../components/ui';
 import { Confetti } from '../../components/Decor';
 import { DrawCanvas } from './DrawCanvas';
 import { FlunkerPlayer } from '../games/Flunker';
+import { HuehnerPhone } from '../games/Huehner';
 
 type Send = (m: any) => void;
 const act = (send: Send, a: any) => send({ t: 'act', a: { t: 'mini', a } });
@@ -22,6 +23,8 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
   const einzel = g.teamMode === 'einzel';
   const noScreen = !v.hostConnected;
   const names = useMemo(() => GAMES.map((x) => x.name), []);
+  // Echtzeit-Spiele nehmen den ganzen Bildschirm ein
+  if (m.stage === 'spiel' && m.inner?.game === 'huehner') return <HuehnerPhone key={m.inner.seed} v={v} send={send} inner={m.inner} />;
   const host = (a: any) => send({ t: 'host', a });
   const nameOf = (id: string) => {
     const p = playerOf(v, id);

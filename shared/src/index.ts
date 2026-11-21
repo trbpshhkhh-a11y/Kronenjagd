@@ -17,3 +17,6 @@ export * from './mode2/views';
 export * from './mode1';
 export * from './mode2/bots';
 export * from './mode2/flunker';
+export * from './mode2/huehner/world';
+export * from './mode2/huehner/game';
+export * from './mode2/huehner/huhn';

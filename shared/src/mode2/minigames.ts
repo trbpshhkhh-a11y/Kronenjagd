@@ -17,6 +17,7 @@ import { BEGRIFFE, ZAHLEN_HINWEISE } from '../content';
 import { closestIds, zahlenBonus } from '../bonus';
 import { normalize, startsWithLetter, fuzzyEquals } from '../text';
 import { flunkerImpl, type FlunkerState } from './flunker';
+import { huehnerImpl, type HuehnerState } from './huehner/game';
 
 export interface MCtx extends Ctx {
   s: GameState;
@@ -181,7 +182,7 @@ export interface BegriffeState {
   botInfo: BotInfo | null;
 }
 
-export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState | FlunkerState;
+export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState | FlunkerState | HuehnerState;
 
 /** Aktionen der Spieler in Minispielen */
 export type MiniAction =
@@ -203,6 +204,8 @@ export type MiniAction =
   | { k: 'waehlen'; opt: number }
   | { k: 'finte'; text: string }
   | { k: 'stimme'; opt: number }
+  | { k: 'hop'; row: number; col: number; safe?: boolean }
+  | { k: 'raus' }
   /** nur Bots: simulierte Fähigkeit (Erfolg ausgewürfelt), wird im Minispiel aufgelöst */
   | { k: 'skill'; success: boolean }
   /** nur Bots als Kenner bei Zahlen erraten */
@@ -1066,6 +1069,7 @@ const begriffe: Impl<BegriffeState> = {
 const IMPLS: Record<GameId, Impl<any>> = {
   game7, kopfrechnen: kopf, stirnraten: stirn, gegenstaende: gegen, slf, schaetzen: schaetz, montagsmaler: mal, zahlen, wissen, begriffe,
   flunker: flunkerImpl,
+  huehner: huehnerImpl,
 };
 
 export const miniInit = (game: GameId, c: MCtx): MiniInner => IMPLS[game].init(c);

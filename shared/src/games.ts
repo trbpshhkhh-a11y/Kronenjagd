@@ -9,7 +9,8 @@ export type GameId =
   | 'zahlen'
   | 'wissen'
   | 'begriffe'
-  | 'flunker';
+  | 'flunker'
+  | 'huehner';
 
 /** einzel = jeder für sich, zweier = Zweier-Teams (ggf. ein Dreierteam), zweiTeams = 2 Teams */
 export type TeamMode = 'einzel' | 'zweier' | 'zweiTeams';
@@ -197,6 +198,21 @@ export const GAMES: GameDef[] = [
       gewinn: 'Bonusfelder nach Platz: 1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1.',
     },
     app: ['Finte bis 40 Zeichen. Ist sie zu nah an der Wahrheit, musst du dir etwas anderes ausdenken. Für deine eigene Finte kannst du nicht stimmen.'],
+  },
+  {
+    id: 'huehner', nr: 12, name: 'Hühnerhüpfer', teamMode: 'einzel', minPlayers: 2, nurOnline: true,
+    rules: {
+      utensilien: 'nur eure Handys',
+      teams: 'Jeder gegen jeden',
+      ablauf: [
+        'Dein Huhn hüpft Feld für Feld nach vorne – über Straßen, Flüsse und Gleise.',
+        'Steuere mit dem Joystick (oder tippe auf die Welt, um nach vorne zu hüpfen).',
+        'Pass auf Autos und Züge auf und hüpf nur auf Baumstämme oder Seerosen – Wasser ist tabu!',
+        'Wer rausfliegt, wartet 2 Sekunden und startet auf der letzten Wiese neu. Nach 30 Sekunden zählt die weiteste Reihe.',
+      ],
+      gewinn: 'Bonusfelder nach Platz: 1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1.',
+    },
+    app: ['Alle hüpfen durch dieselbe Welt, die anderen Hühner siehst du halb durchsichtig. Bei Gleichstand gewinnt, wer die Reihe zuerst erreicht hat.'],
   },
 ];
 

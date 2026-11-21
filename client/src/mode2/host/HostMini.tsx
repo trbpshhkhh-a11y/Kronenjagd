@@ -3,6 +3,7 @@ import { HostView, GAMES, gameById, formatNumber } from '@kronen/shared';
 import { useLeft, playerName, playerOf, usePortrait, displayName } from '../common';
 import { LiveDrawing } from '../LiveDrawing';
 import { FlunkerHost } from '../games/Flunker';
+import { HuehnerHost } from '../games/Huehner';
 import { SlotRoller } from '../../components/Roller';
 import { RulesContent } from '../../components/Rules';
 import { TimerRing, Dot } from '../../components/ui';
@@ -246,6 +247,8 @@ function GameView({ v, inner }: { v: HostView; inner: any }) {
       return <MalHost v={v} inner={inner} />;
     case 'flunker':
       return <FlunkerHost v={v} inner={inner} portrait={P} />;
+    case 'huehner':
+      return <HuehnerHost v={v} inner={inner} portrait={P} />;
     case 'zahlen':
       return (
         <div className="stack" style={{ alignItems: 'center', gap: 26 }}>
