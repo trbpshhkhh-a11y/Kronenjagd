@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BOARD, BaseView, PublicPlayer, Crown, MoveOption, gameById, CARD_TEXT } from '@kronen/shared';
 import boardImg from '@assets/spielbrett.png';
-import { TokenSvg, CrownSvg, ControllerSvg } from '../components/icons';
+import { TokenSvg, CrownSvg } from '../components/icons';
 import { useServerClock } from '../lib/hooks';
 
 export { boardImg };
@@ -89,9 +89,6 @@ export interface BoardProps {
 /** Farben für die Richtungsoptionen auf dem Brett */
 export const OPTION_COLORS = ['#66bb6a', '#4fc3f7', '#ffb74d', '#f06292'];
 
-/** Felder, die im Brettbild noch nicht als Sonderfeld gemalt sind (App zeichnet sie) */
-const MARKED = BOARD.data.fields.filter((f) => f.markieren);
-
 /**
  * Das Brett mit Figuren und Kronen (Positionen in Prozent -> passt zu jeder Auflösung).
  * Mit `onPick` kann der Spieler einen hervorgehobenen Weg direkt auf dem Brett antippen.
@@ -117,12 +114,6 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
   return (
     <div className={`board-wrap ${onPick && previews?.length ? 'pickable' : ''}`} onClick={pick}>
       <img className="board-img" src={boardImg} alt="Spielbrett" draggable={false} />
-      {MARKED.map((f) => (
-        <span key={f.id} className={`field-mark ${f.type}`} style={{ left: `${f.x}%`, top: `${f.y}%` }} title={`Feld ${f.id}`}>
-          {f.type === 'minispiel' && <ControllerSvg size="72%" />}
-          <span className="field-mark-nr">{f.id}</span>
-        </span>
-      ))}
       {previews?.map((o, k) => {
         const col = OPTION_COLORS[k % OPTION_COLORS.length];
         const t = fieldXY(o.target);

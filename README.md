@@ -206,7 +206,7 @@ Annahmen zu den Online-Minispielen:
 - **Flunker-Quiz:** Die eigene Finte bringt keinen Punkt, wenn man sie selbst wählen würde (deshalb gesperrt). Eine Finte gilt als „zu nah an der Wahrheit“, wenn sie bis auf ein bis zwei Tippfehler gleich ist oder die echte Antwort enthält.
 
 ### Hinweise zum Spielbrett
-- Feldtypen: grün +2 (4, 21, 30, 38), rot −2 (51, 64, 74), blau ?! (7, 14, 41, 45, 59), gelb (39, 55), lila Minispiel (10, 17, 23, 35, 52, 57, 66, 69). Die Felder **17 und 23** sind im Brettbild noch normale Holzfelder. Die App zeichnet dort in Modus 2 eine lila Markierung (in `board.json` mit `"markieren": true`), in Modus 1 erscheint bei diesen Feldern das Controller-Symbol.
+- Feldtypen: grün +2 (4, 21, 30, 38), rot −2 (51, 64, 74), blau ?! (7, 14, 41, 45, 59), gelb (39, 55), lila Minispiel (10, 17, 23, 35, 52, 57, 66, 69). Die Felder **17 und 23** wurden im Brettbild nachträglich zu lila Minispielfeldern umgemalt (gleicher Look wie Feld 35 und 66).
 - **Die Feldnummern sind nur Orientierung.** Gezogen wird entlang der Strecke, wie sie im Bild verläuft (z. B. von 1 nach links auf 68, nicht auf 76). Die Verbindungen stehen als `neighbors` in `board.json`.
 - **Abzweigungen:** Feld 2 (nach 3 oder 43) und die Einmündungen 76 → 9, 42 → 20, 53 → 26, 67 → 32 und 54 → 46. Jede Einmündung hat genau ein Weichenfeld: Wer z. B. von 11 kommt, geht über 10 ohne Entscheidung auf 9 und wählt dort zwischen 8 und 76. Das Weichenfeld ist jeweils das Feld, das im Bild am nächsten an der einmündenden Strecke liegt. Am Zugbeginn darf man in jede Richtung losgehen, im Zug nicht umkehren.
 - Wer die Verbindungen ändern möchte, kann sie im Feld-Editor über die Nachbarlisten anpassen.
