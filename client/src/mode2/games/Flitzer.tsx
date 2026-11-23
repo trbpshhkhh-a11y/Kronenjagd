@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { HostView, PlayerView } from '@kronen/shared';
-import { TRACKS, TrackDef, F_HALF, F_RUNDEN, F_GATES, F_NACH_SIEG_MS, Car, stepCar, nearest, seededRng } from '@kronen/shared';
-import { serverNow } from '../../lib/clock';
+import { TRACKS, TrackDef, F_HALF, F_BANDE, F_RUNDEN, F_GATES, F_NACH_SIEG_MS, Car, stepCar, nearest, seededRng, newCar, collide, bande } from '@kronen/shared';
+import { serverNow, rttMs } from '../../lib/clock';
 import { subscribeRt } from '../rtBus';
-import { Joystick, StickValue, useGameLock } from '../../components/Joystick';
+import { Joystick, StickValue, useGameLock, vibrate } from '../../components/Joystick';
 import { useServerTime } from './Countdown';
 import { RotateHint, useViewport } from '../common';
 
 type Send = (m: any) => void;
 const act = (send: Send, a: any) => send({ t: 'act', a: { t: 'mini', a } });
 
-/** [x, y, Winkel, Tempo, Kontrollpunkte, im Ziel] */
-type SnapCar = [number, number, number, number, number, number];
+/** [x, y, Winkel, Tempo, Kontrollpunkte, im Ziel, Schubs x, Schubs y] */
+type SnapCar = [number, number, number, number, number, number, number?, number?];
 interface Snap {
   t: number;
   c: SnapCar[];
@@ -62,7 +62,7 @@ function sample(buf: Snap[], t: number): SnapCar[] | null {
   if (!b) {
     // über das letzte Paket hinaus kurz weiterrechnen
     const dt = Math.min(0.15, Math.max(0, (t - a.t) / 1000));
-    return a.c.map((k) => [k[0] + Math.cos(k[2]) * k[3] * dt, k[1] + Math.sin(k[2]) * k[3] * dt, k[2], k[3], k[4], k[5]] as SnapCar);
+    return a.c.map((k) => [k[0] + (Math.cos(k[2]) * k[3] + (k[6] ?? 0)) * dt, k[1] + (Math.sin(k[2]) * k[3] + (k[7] ?? 0)) * dt, k[2], k[3], k[4], k[5]] as SnapCar);
   }
   const f = Math.max(0, Math.min(1, (t - a.t) / Math.max(1, b.t - a.t)));
   return a.c.map((k, j) => {
@@ -110,7 +110,9 @@ function decor(tr: TrackDef, vb: View) {
   const items: { k: 'baum' | 'geschenk' | 'stange'; x: number; y: number; s: number; c: number }[] = [];
   for (let tries = 0; items.length < 26 && tries < 1500; tries++) {
     const x = vb.x0 + rng() * vb.w, y = vb.y0 + rng() * vb.h;
-    if (nearest(tr, x, y).d < F_HALF + 38) continue;
+    if (nearest(tr, x, y).d < F_BANDE + 34) continue;
+    // Bäume ragen nach oben: auch die Spitze darf nicht über die Bande reichen
+    if (nearest(tr, x, y - 50).d < F_BANDE + 24) continue;
     if (items.some((o) => Math.hypot(o.x - x, o.y - y) < 70)) continue;
     const r = rng();
     items.push({ k: r < 0.55 ? 'baum' : r < 0.82 ? 'geschenk' : 'stange', x, y, s: 0.8 + rng() * 0.5, c: Math.floor(rng() * 4) });
@@ -142,18 +144,30 @@ function drawTrack(ctx: CanvasRenderingContext2D, tr: TrackDef, vb: View, items:
   }
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  // Schatten + rot-weiße Randsteine
   path(ctx, tr);
-  ctx.strokeStyle = 'rgba(40,60,90,0.18)';
-  ctx.lineWidth = 2 * F_HALF + 30;
-  ctx.stroke();
+  // Bande links und rechts (wie bei einer Eisbahn): Schatten, dunkle Kante, weiße Bretter mit rotem Streifen
+  const ring = (w: number, color: string) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 * w;
+    ctx.stroke();
+  };
+  ring(F_BANDE + 22, 'rgba(30,50,80,0.25)');
+  ring(F_BANDE + 16, '#263238');
+  ring(F_BANDE + 14, '#ffffff');
+  ring(F_BANDE + 10, '#c62828');
+  ring(F_BANDE + 7, '#ffffff');
+  ring(F_BANDE + 3, '#b0bec5');
+  ring(F_BANDE + 1.2, '#263238');
+  // rot-weiße Randsteine bis zur Bande (flache Strichenden, sonst verschwinden die Lücken)
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2 * F_HALF + 16;
+  ctx.lineWidth = 2 * F_BANDE;
   ctx.stroke();
-  ctx.setLineDash([22, 22]);
+  ctx.lineCap = 'butt';
+  ctx.setLineDash([20, 20]);
   ctx.strokeStyle = '#e53935';
   ctx.stroke();
   ctx.setLineDash([]);
+  ctx.lineCap = 'round';
   // Asphalt
   ctx.strokeStyle = '#4b5059';
   ctx.lineWidth = 2 * F_HALF;
@@ -325,31 +339,94 @@ function RaceCanvas({ inner, meId, labels, steuer, onPlaces }: {
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(cv);
-    const own: Car = { id: '', x: 0, y: 0, a: 0, v: 0, gates: 0, finishAt: null, off: false };
+    // Handy: alle Autos „jetzt“ zeigen – das eigene lokal gefahren, die anderen geglättet vorausgerechnet.
+    // Hauptscreen: alle Autos weich zwischen zwei Paketen überblendet (etwas verzögert, dafür ganz ruhig).
+    const phone = !!(meId && steuer);
+    let own: Car | null = null;
+    let disp: { x: number; y: number; a: number }[] = [];
+    let lastPerf = performance.now();
+    let lastHit = 0;
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const now = serverNow();
-      const cars = sample(buf.current, now - 90);
+      const perf = performance.now();
+      const dt = Math.min(0.05, Math.max(0, (perf - lastPerf) / 1000));
+      lastPerf = perf;
+      const b = buf.current;
+      const latest = b[b.length - 1];
+      let cars = phone ? (latest ? latest.c.map((k) => [...k] as SnapCar) : null) : sample(b, now - 110);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       if (bg) ctx.drawImage(bg, 0, 0);
-      if (!cars) return;
+      if (!cars || !latest) return;
       ctx.setTransform(scale, 0, 0, scale, ox, oy);
       const inn = innerRef.current;
       const info: CarInfo[] = inn.cars;
       const pulse = (Math.sin(now / 160) + 1) / 2;
-      // eigenes Auto: vom neuesten Paket aus mit dem eigenen Joystick vorausrechnen (fühlt sich direkter an)
       const meIdx = meId ? info.findIndex((c) => c.id === meId) : -1;
-      const latest = buf.current[buf.current.length - 1];
-      if (meIdx >= 0 && latest && steuer && inn.stage === 'rennen' && !latest.c[meIdx][5]) {
+      if (phone) {
+        const prev = b[b.length - 2];
+        const lead = inn.stage === 'rennen' ? Math.min(0.25, Math.max(0, (now - latest.t) / 1000)) : 0;
+        if (disp.length !== cars.length) disp = cars.map((k) => ({ x: k[0], y: k[1], a: k[2] }));
+        const fPos = 1 - Math.exp(-9 * dt);
+        cars = cars.map((k, i) => {
+          if (i === meIdx) return k;
+          // Ziel: letzter Serverstand, um die Laufzeit weitergerechnet (inkl. Drehung)
+          const p = prev?.c[i];
+          const w = p && latest.t > prev.t ? Math.atan2(Math.sin(k[2] - p[2]), Math.cos(k[2] - p[2])) / ((latest.t - prev.t) / 1000) : 0;
+          const ta = k[2] + Math.max(-6, Math.min(6, w)) * lead;
+          const vx = Math.cos(k[2]) * k[3] + (k[6] ?? 0), vy = Math.sin(k[2]) * k[3] + (k[7] ?? 0);
+          const tx = k[0] + vx * lead, ty = k[1] + vy * lead;
+          const d = disp[i];
+          d.x += vx * dt;
+          d.y += vy * dt;
+          if (Math.hypot(tx - d.x, ty - d.y) > 120) Object.assign(d, { x: tx, y: ty, a: ta });
+          d.x += (tx - d.x) * fPos;
+          d.y += (ty - d.y) * fPos;
+          d.a = lerpAngle(d.a, ta, 1 - Math.exp(-12 * dt));
+          return [d.x, d.y, d.a, k[3], k[4], k[5]] as SnapCar;
+        });
         const k = latest.c[meIdx];
-        Object.assign(own, { x: k[0], y: k[1], a: k[2], v: k[3] });
-        let rest = Math.min(0.2, Math.max(0, (now - latest.t) / 1000));
-        while (rest > 0) {
-          const dt = Math.min(1 / 60, rest);
-          stepCar(tr, own, steuer.current, dt);
-          rest -= dt;
-        }
-        cars[meIdx] = [own.x, own.y, own.a, own.v, k[4], k[5]];
+        if (k && inn.stage === 'rennen' && !k[5]) {
+          // Serverstand auf „jetzt“ vorausrechnen – inkl. der Zeit, bis der Joystick beim Server ankommt
+          const ahead = Math.min(0.35, lead + rttMs() / 2000);
+          const sx = k[0] + (Math.cos(k[2]) * k[3] + (k[6] ?? 0)) * ahead;
+          const sy = k[1] + (Math.sin(k[2]) * k[3] + (k[7] ?? 0)) * ahead;
+          if (!own) {
+            own = newCar('ich', sx, sy, k[2]);
+            own.v = k[3];
+          }
+          const o = own;
+          // lokal fahren: reagiert sofort auf den Joystick
+          let rest = dt;
+          while (rest > 1e-4) {
+            const h = Math.min(1 / 120, rest);
+            stepCar(tr, o, steuer!.current, h);
+            rest -= h;
+          }
+          // nicht in andere Autos hineinfahren (so, wie sie gerade zu sehen sind)
+          for (let i = 0; i < cars.length; i++) {
+            if (i === meIdx || cars[i][5]) continue;
+            const other = newCar('x', cars[i][0], cars[i][1], cars[i][2]);
+            other.v = cars[i][3];
+            collide([o, other]);
+          }
+          bande(tr, o);
+          // sanft zum Serverstand ziehen (der Server ist maßgeblich)
+          const ex = sx - o.x, ey = sy - o.y;
+          if (Math.hypot(ex, ey) > 120) Object.assign(o, { x: sx, y: sy, a: k[2], v: k[3] });
+          else {
+            const f = 1 - Math.exp(-3.5 * dt);
+            o.x += ex * f;
+            o.y += ey * f;
+            o.v += (k[3] - o.v) * (1 - Math.exp(-1.5 * dt));
+            if (steuer!.current.m === 0) o.a = lerpAngle(o.a, k[2], 1 - Math.exp(-2 * dt));
+          }
+          if (o.hit > 0.35 && perf - lastHit > 350) {
+            vibrate(18);
+            lastHit = perf;
+          }
+          cars[meIdx] = [o.x, o.y, o.a, o.v, k[4], k[5]];
+        } else own = null;
       }
       const order = cars.map((_, i) => i).sort((a, b) => (a === meIdx ? 1 : b === meIdx ? -1 : 0));
       for (const i of order) {

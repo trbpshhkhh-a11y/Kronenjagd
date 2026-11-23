@@ -352,7 +352,7 @@ setInterval(() => {
   }
 }, 100);
 
-// Echtzeit-Minispiele (Autorennen): ca. 30× pro Sekunde rechnen, ca. 20× pro Sekunde verteilen
+// Echtzeit-Minispiele (Autorennen): ca. 60× pro Sekunde rechnen, gleichmäßig 20× pro Sekunde verteilen
 const lastRt = new WeakMap<Lobby, number>();
 setInterval(() => {
   const now = Date.now();
@@ -363,12 +363,12 @@ setInterval(() => {
     } catch (e) {
       console.error('realtime', lobby.code, e);
     }
-    if (!snap || now - (lastRt.get(lobby) ?? 0) < 45) continue;
+    if (!snap || now - (lastRt.get(lobby) ?? 0) < 48) continue;
     lastRt.set(lobby, now);
     const msg = JSON.stringify({ t: 'rt', d: snap });
     for (const c of conns) if (c.lobby === lobby && c.ws.readyState === WebSocket.OPEN) c.ws.send(msg);
   }
-}, 33);
+}, 16);
 
 setInterval(() => {
   for (const code of manager.cleanup()) {
