@@ -446,9 +446,6 @@ table.tbl td, table.tbl th { padding: 6px 8px; border-bottom: 1px solid rgba(255
 
 /* ---------- Brett: antippbar, zusätzlich gemalte Sonderfelder ---------- */
 .board-wrap.pickable { cursor: pointer; }
-.field-mark { position: absolute; transform: translate(-50%, -50%); width: 3.3%; aspect-ratio: 1; border-radius: 22%; z-index: 2; display: flex; align-items: center; justify-content: center; pointer-events: none; border: 2px solid rgba(255, 255, 255, 0.55); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(0, 0, 0, 0.25); }
-.field-mark.minispiel { background: linear-gradient(180deg, #9a5fd6, #5a2a8a); }
-.field-mark-nr { position: absolute; top: -2%; right: 6%; font-family: var(--font-head); font-size: clamp(6px, 0.7vw, 14px); color: #f3e5ff; line-height: 1; }
 .pick-hint { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 8; background: rgba(20, 10, 4, 0.82); border: 2px solid var(--gold); color: var(--cream); border-radius: 999px; padding: 4px 14px; font-family: var(--font-head); font-size: 14px; white-space: nowrap; pointer-events: none; animation: fade 0.3s; }
 
 /* ---------- Hinweis "Bitte Gerät drehen" ---------- */
