@@ -15,6 +15,12 @@ export const F_MAX_MS = 120_000;
 export const F_NACH_SIEG_MS = 15_000;
 /** Anzahl Kontrollpunkte je Runde (Punkt 0 = Start/Ziel) */
 export const F_GATES = 8;
+/** Innenkante der Bande (Abstand von der Mittellinie) */
+export const F_BANDE = F_HALF + 8;
+/** halbe Autobreite (für die Bande) */
+export const F_CAR_HALB = 11;
+/** so weit darf die Automitte von der Mittellinie weg */
+export const F_WAND = F_BANDE - F_CAR_HALB;
 
 export type Pt = { x: number; y: number };
 
@@ -46,11 +52,12 @@ function spline(ctrl: Pt[], perSeg = 40): Pt[] {
   return out;
 }
 
-/** Vieleck mit abgerundeten Ecken (Radius r) */
-function rounded(poly: Pt[], r: number): Pt[] {
+/** Vieleck mit abgerundeten Ecken (Radius r, je Ecke einzeln möglich) */
+function rounded(poly: Pt[], rr: number | number[]): Pt[] {
   const out: Pt[] = [];
   const n = poly.length;
   for (let i = 0; i < n; i++) {
+    const r = Array.isArray(rr) ? rr[i] : rr;
     const a = poly[(i - 1 + n) % n], b = poly[i], c = poly[(i + 1) % n];
     const ux = a.x - b.x, uy = a.y - b.y, vx = c.x - b.x, vy = c.y - b.y;
     const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
@@ -118,8 +125,8 @@ export const TRACKS: TrackDef[] = [
     1,
     'Lebkuchen-Schlängel',
     spline([
-      { x: 190, y: 560 }, { x: 200, y: 250 }, { x: 380, y: 140 }, { x: 560, y: 300 }, { x: 760, y: 160 }, { x: 960, y: 300 },
-      { x: 1160, y: 160 }, { x: 1390, y: 230 }, { x: 1430, y: 520 }, { x: 1250, y: 690 }, { x: 800, y: 690 }, { x: 420, y: 700 },
+      { x: 190, y: 560 }, { x: 200, y: 260 }, { x: 420, y: 165 }, { x: 730, y: 280 }, { x: 1040, y: 165 }, { x: 1300, y: 240 },
+      { x: 1440, y: 330 }, { x: 1440, y: 500 }, { x: 1250, y: 690 }, { x: 800, y: 690 }, { x: 420, y: 700 },
     ]),
     { x: 800, y: 690 },
     true,
@@ -128,8 +135,8 @@ export const TRACKS: TrackDef[] = [
   makeTrack(
     2,
     'Zuckerstangen-L',
-    rounded([{ x: 170, y: 130 }, { x: 700, y: 130 }, { x: 700, y: 400 }, { x: 1430, y: 400 }, { x: 1430, y: 690 }, { x: 170, y: 690 }], 120),
-    { x: 800, y: 690 },
+    rounded([{ x: 170, y: 120 }, { x: 700, y: 120 }, { x: 700, y: 410 }, { x: 1430, y: 410 }, { x: 1430, y: 700 }, { x: 170, y: 700 }], [200, 145, 145, 145, 145, 200]),
+    { x: 800, y: 700 },
     true,
   ),
 ];
@@ -148,6 +155,24 @@ export function nearest(tr: TrackDef, x: number, y: number): { i: number; d: num
 
 export const onTrack = (tr: TrackDef, x: number, y: number) => nearest(tr, x, y).d <= F_HALF;
 
+/** Genauer nächster Punkt auf der Mittellinie (auf die Strecke zwischen zwei Punkten projiziert) */
+export function nearestExact(tr: TrackDef, x: number, y: number): { x: number; y: number; d: number; i: number } {
+  const p = tr.pts;
+  const n = p.length;
+  const { i } = nearest(tr, x, y);
+  let best = { x: p[i].x, y: p[i].y, d: Infinity, i };
+  for (const j of [(i - 1 + n) % n, i]) {
+    const a = p[j], b = p[(j + 1) % n];
+    const vx = b.x - a.x, vy = b.y - a.y;
+    const l2 = vx * vx + vy * vy || 1;
+    const t = Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / l2));
+    const qx = a.x + vx * t, qy = a.y + vy * t;
+    const d = Math.hypot(x - qx, y - qy);
+    if (d < best.d) best = { x: qx, y: qy, d, i };
+  }
+  return best;
+}
+
 /* ------------------------------ Fahren ------------------------------ */
 
 export interface Car {
@@ -161,8 +186,14 @@ export interface Car {
   gates: number;
   /** Zeit (ms) beim Zieleinlauf */
   finishAt: number | null;
-  off: boolean;
+  /** Schubs nach einem Zusammenstoß (klingt schnell ab) */
+  kx: number;
+  ky: number;
+  /** Stärke des letzten Aufpralls (Bande oder Auto), 0 = keiner */
+  hit: number;
 }
+
+export const newCar = (id: string, x: number, y: number, a: number): Car => ({ id, x, y, a, v: 0, gates: 0, finishAt: null, kx: 0, ky: 0, hit: 0 });
 
 export interface Steuer {
   /** Joystick-Winkel (mathematisch: 0 = rechts, π/2 = oben) */
@@ -185,10 +216,8 @@ export function grid(tr: TrackDef, n: number): { x: number; y: number; a: number
   });
 }
 
-/** Ein Auto einen Zeitschritt bewegen (Lenken, Gas, Ausrollen, Gras bremst) */
+/** Ein Auto einen Zeitschritt bewegen (Lenken, Gas, Ausrollen, Bande) */
 export function stepCar(tr: TrackDef, c: Car, s: Steuer, dt: number) {
-  const n = nearest(tr, c.x, c.y);
-  c.off = n.d > F_HALF;
   let target = 0;
   if (s.m > 0) {
     // absolute Lenkung: Bildschirm-oben = Joystick-oben
@@ -199,16 +228,48 @@ export function stepCar(tr: TrackDef, c: Car, s: Steuer, dt: number) {
     // in scharfen Kurven automatisch etwas langsamer
     target = s.m * F_VMAX * (0.55 + 0.45 * Math.max(0, Math.cos(diff)));
   }
-  if (c.off) target = Math.min(target, F_VMAX * 0.4);
   if (c.v < target) c.v = Math.min(target, c.v + 340 * dt);
-  else c.v = Math.max(target, c.v - (s.m > 0 ? 420 : c.off ? 380 : 170) * dt);
-  c.x += Math.cos(c.a) * c.v * dt;
-  c.y += Math.sin(c.a) * c.v * dt;
-  c.x = Math.max(F_CAR_R, Math.min(F_W - F_CAR_R, c.x));
-  c.y = Math.max(F_CAR_R, Math.min(F_H - F_CAR_R, c.y));
+  else c.v = Math.max(target, c.v - (s.m > 0 ? 420 : 170) * dt);
+  // Schubs klingt weich ab
+  const k = Math.exp(-7 * dt);
+  c.kx *= k;
+  c.ky *= k;
+  c.x += (Math.cos(c.a) * c.v + c.kx) * dt;
+  c.y += (Math.sin(c.a) * c.v + c.ky) * dt;
+  c.hit = 0;
+  bande(tr, c);
 }
 
-/** Kreis-Zusammenstöße: auseinanderschieben, etwas Tempo verlieren. Autos im Ziel und „durchlässige“ (getrennte Spieler) zählen nicht. */
+/**
+ * Bande links und rechts: das Auto kann die Strecke nicht verlassen.
+ * Fährt es schräg dagegen, gleitet es an der Bande entlang (je frontaler, desto mehr Tempo geht verloren).
+ */
+export function bande(tr: TrackDef, c: Car) {
+  const q = nearestExact(tr, c.x, c.y);
+  if (q.d <= F_WAND || q.d === 0) return;
+  const ux = (c.x - q.x) / q.d, uy = (c.y - q.y) / q.d;
+  c.x = q.x + ux * F_WAND;
+  c.y = q.y + uy * F_WAND;
+  const dx = Math.cos(c.a), dy = Math.sin(c.a);
+  const dot = dx * ux + dy * uy;
+  if (dot > 0 && c.v > 0) {
+    const tx = dx - dot * ux, ty = dy - dot * uy;
+    if (Math.hypot(tx, ty) > 0.12) c.a = Math.atan2(ty, tx);
+    c.v *= 1 - 0.65 * dot * dot;
+    c.hit = Math.max(c.hit, dot);
+  }
+  // Schubs in die Bande hinein wird zurückgefedert
+  const kn = c.kx * ux + c.ky * uy;
+  if (kn > 0) {
+    c.kx -= 1.4 * kn * ux;
+    c.ky -= 1.4 * kn * uy;
+  }
+}
+
+/**
+ * Zusammenstöße (Kreise): auseinanderschieben und einen weichen Schubs geben statt hartem Abbremsen.
+ * Autos im Ziel und „durchlässige“ (getrennte Spieler) zählen nicht.
+ */
 export function collide(cars: Car[], durch?: Set<string>) {
   for (let i = 0; i < cars.length; i++)
     for (let j = i + 1; j < cars.length; j++) {
@@ -217,15 +278,30 @@ export function collide(cars: Car[], durch?: Set<string>) {
       if (durch && (durch.has(a.id) || durch.has(b.id))) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const d = Math.hypot(dx, dy);
-      if (d >= 2 * F_CAR_R || d === 0) continue;
+      if (d >= 2 * F_CAR_R) continue;
+      const nx = d ? dx / d : 1, ny = d ? dy / d : 0;
       const push = (2 * F_CAR_R - d) / 2;
-      const nx = dx / d, ny = dy / d;
       a.x -= nx * push;
       a.y -= ny * push;
       b.x += nx * push;
       b.y += ny * push;
-      a.v *= 0.9;
-      b.v *= 0.9;
+      // Annäherungstempo entlang der Verbindungslinie
+      const rel = (Math.cos(a.a) * a.v + a.kx - Math.cos(b.a) * b.v - b.kx) * nx + (Math.sin(a.a) * a.v + a.ky - Math.sin(b.a) * b.v - b.ky) * ny;
+      if (rel > 0) {
+        const jmp = rel * 0.62;
+        a.kx -= nx * jmp;
+        a.ky -= ny * jmp;
+        b.kx += nx * jmp;
+        b.ky += ny * jmp;
+        // wer frontal auffährt, verliert etwas Tempo
+        const ia = Math.max(0, Math.cos(a.a) * nx + Math.sin(a.a) * ny);
+        const ib = Math.max(0, -(Math.cos(b.a) * nx + Math.sin(b.a) * ny));
+        const f = Math.min(1, rel / 250);
+        a.v *= 1 - 0.35 * ia * f;
+        b.v *= 1 - 0.35 * ib * f;
+        a.hit = Math.max(a.hit, f);
+        b.hit = Math.max(b.hit, f);
+      }
     }
 }
 

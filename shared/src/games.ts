@@ -223,7 +223,7 @@ export const GAMES: GameDef[] = [
       ablauf: [
         'Jeder fährt ein kleines Auto in seiner Farbe – die ganze Strecke ist auf deinem Handy zu sehen.',
         'Zeig mit dem Joystick, wohin dein Auto fahren soll. Je weiter du drückst, desto schneller fährt es.',
-        'Lässt du los, rollt das Auto aus. Auf dem Schnee bist du viel langsamer – bleib auf der Strecke!',
+        'Lässt du los, rollt das Auto aus. Links und rechts ist eine Bande – wer dagegen fährt, wird langsamer.',
         'Nach der Startampel geht’s los: Wer zuerst 3 Runden geschafft hat, gewinnt. Danach haben alle anderen noch 15 Sekunden.',
       ],
       gewinn: 'Bonusfelder nach Platz: 1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1.',

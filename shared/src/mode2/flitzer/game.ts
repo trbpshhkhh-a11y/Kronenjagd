@@ -8,7 +8,7 @@ import { GameError } from '../types';
 import { randInt, shuffle } from '../../rng';
 import { groupRanking, rankBonus } from '../../bonus';
 import {
-  TRACKS, F_COUNTDOWN_MS, F_MAX_MS, F_NACH_SIEG_MS, F_RUNDEN, Car, Steuer, grid, stepCar, collide, checkGates, fortschritt, runde, botSteuer,
+  TRACKS, F_COUNTDOWN_MS, F_MAX_MS, F_NACH_SIEG_MS, F_RUNDEN, Car, Steuer, grid, stepCar, collide, bande, checkGates, fortschritt, runde, botSteuer, newCar,
 } from './track';
 
 export interface FlitzerState {
@@ -61,6 +61,7 @@ export function flitzerAdvance(st: FlitzerState, c: MCtx, now: number) {
       stepCar(tr, car, s, STEP);
     }
     collide(st.cars, durch);
+    for (const car of st.cars) bande(tr, car); // nach dem Schubsen wieder hinter die Bande
     for (const car of st.cars)
       if (checkGates(tr, car, st.simTime) && st.firstFinish === null) {
         st.firstFinish = st.simTime;
@@ -69,12 +70,15 @@ export function flitzerAdvance(st: FlitzerState, c: MCtx, now: number) {
   }
 }
 
-/** Kompakter Schnappschuss für die Echtzeit-Nachricht: [x, y, Winkel, Tempo, Kontrollpunkte, im Ziel] */
+/** Kompakter Schnappschuss für die Echtzeit-Nachricht: [x, y, Winkel, Tempo, Kontrollpunkte, im Ziel, Schubs x, Schubs y] */
 export function flitzerSnapshot(st: FlitzerState) {
   return {
     g: 'f',
     t: Math.round(st.simTime),
-    c: st.cars.map((k) => [Math.round(k.x * 10) / 10, Math.round(k.y * 10) / 10, Math.round(k.a * 100) / 100, Math.round(k.v), k.gates, k.finishAt === null ? 0 : 1]),
+    c: st.cars.map((k) => [
+      Math.round(k.x * 10) / 10, Math.round(k.y * 10) / 10, Math.round(k.a * 1000) / 1000, Math.round(k.v), k.gates, k.finishAt === null ? 0 : 1,
+      Math.round(k.kx), Math.round(k.ky),
+    ]),
   };
 }
 
@@ -105,7 +109,7 @@ export const flitzerImpl: Impl<FlitzerState> = {
     });
     return {
       game: 'flitzer', track, stage: 'countdown', startAt, endAt: startAt + F_MAX_MS, firstFinish: null, until: startAt,
-      cars: order.map((id, i) => ({ id, x: g[i].x, y: g[i].y, a: g[i].a, v: 0, gates: 0, finishAt: null, off: false })),
+      cars: order.map((id, i) => newCar(id, g[i].x, g[i].y, g[i].a)),
       input: {}, bots, simTime: c.now, lastSync: c.now, fertig: false,
     };
   },

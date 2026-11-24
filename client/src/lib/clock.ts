@@ -18,6 +18,9 @@ export function onPong(clientSent: number, serverTime: number) {
   synced = true;
 }
 
+/** Kürzeste gemessene Laufzeit hin und zurück (ms) */
+export const rttMs = () => (samples.length ? Math.min(...samples.map((x) => x.rtt)) : 120);
+
 /** Geschätzte Serverzeit in ms */
 export const serverNow = () => Date.now() + offset;
 export const isSynced = () => synced;
