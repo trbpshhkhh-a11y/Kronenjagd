@@ -74,7 +74,7 @@ describe('Flunker-Quiz: Ablauf', () => {
     startGame(s, { rng, now: 0 });
     advance(s, rng, t, 20000);
     startMinigame(s, 'flunker', null, { rng, now: t.now });
-    advance(s, rng, t, 4500);
+    advance(s, rng, t, 6000);
     expect(s.mini!.stage).toBe('bereit'); // keine Team-Auslosung
     for (const p of s.players) if (!p.bot) playerAction(s, p.id, { t: 'ready' }, { rng, now: t.now });
     expect(s.mini!.stage).toBe('spiel');

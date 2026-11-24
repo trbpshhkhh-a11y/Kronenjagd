@@ -82,7 +82,7 @@ describe('Bots im Spiel', () => {
     startGame(s, { rng, now: 0 });
     advance(s, rng, t, 20000);
     startMinigame(s, 'schaetzen', null, { rng, now: t.now });
-    advance(s, rng, t, 8000);
+    advance(s, rng, t, 10000);
     playerAction(s, 'h1', { t: 'ready' }, { rng, now: t.now });
     playerAction(s, 'h2', { t: 'ready' }, { rng, now: t.now });
     expect(() => playerAction(s, 'h1', { t: 'mini', a: { k: 'skill', success: true } }, { rng, now: t.now })).toThrow(GameError);
@@ -93,7 +93,7 @@ describe('Bots im Spiel', () => {
     startGame(s, { rng, now: 0 });
     advance(s, rng, t, 20000);
     startMinigame(s, 'zahlen', null, { rng, now: t.now });
-    advance(s, rng, t, 8000);
+    advance(s, rng, t, 10000);
     for (const id of ['h1', 'h2']) playerAction(s, id, { t: 'ready' }, { rng, now: t.now });
     const inner = s.mini!.inner as any;
     const botRaters = inner.raters.filter((r: string) => r.startsWith('bot'));
@@ -111,7 +111,7 @@ describe('Bots im Spiel', () => {
         startGame(s, { rng, now: 0 });
         advance(s, rng, t, 20000, 500);
         startMinigame(s, game, null, { rng, now: t.now });
-        advance(s, rng, t, 8000, 500);
+        advance(s, rng, t, 10000, 500);
         for (const id of ['h1', 'h2']) playerAction(s, id, { t: 'ready' }, { rng, now: t.now });
         const inner = s.mini!.inner as any;
         const isHuman = (id: string) => id.startsWith('h');
@@ -191,7 +191,7 @@ describe('Bots im Spiel', () => {
       advance(s, rng, t, 20000, 500);
       if (!playableGames(s).includes(game)) continue;
       startMinigame(s, game, null, { rng, now: t.now });
-      advance(s, rng, t, 8000, 500);
+      advance(s, rng, t, 10000, 500);
       for (const id of ['h1', 'h2']) playerAction(s, id, { t: 'ready' }, { rng, now: t.now });
       if (game === 'game7') hostAction(s, { t: 'beenden' }, { rng, now: t.now });
       advance(s, rng, t, 15 * 60 * 1000, 500);
@@ -234,7 +234,7 @@ describe('Ohne Hauptscreen', () => {
     startGame(s, { rng, now: 0 });
     advance(s, rng, t, 20000);
     startMinigame(s, 'gegenstaende', null, { rng, now: t.now });
-    advance(s, rng, t, 8000);
+    advance(s, rng, t, 10000);
     for (const p of s.players) playerAction(s, p.id, { t: 'ready' }, { rng, now: t.now });
     advance(s, rng, t, 4000);
     expect((s.mini!.inner as any).stage).toBe('zeigen');
@@ -244,7 +244,7 @@ describe('Ohne Hauptscreen', () => {
     s.hostConnected = false;
 
     startMinigame(s, 'montagsmaler', null, { rng, now: t.now });
-    advance(s, rng, t, 8000);
+    advance(s, rng, t, 10000);
     for (const p of s.players) playerAction(s, p.id, { t: 'ready' }, { rng, now: t.now });
     advance(s, rng, t, 5500);
     const inner = s.mini!.inner as any;

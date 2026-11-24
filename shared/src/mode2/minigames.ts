@@ -898,7 +898,8 @@ const zahlen: Impl<ZahlenState> = {
 };
 
 /* ------------------------------------------------------------------ */
-/* 9. Allgemeinwissen                                                  */
+/* 9. Allgemeinwissen (jeder für sich: jedes „Team“ ist ein Spieler,  */
+/*    die erste Antwort wird sofort eingeloggt)                        */
 /* ------------------------------------------------------------------ */
 function wissenFinish(st: WissenState, c: MCtx) {
   c.teams.forEach((t, i) => {

@@ -5,7 +5,7 @@ import { LiveDrawing } from '../LiveDrawing';
 import { FlunkerHost } from '../games/Flunker';
 import { HuehnerHost } from '../games/Huehner';
 import { FlitzerHost } from '../games/Flitzer';
-import { SlotRoller } from '../../components/Roller';
+import { GameSlotMachine } from '../../components/SlotMachine';
 import { RulesContent } from '../../components/Rules';
 import { TimerRing, Dot } from '../../components/ui';
 import { Confetti } from '../../components/Decor';
@@ -18,11 +18,11 @@ export function HostMini({ v, send }: { v: HostView; send: Send }) {
   const m = v.mini!;
   const g = gameById(m.game);
   const left = useLeft(v, m.until);
-  const names = useMemo(() => GAMES.map((x) => x.name), []);
+  const names = useMemo(() => GAMES.filter((x) => v.settings.aktiveSpiele.includes(x.id)).map((x) => ({ id: x.id, name: x.name })), [v.settings.aktiveSpiele]);
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 30, background: 'rgba(25,12,4,0.95)', padding: P ? '30px 30px 80px' : '30px 50px', display: 'flex', flexDirection: 'column', gap: 24, overflowY: P ? 'auto' : 'hidden' }}>
       <div className="row between">
-        <h1 className="gold" style={{ fontSize: P ? 60 : 72 }}>🎮 {g.name}</h1>
+        <h1 className="gold" style={{ fontSize: P ? 60 : 72 }}>🎮 {m.stage === 'auslosung' ? 'Minispiel' : g.name}</h1>
         <div className="row" style={{ gap: 16 }}>
           {m.stage === 'bereit' && left !== null && <span className="head" style={{ fontSize: 34 }}>Start in {left}s</span>}
           {(m.stage === 'bereit' || m.stage === 'ergebnis' || m.stage === 'teams') && (
@@ -33,9 +33,9 @@ export function HostMini({ v, send }: { v: HostView; send: Send }) {
       </div>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>
         {m.stage === 'auslosung' && (
-          <div className="stack" style={{ alignItems: 'center', justifyContent: 'center', flex: 1, gap: 40 }}>
-            <h2 style={{ fontSize: 60 }}>{m.chosenBy ? `${playerName(v, m.chosenBy)} hat ausgesucht:` : 'Das Minispiel ist …'}</h2>
-            {m.chosenBy ? <div className="slot done"><div className="slot-text">{g.name}</div></div> : <SlotRoller options={names} final={g.name} duration={3000} render={(x) => x} style={{ width: P ? '100%' : 1100 }} />}
+          <div className="stack" style={{ alignItems: 'center', justifyContent: 'center', flex: 1, gap: 30 }}>
+            <h2 style={{ fontSize: 56 }}>{m.chosenBy ? `${playerName(v, m.chosenBy)} hat ausgesucht:` : 'Das Minispiel ist …'}</h2>
+            <GameSlotMachine size="host" games={names} final={{ id: g.id, name: g.name }} quick={!!m.chosenBy} />
           </div>
         )}
         {m.stage === 'teams' && <TeamsView v={v} />}

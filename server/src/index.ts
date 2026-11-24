@@ -288,7 +288,7 @@ function handle(c: Conn, msg: ClientMessage) {
         lobby.state.phase = { k: 'wuerfeln' };
       } else if (d.winner) lobby.state.phase = { k: 'sieg', winner: lobby.state.order[0] };
       else {
-        lobby.state.cardDeck = { size: 5, remaining: [d.card ?? 0] };
+        lobby.state.cardDeck = { size: lobby.state.cardDeck.size, remaining: [d.card ?? 0] };
         lobby.state.phase = { k: 'karteZiehen', until: now + 30000 };
       }
       lobby.state.version++;

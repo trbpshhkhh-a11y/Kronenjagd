@@ -93,7 +93,7 @@ describe('Hühnerhüpfer: Wertung', () => {
     startGame(s, { rng, now: 0 });
     advance(s, rng, t, 20000);
     startMinigame(s, 'huehner', null, { rng, now: t.now });
-    advance(s, rng, t, 4500);
+    advance(s, rng, t, 6000);
     expect(s.mini!.stage).toBe('bereit');
     for (const id of ['a', 'b', 'c']) playerAction(s, id, { t: 'ready' }, { rng, now: t.now });
     advance(s, rng, t, 4200);

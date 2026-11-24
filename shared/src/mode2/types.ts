@@ -36,14 +36,15 @@ export interface Crown {
   value: 1 | 2;
 }
 
-export type CardId = 'tausch' | 'sprung' | 'kronenNeu' | 'krone' | 'spielWahl';
-export const CARDS: CardId[] = ['tausch', 'sprung', 'kronenNeu', 'krone', 'spielWahl'];
+export type CardId = 'tausch' | 'sprung' | 'kronenNeu' | 'krone' | 'spielWahl' | 'zweiVor';
+export const CARDS: CardId[] = ['tausch', 'sprung', 'kronenNeu', 'krone', 'spielWahl', 'zweiVor'];
 export const CARD_TEXT: Record<CardId, { titel: string; text: string }> = {
   tausch: { titel: 'Spielertausch', text: 'Tausche die Position mit einem Mitspieler deiner Wahl.' },
   sprung: { titel: 'Feldersprung', text: 'Springe auf Feld' },
   kronenNeu: { titel: 'Kronen neu platzieren', text: 'Beide Kronen werden neu ausgelost.' },
   krone: { titel: '1x Krone', text: 'Du bekommst sofort einen Kronenpunkt!' },
   spielWahl: { titel: 'Spiel aussuchen', text: 'Du darfst ein Minispiel aussuchen. Es wird sofort gespielt.' },
+  zweiVor: { titel: '2 Felder vor', text: 'Du darfst 2 Felder weiter nach vorne gehen.' },
 };
 
 export interface MiniWrapper {

@@ -372,19 +372,20 @@ describe('Ereigniskarten', () => {
   it('Stapel enthält jede Karte gleich oft (pro Durchlauf jede genau einmal)', () => {
     const { s, rng, t, p } = toCard();
     const seen: string[] = [];
-    for (let i = 0; i < 15; i++) {
+    const n = CARDS.length;
+    for (let i = 0; i < 3 * n; i++) {
       s.phase = { k: 'karteZiehen', until: t.now + 1000 };
       s.turn = s.order.indexOf(p.id);
       playerAction(s, p.id, { t: 'drawCard' }, { rng, now: t.now });
       const ph = s.phase as any;
       if (ph.k === 'karte') seen.push(ph.card);
     }
-    for (let r = 0; r < 3; r++) expect(new Set(seen.slice(r * 5, r * 5 + 5)).size).toBe(5);
-    expect(CARDS).toHaveLength(5);
+    for (let r = 0; r < 3; r++) expect(new Set(seen.slice(r * n, r * n + n)).size).toBe(n);
+    expect(CARDS).toHaveLength(6);
   });
   function forceCard(s: GameState, card: string) {
     const idx = CARDS.indexOf(card as never);
-    s.cardDeck = { size: 5, remaining: [idx] };
+    s.cardDeck = { size: CARDS.length, remaining: [idx] };
   }
   it('Spielertausch tauscht Positionen ohne Kronen einzusammeln', () => {
     const { s, rng, t, p } = toCard();
@@ -411,6 +412,21 @@ describe('Ereigniskarten', () => {
     advance(s, rng, t, 4000);
     expect(p.pos).toBe(ziel);
     expect(p.kronen).toBe(1);
+  });
+  it('2 Felder vor: geht 2 Felder in Laufrichtung, Krone unterwegs zählt, danach ist der Nächste dran', () => {
+    const { s, rng, t, p } = toCard();
+    expect(p.pos).toBe(7);
+    forceCard(s, '' + 'zweiVor');
+    s.crowns[0].field = 8;
+    s.crowns[0].value = 1;
+    playerAction(s, p.id, { t: 'drawCard' }, { rng, now: t.now });
+    expect(s.phase).toMatchObject({ k: 'karte', card: 'zweiVor', stage: 'zeigen' });
+    advance(s, rng, t, 3600);
+    expect(s.phase.k).toBe('bewegen');
+    advance(s, rng, t, 3000);
+    expect(p.pos).toBe(9);
+    expect(p.kronen).toBe(1);
+    expect(currentPlayer(s)!.id).not.toBe(p.id);
   });
   it('Kronen neu platzieren', () => {
     const { s, rng, t, p } = toCard();
@@ -448,7 +464,7 @@ describe('Minispiele & Ansichten', () => {
     const { s, rng, t } = setup(n, seed);
     toTurnPhase(s, rng, t);
     startMinigame(s, game, null, { rng, now: t.now });
-    advance(s, rng, t, 8000);
+    advance(s, rng, t, 10000);
     expect(s.mini?.stage).toBe('bereit');
     for (const p of s.players) playerAction(s, p.id, { t: 'ready' }, { rng, now: t.now });
     expect(s.mini?.stage).toBe('spiel');
@@ -582,24 +598,34 @@ describe('Minispiele & Ansichten', () => {
     expect(c.bonus).toBe(4); // Bonn, Bulgarien, Blau, Biber (Bunt abgelehnt)
   });
 
-  it('Allgemeinwissen: Übereinstimmung sperrt, sonst zählt die erste Wahl', () => {
+  it('Allgemeinwissen: jeder für sich, erste Antwort wird eingeloggt, ein Punkt je richtige Antwort', () => {
     const { s, t, rng } = startMini('wissen', 4);
     const inner = s.mini!.inner as any;
     const teams = s.mini!.teams;
+    expect(teams).toHaveLength(4);
+    expect(teams.every((tm) => tm.members.length === 1)).toBe(true);
     const correct = inner.qs[0].options.indexOf(inner.qs[0].antwort);
     const wrong = (correct + 1) % 4;
-    const [a1, a2] = teams[0].members;
-    const [b1, b2] = teams[1].members;
-    playerAction(s, a1, { t: 'mini', a: { k: 'waehlen', opt: correct } }, { rng, now: t.now });
-    playerAction(s, a2, { t: 'mini', a: { k: 'waehlen', opt: correct } }, { rng, now: t.now });
-    expect(inner.locked[0]).toBe(true);
-    playerAction(s, b1, { t: 'mini', a: { k: 'waehlen', opt: wrong } }, { rng, now: t.now });
-    t.now += 1000;
-    playerAction(s, b2, { t: 'mini', a: { k: 'waehlen', opt: correct } }, { rng, now: t.now });
-    expect(inner.locked[1]).toBe(false);
-    advance(s, rng, t, 21000);
-    expect(inner.teamAnswer).toEqual([correct, wrong]);
-    expect(inner.scores).toEqual([1, 0]);
+    const ids = teams.map((tm) => tm.members[0]);
+    const pick = (pid: string, opt: number) => playerAction(s, pid, { t: 'mini', a: { k: 'waehlen', opt } }, { rng, now: t.now });
+    pick(ids[0], correct);
+    pick(ids[1], wrong);
+    pick(ids[1], correct); // umentscheiden geht nicht mehr
+    pick(ids[2], correct);
+    expect(inner.locked).toEqual([true, true, true, false]);
+    expect(inner.stage).toBe('frage');
+    // Spielansicht: keine Teampartner, eigene Antwort eingeloggt
+    const pv = viewForPlayer(s, ids[0], t.now)!.mini!.inner as any;
+    expect(pv.partnerWahl).toEqual([]);
+    expect(pv.teamGesperrt).toBe(true);
+    pick(ids[3], wrong);
+    advance(s, rng, t, 200); // alle haben geantwortet: sofort auflösen
+    expect(inner.stage).toBe('loesung');
+    expect(inner.scores).toEqual([1, 0, 1, 0]);
+    // bis zum Ende ohne weitere Antworten: Bonus = richtige Antworten
+    advance(s, rng, t, 5 * 30000);
+    const bonus = Object.fromEntries(s.players.map((p) => [p.id, p.bonus]));
+    expect([bonus[ids[0]], bonus[ids[1]], bonus[ids[2]], bonus[ids[3]]]).toEqual([1, 0, 1, 0]);
   });
 
   it('Game of 7: Ablauf, Einloggen und Wertung', () => {

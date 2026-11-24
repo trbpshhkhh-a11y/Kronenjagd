@@ -4,6 +4,7 @@ import {
 } from '@kronen/shared';
 import { useM1, M1State, nameOf } from './store';
 import { SlotRoller, FIELD_NUMBERS } from '../components/Roller';
+import { GameSlotMachine } from '../components/SlotMachine';
 import { FieldBadge, Confirm, Modal, Stepper } from '../components/ui';
 import { CrownSvg } from '../components/icons';
 import { Confetti } from '../components/Decor';
@@ -335,13 +336,13 @@ function GameDraw() {
   const { s, update } = useM1();
   const [done, setDone] = useState(false);
   const g = gameById(s.game!.id);
-  const names = useMemo(() => GAMES.filter((x) => !x.nurOnline).map((x) => x.name), []);
+  const names = useMemo(() => GAMES.filter((x) => !x.nurOnline).map((x) => ({ id: x.id, name: x.name })), []);
   return (
     <div className="screen">
       <TopBar />
-      <div className="panel stack" style={{ alignItems: 'center', marginTop: 20 }}>
+      <div className="stack" style={{ alignItems: 'center', justifyContent: 'center', flex: 1, marginTop: 10, gap: 18, textAlign: 'center' }}>
         <h2>Das nächste Spiel ist …</h2>
-        <SlotRoller options={names} final={g.name} duration={2600} render={(v) => v} onDone={() => setDone(true)} style={{ width: 'min(100%, 1000px)' }} />
+        <GameSlotMachine games={names} final={{ id: g.id, name: g.name }} onDone={() => setDone(true)} />
         {done && (
           <>
             <Confetti duration={2500} />
