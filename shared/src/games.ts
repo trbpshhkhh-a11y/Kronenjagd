@@ -207,7 +207,7 @@ export const GAMES: GameDef[] = [
       teams: 'Jeder gegen jeden',
       ablauf: [
         'Dein Huhn hüpft Feld für Feld nach vorne – über Straßen, Flüsse und Gleise.',
-        'Steuere mit dem Joystick (oder tippe auf die Welt, um nach vorne zu hüpfen).',
+        'Hüpfe mit den Pfeiltasten nach vorne, links, rechts oder zurück (oder tippe auf die Welt, um nach vorne zu hüpfen).',
         'Pass auf Autos und Züge auf und hüpf nur auf Baumstämme oder Seerosen – Wasser ist tabu!',
         'Wer rausfliegt, wartet 2 Sekunden und startet auf der letzten Wiese neu. Nach 30 Sekunden zählt die weiteste Reihe.',
       ],

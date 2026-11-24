@@ -242,7 +242,8 @@ export function statusText(v: BaseView): string {
     case 'karte':
       return `${cur}: ${CARD_TEXT[ph.card].titel}`;
     case 'minispiel':
-      return v.mini ? `Minispiel: ${gameById(v.mini.game).name}` : 'Minispiel';
+      // während der Auslosung das Ergebnis nicht verraten
+      return v.mini && v.mini.stage !== 'auslosung' ? `Minispiel: ${gameById(v.mini.game).name}` : 'Minispiel wird ausgelost …';
     case 'sieg':
       return `${playerName(v, ph.winner)} gewinnt!`;
   }

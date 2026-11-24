@@ -372,19 +372,20 @@ describe('Ereigniskarten', () => {
   it('Stapel enthält jede Karte gleich oft (pro Durchlauf jede genau einmal)', () => {
     const { s, rng, t, p } = toCard();
     const seen: string[] = [];
-    for (let i = 0; i < 15; i++) {
+    const n = CARDS.length;
+    for (let i = 0; i < 3 * n; i++) {
       s.phase = { k: 'karteZiehen', until: t.now + 1000 };
       s.turn = s.order.indexOf(p.id);
       playerAction(s, p.id, { t: 'drawCard' }, { rng, now: t.now });
       const ph = s.phase as any;
       if (ph.k === 'karte') seen.push(ph.card);
     }
-    for (let r = 0; r < 3; r++) expect(new Set(seen.slice(r * 5, r * 5 + 5)).size).toBe(5);
-    expect(CARDS).toHaveLength(5);
+    for (let r = 0; r < 3; r++) expect(new Set(seen.slice(r * n, r * n + n)).size).toBe(n);
+    expect(CARDS).toHaveLength(6);
   });
   function forceCard(s: GameState, card: string) {
     const idx = CARDS.indexOf(card as never);
-    s.cardDeck = { size: 5, remaining: [idx] };
+    s.cardDeck = { size: CARDS.length, remaining: [idx] };
   }
   it('Spielertausch tauscht Positionen ohne Kronen einzusammeln', () => {
     const { s, rng, t, p } = toCard();
@@ -411,6 +412,21 @@ describe('Ereigniskarten', () => {
     advance(s, rng, t, 4000);
     expect(p.pos).toBe(ziel);
     expect(p.kronen).toBe(1);
+  });
+  it('2 Felder vor: geht 2 Felder in Laufrichtung, Krone unterwegs zählt, danach ist der Nächste dran', () => {
+    const { s, rng, t, p } = toCard();
+    expect(p.pos).toBe(7);
+    forceCard(s, '' + 'zweiVor');
+    s.crowns[0].field = 8;
+    s.crowns[0].value = 1;
+    playerAction(s, p.id, { t: 'drawCard' }, { rng, now: t.now });
+    expect(s.phase).toMatchObject({ k: 'karte', card: 'zweiVor', stage: 'zeigen' });
+    advance(s, rng, t, 3600);
+    expect(s.phase.k).toBe('bewegen');
+    advance(s, rng, t, 3000);
+    expect(p.pos).toBe(9);
+    expect(p.kronen).toBe(1);
+    expect(currentPlayer(s)!.id).not.toBe(p.id);
   });
   it('Kronen neu platzieren', () => {
     const { s, rng, t, p } = toCard();
@@ -448,7 +464,7 @@ describe('Minispiele & Ansichten', () => {
     const { s, rng, t } = setup(n, seed);
     toTurnPhase(s, rng, t);
     startMinigame(s, game, null, { rng, now: t.now });
-    advance(s, rng, t, 8000);
+    advance(s, rng, t, 10000);
     expect(s.mini?.stage).toBe('bereit');
     for (const p of s.players) playerAction(s, p.id, { t: 'ready' }, { rng, now: t.now });
     expect(s.mini?.stage).toBe('spiel');

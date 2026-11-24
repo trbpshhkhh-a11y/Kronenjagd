@@ -3,11 +3,14 @@ import type { HostView, PlayerView } from '@kronen/shared';
 import { HuehnerWelt, Huhn, HuhnEvent, Richtung, H_TAKT_MS, H_COLS, H_HUEPF_MS, H_DAUER_MS, traeger, begehbar } from '@kronen/shared';
 import { serverNow } from '../../lib/clock';
 import { subscribeRt } from '../rtBus';
-import { Joystick, StickValue, useGameLock, vibrate } from '../../components/Joystick';
+import { useGameLock, vibrate } from '../../components/Joystick';
+import { ArrowPad, Pfeil } from '../../components/ArrowPad';
 import { Countdown, useServerTime } from './Countdown';
 import type { Figur, HuehnerSzene } from './huehner/scene';
 
 type Send = (m: any) => void;
+/** Beim Gedrückthalten: erster Wiederholungs-Hüpfer etwas später (kurzes Antippen = genau ein Hüpfer) */
+const H_ERSTE_WIEDERHOLUNG_MS = 280;
 const act = (send: Send, a: any) => send({ t: 'act', a: { t: 'mini', a } });
 
 interface RunnerView {
@@ -260,14 +263,17 @@ export function HuehnerPhone({ v, send, inner }: { v: PlayerView; send: Send; in
   const now = useServerTime(200);
   const left = Math.max(0, Math.ceil(Math.min(H_DAUER_MS, inner.endAt - now) / 1000));
   const ende = inner.stage === 'ende' || now >= inner.endAt;
-  const onStick = (s: StickValue) => {
-    const d: Richtung | null = s.mag <= 0 ? null : Math.abs(s.x) > Math.abs(s.y) ? (s.x > 0 ? 'rechts' : 'links') : s.y > 0 ? 'vor' : 'zurueck';
-    const st = stick.current;
-    if (d && d !== st.dir) {
-      wunsch(d);
-      st.next = serverNow() + H_TAKT_MS;
-    }
-    st.dir = d;
+  // Pfeiltasten: Antippen = ein Hüpfer, Gedrückthalten = weiterhüpfen (zuletzt gedrückte Taste zählt)
+  const held = useRef<Pfeil[]>([]);
+  const onKeyDown = (p: Pfeil) => {
+    held.current = [...held.current.filter((x) => x !== p), p];
+    wunsch(p);
+    stick.current = { dir: p, next: serverNow() + H_ERSTE_WIEDERHOLUNG_MS };
+  };
+  const onKeyUp = (p: Pfeil) => {
+    held.current = held.current.filter((x) => x !== p);
+    const d = held.current[held.current.length - 1] ?? null;
+    stick.current = { dir: d, next: d === stick.current.dir ? stick.current.next : serverNow() + H_ERSTE_WIEDERHOLUNG_MS };
   };
   const n = inner.runners.length;
   return (
@@ -299,8 +305,8 @@ export function HuehnerPhone({ v, send, inner }: { v: PlayerView; send: Send; in
         )}
       </div>
       <div className="hh-pad">
-        <Joystick onChange={onStick} size={Math.min(190, Math.max(120, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.42)))} />
-        <span className="small muted">Joystick oder auf die Welt tippen = vorwärts</span>
+        <ArrowPad onDown={onKeyDown} onUp={onKeyUp} />
+        <span className="small muted hh-hint">Gedrückt halten = weiterhüpfen · auf die Welt tippen = vor</span>
       </div>
     </div>
   );

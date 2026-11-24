@@ -438,6 +438,10 @@ function resolveCardShown(s: GameState, ctx: Ctx) {
     toast(s, 'Die Kronen wurden neu platziert!', 'feld');
   } else if (ph.card === 'krone') {
     if (giveCrownPoints(s, p, 1, `${label(p)} bekommt einen Kronenpunkt!`)) return;
+  } else if (ph.card === 'zweiVor') {
+    // wie das grüne +2-Feld: 2 Felder in Laufrichtung (an einer Weiche geradeaus), Kronen unterwegs zählen
+    toast(s, `${label(p)} geht 2 Felder vor!`, 'feld');
+    return startMove(s, autoPath(p.pos, prevField(s), 2), 0, false, 'plus2', ctx.now + 300);
   }
   s.phase = { ...ph, stage: 'fertig', until: ctx.now + 2500 };
 }
@@ -475,7 +479,8 @@ export function startMinigame(s: GameState, forced: GameId | null, chosenBy: str
     return endTurn(s);
   }
   s.phase = { k: 'minispiel' };
-  s.mini = { game, stage: 'auslosung', until: ctx.now + (forced ? 2500 : 4000), teams: [], ready: [], chosenBy, inner: null, result: null };
+  // Zeit für den Spielautomaten: Hebel, Walze, kurz das Ergebnis zeigen
+  s.mini = { game, stage: 'auslosung', until: ctx.now + (chosenBy ? 3200 : 5200), teams: [], ready: [], chosenBy, inner: null, result: null };
 }
 
 function mctx(s: GameState, ctx: Ctx): MCtx {

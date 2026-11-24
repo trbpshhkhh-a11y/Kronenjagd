@@ -3,7 +3,7 @@ import { PlayerView, gameById, formatNumber, GAMES } from '@kronen/shared';
 import { useLeft, playerOf, displayName } from '../common';
 import { LiveDrawing } from '../LiveDrawing';
 import { BotLine } from '../host/HostMini';
-import { SlotRoller } from '../../components/Roller';
+import { GameSlotMachine } from '../../components/SlotMachine';
 import { Tiles } from '../../mode1/games';
 import { RulesButton } from '../../components/Rules';
 import { TimerRing } from '../../components/ui';
@@ -23,22 +23,30 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
   const myTeam = m.teams[myTeamIdx];
   const einzel = g.teamMode === 'einzel';
   const noScreen = !v.hostConnected;
-  const names = useMemo(() => GAMES.map((x) => x.name), []);
-  // Echtzeit-Spiele nehmen den ganzen Bildschirm ein
-  if (m.stage === 'spiel' && m.inner?.game === 'huehner') return <HuehnerPhone key={m.inner.seed} v={v} send={send} inner={m.inner} />;
-  if (m.stage === 'spiel' && m.inner?.game === 'flitzer') return <FlitzerPhone key={m.inner.startAt} v={v} send={send} inner={m.inner} />;
-  const host = (a: any) => send({ t: 'host', a });
+  const names = useMemo(() => GAMES.filter((x) => v.settings.aktiveSpiele.includes(x.id)).map((x) => ({ id: x.id, name: x.name })), [v.settings.aktiveSpiele]);
   const nameOf = (id: string) => {
     const p = playerOf(v, id);
     return p ? displayName(p) : '?';
   };
+  // Auslosung: großer Spielautomat in der Mitte
+  if (m.stage === 'auslosung')
+    return (
+      <div className="mini-wrap sm-stage">
+        <h2>{m.chosenBy ? `${nameOf(m.chosenBy)} hat ausgesucht:` : 'Das Minispiel ist …'}</h2>
+        <GameSlotMachine size="phone" games={names} final={{ id: g.id, name: g.name }} quick={!!m.chosenBy} />
+      </div>
+    );
+  // Echtzeit-Spiele nehmen den ganzen Bildschirm ein
+  if (m.stage === 'spiel' && m.inner?.game === 'huehner') return <HuehnerPhone key={m.inner.seed} v={v} send={send} inner={m.inner} />;
+  if (m.stage === 'spiel' && m.inner?.game === 'flitzer') return <FlitzerPhone key={m.inner.startAt} v={v} send={send} inner={m.inner} />;
+  const host = (a: any) => send({ t: 'host', a });
   const header = (
     <div className="row between mini-head">
       <h2 className="gold">{g.name}</h2>
       <RulesButton id={g.id} mode2 className="sm" />
     </div>
   );
-  const teamChip = !einzel && myTeam && m.stage !== 'auslosung' && (
+  const teamChip = !einzel && myTeam && (
     <div className="chip" style={{ alignSelf: 'flex-start' }}>
       <b className="gold">{myTeam.name}:</b>
       {myTeam.members.map(nameOf).join(' & ')}
@@ -48,15 +56,6 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
   const info = (
     <>
       {teamChip}
-      {m.stage === 'auslosung' &&
-        (noScreen ? (
-          <div className="stack" style={{ alignItems: 'center' }}>
-            <h3>{m.chosenBy ? `${nameOf(m.chosenBy)} hat ausgesucht:` : 'Das Minispiel ist …'}</h3>
-            {m.chosenBy ? <div className="slot done"><div className="slot-text" style={{ fontSize: '2rem' }}>{g.name}</div></div> : <SlotRoller options={names} final={g.name} duration={2600} render={(x) => x} style={{ width: '100%' }} />}
-          </div>
-        ) : (
-          <div className="card center"><h3>Das Minispiel wird ausgelost …</h3><p>Schau auf den Hauptscreen!</p></div>
-        ))}
       {(m.stage === 'teams' || (m.stage === 'bereit' && noScreen)) && (
         noScreen ? <TeamList v={v} nameOf={nameOf} /> : <div className="card center"><h3>{einzel ? 'Jeder für sich!' : 'Die Teams stehen!'}</h3><p>Schau auf den Hauptscreen.</p></div>
       )}

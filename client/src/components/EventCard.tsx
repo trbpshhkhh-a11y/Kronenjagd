@@ -36,6 +36,7 @@ function CardFront({ card, feld, ziel, info }: { card: CardId; feld?: boolean; z
         )}
         {card === 'tausch' && <span className="ev-emoji">🔄</span>}
         {card === 'spielWahl' && <span className="ev-emoji">🎮</span>}
+        {card === 'zweiVor' && <span className="ev-plus2">+2</span>}
       </div>
       <div className="ev-text">
         {text}

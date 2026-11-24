@@ -187,7 +187,7 @@ describe('Turbo-Flitzer: ganzes Rennen', () => {
     startGame(s, { rng, now: 0 });
     advance(s, rng, t, 20000);
     startMinigame(s, 'flitzer', null, { rng, now: t.now });
-    advance(s, rng, t, 4500);
+    advance(s, rng, t, 6000);
     for (const id of ['a', 'b', 'c']) playerAction(s, id, { t: 'ready' }, { rng, now: t.now });
     advance(s, rng, t, 4100);
     const st = s.mini!.inner as any;
