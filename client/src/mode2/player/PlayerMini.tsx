@@ -313,7 +313,8 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
           {inner.stage === 'raten' && <Timer v={v} until={inner.until} total={t.zahlen} />}
         </div>
       );
-    case 'wissen':
+    case 'wissen': {
+      const einzelTeam = inner.partnerWahl.length === 0;
       return (
         <div className="stack">
           <p className="center small">Frage {inner.nr} von 5</p>
@@ -329,11 +330,17 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
               );
             })}
           </div>
-          {inner.teamGesperrt && inner.stage === 'frage' && <p className="center badge green">🔒 Eure Antwort ist gesperrt</p>}
-          {inner.stage === 'frage' && !inner.teamGesperrt && <p className="small center">Wählt beide dieselbe Antwort, wird sie gesperrt.</p>}
+          {inner.teamGesperrt && inner.stage === 'frage' && <p className="center badge green">🔒 {einzelTeam ? 'Deine Antwort ist eingeloggt' : 'Eure Antwort ist gesperrt'}</p>}
+          {inner.stage === 'frage' && !inner.teamGesperrt && <p className="small center">{einzelTeam ? 'Tippe auf deine Antwort – sie wird sofort eingeloggt.' : 'Wählt beide dieselbe Antwort, wird sie gesperrt.'}</p>}
+          {inner.stage === 'loesung' && einzelTeam && (
+            <p className={`center badge ${inner.meineWahl === inner.richtig ? 'green' : ''}`} style={{ fontSize: '1.1em' }}>
+              {inner.meineWahl === null ? 'Keine Antwort' : inner.meineWahl === inner.richtig ? '✔ Richtig! +1 Punkt' : '✖ Leider falsch'}
+            </p>
+          )}
           {inner.stage === 'frage' && <Timer v={v} until={inner.until} total={t.wissen} />}
         </div>
       );
+    }
     case 'begriffe':
       return (
         <div className="stack">

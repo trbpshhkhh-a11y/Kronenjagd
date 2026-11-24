@@ -178,7 +178,7 @@ Eigene Annahmen (einfachste sinnvolle Lösung):
 - **Stirnraten (Modus 2):** Nur die Teampartner des Raters sehen den Begriff, das andere Team nicht.
 - **Gegenstände merken (Modus 2):** Alle Handys fragen gleichzeitig dieselbe Nummer ab.
 - **Stadt Land Fluss (Modus 2):** Eine Antwort ist abgelehnt, wenn mehr als die Hälfte der *anderen* Spieler sie als ungültig markiert. Die Prüfphase dauert höchstens 90 s.
-- **Allgemeinwissen (Modus 2):** Ein Dreierteam ist gesperrt, wenn alle drei dieselbe Antwort wählen.
+- **Allgemeinwissen:** Jeder spielt für sich. In Modus 2 wird die erste angetippte Antwort sofort eingeloggt (kein Umentscheiden); aufgelöst wird, sobald alle geantwortet haben oder die Zeit um ist. Jede richtige Antwort bringt ein Bonusfeld.
 - **Kopfrechnen / Schätzmeister (Modus 2):** 45 s pro Aufgabe bzw. Frage (einstellbar).
 - **Ereigniskarten:** Läuft beim Spielertausch die Zeit ab (30 s), wird nicht getauscht. Bei „Spiel aussuchen“ wird dann aus dem Stapel gelost. Der Feldersprung kann auf jedes Feld außer dem aktuellen führen, das Zielfeld hat keinen Effekt. Die Karte **„2 Felder vor“** funktioniert wie das grüne +2-Feld: 2 Felder in Laufrichtung (an einer Weiche geradeaus), Kronen unterwegs zählen, das Zielfeld hat keinen Effekt.
 - **Kronen neu platzieren:** Eine Krone landet nie auf einem Feld, über das der ziehende Spieler im selben Zug noch läuft.
@@ -190,7 +190,7 @@ Annahmen zu Bots und zum Spielen ohne Hauptscreen:
 - **Mehr Menschen nötig:** Stirnraten und Montagsmaler brauchen 2 Menschen (einen pro Team), Begriffe erklären einen Menschen pro Zweier-Team. Teams werden so gebildet, dass die Menschen zuerst auf die Teams verteilt werden.
 - **Zahlen erraten:** Hat ein Team Menschen und Bots, rät ein Bot und der Mensch ist Kenner. Besteht ein Team nur aus Bots, nennt der Bot-Kenner bis zu drei Hinweisbegriffe aus `zahlenHinweise.ts`, die alle sehen (wie laut gesagt). Ist ein Mensch Kenner und ein Bot Rater, wird die Treffsicherheit des Bots ausgewürfelt.
 - **Game of 7:** Ein Team nur aus Bots wirft virtuell. Gehört ein Mensch zum Team, wirft er den echten Ball und tippt selbst.
-- **Allgemeinwissen:** Bots übernehmen bei mittel/schwer meistens die Wahl ihres menschlichen Teampartners.
+- **Allgemeinwissen:** Bots antworten nach kurzer Bedenkzeit, wie oft richtig, hängt von der Schwierigkeit ab.
 - **Stadt Land Fluss:** Bots füllen ihre Antworten aus `slfAntworten.ts`, drücken nie „Stopp“, markieren in der Prüfphase nichts und sind sofort fertig. Für „Marke“, „Film oder Serie“ und „Sänger/in oder Band“ haben Bots keine Antworten und lassen das Feld leer.
 - **Spiel aussuchen** (Ereigniskarte): Bots wählen ein Spiel, das Bots gut spielen können.
 - **Lobby aufräumen:** Eine Lobby wird gelöscht, wenn 10 Minuten lang weder ein Mensch noch ein Hauptscreen verbunden ist (oder nach 4 Stunden ohne Aktivität). Bots halten eine Lobby nicht am Leben.

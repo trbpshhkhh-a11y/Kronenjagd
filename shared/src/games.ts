@@ -156,19 +156,19 @@ export const GAMES: GameDef[] = [
     app: ['Die Kenner sehen die Zahl auf ihrem Handy, die Rater tippen am Ende ihren Tipp ein.'],
   },
   {
-    id: 'wissen', nr: 9, name: 'Allgemeinwissenfragen', teamMode: 'zweier', minPlayers: 2,
+    id: 'wissen', nr: 9, name: 'Allgemeinwissenfragen', teamMode: 'einzel', minPlayers: 2,
     rules: {
-      utensilien: 'Zettel und Stift',
-      teams: 'Zweier-Teams (werden automatisch ausgelost)',
+      utensilien: 'Zettel und Stift für jeden',
+      teams: 'Jeder für sich',
       ablauf: [
-        '5 Fragen, alle Teams bekommen dieselben.',
-        'Jedes Team einigt sich auf eine Antwort und notiert sie.',
+        '5 Fragen, alle bekommen dieselben.',
+        'Jeder notiert seine Antwort für sich – nicht abschreiben!',
         'Nach jeder Frage werden die Antworten aufgedeckt und mit der Lösung verglichen.',
         'Pro richtig beantworteter Frage gibt es einen Punkt.',
       ],
-      gewinn: 'Die Mitspieler dürfen die Anzahl der richtig beantworteten Fragen ihres Teams zusätzlich zur Augenzahl vorgehen.',
+      gewinn: 'Jeder Mitspieler darf die Anzahl seiner richtig beantworteten Fragen zusätzlich zur Augenzahl vorgehen.',
     },
-    app: ['Zu jeder Frage gibt es 4 Antworten. Wählen alle Teampartner dieselbe, ist sie gesperrt. Sonst zählt nach 20 Sekunden die Wahl dessen, der zuerst gewählt hat.'],
+    app: ['Zu jeder Frage gibt es 4 Antworten. Jeder tippt auf seinem Handy eine Antwort an – sie wird sofort eingeloggt. Aufgelöst wird, sobald alle geantwortet haben oder die Zeit (20 Sekunden) um ist.'],
   },
   {
     id: 'begriffe', nr: 10, name: 'Begriffe erklären', teamMode: 'zweier', minPlayers: 2,

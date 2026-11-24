@@ -477,7 +477,7 @@ function Wissen() {
             <div className="row center"><button className="btn gold big" onClick={() => set((g) => void (g.show = true))}>Lösung zeigen</button></div>
           ) : (
             <div className="panel stack">
-              <h3 className="center">Welche Teams lagen richtig?</h3>
+              <h3 className="center">{teams.every((t) => t.members.length === 1) ? 'Wer lag richtig?' : 'Welche Teams lagen richtig?'}</h3>
               <div className="row center">
                 {teams.map((t, i) => (
                   <button key={i} className={`btn big ${d.sel.includes(i) ? 'gold selected' : ''}`} onClick={() => set((g) => void (g.sel = g.sel.includes(i) ? g.sel.filter((x) => x !== i) : [...g.sel, i]))}>

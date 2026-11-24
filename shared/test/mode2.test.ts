@@ -598,24 +598,34 @@ describe('Minispiele & Ansichten', () => {
     expect(c.bonus).toBe(4); // Bonn, Bulgarien, Blau, Biber (Bunt abgelehnt)
   });
 
-  it('Allgemeinwissen: Übereinstimmung sperrt, sonst zählt die erste Wahl', () => {
+  it('Allgemeinwissen: jeder für sich, erste Antwort wird eingeloggt, ein Punkt je richtige Antwort', () => {
     const { s, t, rng } = startMini('wissen', 4);
     const inner = s.mini!.inner as any;
     const teams = s.mini!.teams;
+    expect(teams).toHaveLength(4);
+    expect(teams.every((tm) => tm.members.length === 1)).toBe(true);
     const correct = inner.qs[0].options.indexOf(inner.qs[0].antwort);
     const wrong = (correct + 1) % 4;
-    const [a1, a2] = teams[0].members;
-    const [b1, b2] = teams[1].members;
-    playerAction(s, a1, { t: 'mini', a: { k: 'waehlen', opt: correct } }, { rng, now: t.now });
-    playerAction(s, a2, { t: 'mini', a: { k: 'waehlen', opt: correct } }, { rng, now: t.now });
-    expect(inner.locked[0]).toBe(true);
-    playerAction(s, b1, { t: 'mini', a: { k: 'waehlen', opt: wrong } }, { rng, now: t.now });
-    t.now += 1000;
-    playerAction(s, b2, { t: 'mini', a: { k: 'waehlen', opt: correct } }, { rng, now: t.now });
-    expect(inner.locked[1]).toBe(false);
-    advance(s, rng, t, 21000);
-    expect(inner.teamAnswer).toEqual([correct, wrong]);
-    expect(inner.scores).toEqual([1, 0]);
+    const ids = teams.map((tm) => tm.members[0]);
+    const pick = (pid: string, opt: number) => playerAction(s, pid, { t: 'mini', a: { k: 'waehlen', opt } }, { rng, now: t.now });
+    pick(ids[0], correct);
+    pick(ids[1], wrong);
+    pick(ids[1], correct); // umentscheiden geht nicht mehr
+    pick(ids[2], correct);
+    expect(inner.locked).toEqual([true, true, true, false]);
+    expect(inner.stage).toBe('frage');
+    // Spielansicht: keine Teampartner, eigene Antwort eingeloggt
+    const pv = viewForPlayer(s, ids[0], t.now)!.mini!.inner as any;
+    expect(pv.partnerWahl).toEqual([]);
+    expect(pv.teamGesperrt).toBe(true);
+    pick(ids[3], wrong);
+    advance(s, rng, t, 200); // alle haben geantwortet: sofort auflösen
+    expect(inner.stage).toBe('loesung');
+    expect(inner.scores).toEqual([1, 0, 1, 0]);
+    // bis zum Ende ohne weitere Antworten: Bonus = richtige Antworten
+    advance(s, rng, t, 5 * 30000);
+    const bonus = Object.fromEntries(s.players.map((p) => [p.id, p.bonus]));
+    expect([bonus[ids[0]], bonus[ids[1]], bonus[ids[2]], bonus[ids[3]]]).toEqual([1, 0, 1, 0]);
   });
 
   it('Game of 7: Ablauf, Einloggen und Wertung', () => {
