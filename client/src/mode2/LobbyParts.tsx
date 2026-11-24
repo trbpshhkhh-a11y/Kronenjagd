@@ -4,6 +4,7 @@ import {
 } from '@kronen/shared';
 import { Stepper, Die, Modal } from '../components/ui';
 import { TokenSvg, CrownSvg } from '../components/icons';
+import { createPortal } from 'react-dom';
 import { QR } from '../components/QR';
 import { absoluteUrl } from '../lib/router';
 import { tokenLetter } from './common';
@@ -165,16 +166,19 @@ export function GiftTag({ code, qr = false, qrSize = 220 }: { code: string; qr?:
         {qr && <span className="gift-hint">Code eingeben oder QR-Code scannen</span>}
       </span>
       {qr ? <QR text={url} size={qrSize} /> : <button className="btn sm gift-qr" onClick={() => setShowQr(true)}>QR</button>}
-      {showQr && (
-        <Modal onClose={() => setShowQr(false)}>
-          <div className="card stack center" style={{ alignItems: 'center' }}>
-            <h2>{code}</h2>
-            <QR text={url} size={260} />
-            <p>Mit der Handy-Kamera scannen</p>
-            <button className="btn" onClick={() => setShowQr(false)}>Schließen</button>
-          </div>
-        </Modal>
-      )}
+      {/* Fenster außerhalb des schräg gestellten Anhängers öffnen – sonst wird es auf dessen Form zugeschnitten */}
+      {showQr &&
+        createPortal(
+          <Modal onClose={() => setShowQr(false)}>
+            <div className="card stack center qr-card">
+              <h2>{code}</h2>
+              <QR text={url} size={Math.round(Math.min(260, window.innerWidth - 110, window.innerHeight - 230))} />
+              <p>Mit der Handy-Kamera scannen</p>
+              <button className="btn" onClick={() => setShowQr(false)}>Schließen</button>
+            </div>
+          </Modal>,
+          document.body,
+        )}
     </div>
   );
 }
