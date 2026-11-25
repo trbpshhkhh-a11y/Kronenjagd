@@ -741,3 +741,25 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 .ap-zurueck { grid-area: zurueck; }
 .hh-hint { text-align: center; padding: 0 10px; }
 @media (orientation: landscape) { .ap { --b: clamp(52px, min(10vw, 21vh), 80px); } }
+
+/* ---------- Startbildschirm: passt ohne Scrollen auf jedes Handy ---------- */
+.start-screen { min-height: 100vh; min-height: 100dvh; justify-content: center; max-width: 1100px; gap: clamp(10px, 2.2vh, 26px); padding-top: max(34px, env(safe-area-inset-top)); padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+.start-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: clamp(2px, 0.8vh, 10px); }
+.start-head .crown-big { width: clamp(3.6rem, 11vh, 8rem); }
+.start-head h1 { font-size: clamp(1.9rem, 5.6vh, 4rem); text-shadow: 0 5px 0 rgba(0, 0, 0, 0.4); }
+.start-head p { font-size: clamp(0.95rem, 2.2vh, 1.25rem); margin: 0; }
+.start-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: clamp(10px, 2vh, 22px); width: 100%; }
+.choice.start { padding: clamp(10px, 1.9vh, 24px) clamp(14px, 2vw, 26px); gap: clamp(3px, 0.9vh, 10px); }
+.choice.start .emoji { font-size: clamp(1.9rem, 5.5vh, 3.6rem); }
+.choice.start h2 { font-size: clamp(1.25rem, 3.3vh, 2.1rem); }
+.choice.start p { margin: 0; font-size: clamp(0.8rem, 1.95vh, 1.05rem); line-height: 1.35; }
+.choice.start .btn { min-height: clamp(40px, 6vh, 60px); font-size: clamp(1rem, 2.4vh, 1.3em); padding: 0.3em 1.6em; margin-top: clamp(2px, 0.6vh, 8px); }
+/* Handy quer: Krone und Untertitel weg, Beschreibung kürzer */
+@media (orientation: landscape) and (max-height: 520px) {
+  .start-head .crown-big, .start-head p { display: none; }
+  .start-screen { padding-top: 30px; gap: 10px; }
+  .choice.start .emoji { display: none; }
+}
+/* QR-Code-Fenster */
+.qr-card { align-items: center; gap: 10px; }
+@media (orientation: landscape) and (max-height: 520px) { .qr-card h2 { font-size: 1.3em; } .qr-card p { margin: 0; } }
