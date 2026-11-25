@@ -319,7 +319,7 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
         <div className="stack">
           <p className="center small">Frage {inner.nr} von 5</p>
           <div className="card"><div className="question" style={{ fontSize: '1.35em' }}>{inner.frage}</div></div>
-          <div className="stack" style={{ gap: 8 }}>
+          <div className="stack wissen-opts" style={{ gap: 8 }}>
             {inner.options.map((o: string, i: number) => {
               const partner = inner.partnerWahl.filter((p: any) => p.opt === i).map((p: any) => p.name);
               const correct = inner.richtig === i;

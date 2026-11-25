@@ -9,8 +9,10 @@ import '@fontsource/nunito/800.css';
 import './styles.css';
 import { App } from './App';
 import { registerSW } from 'virtual:pwa-register';
+import { lockViewport } from './lib/noZoom';
 
 registerSW({ immediate: true });
+lockViewport();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

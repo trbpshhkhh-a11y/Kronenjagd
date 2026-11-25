@@ -45,7 +45,7 @@ function TopBar({ title }: { title?: string }) {
     <div className="topbar">
       <button className="btn ghost sm" onClick={() => go('/')}>⬅ Start</button>
       {title && <h2 className="gold" style={{ textAlign: 'center' }}>{title}</h2>}
-      <button className="btn ghost sm" onClick={() => setAsk(true)}>Neues Spiel / Zurücksetzen</button>
+      <button className="btn ghost sm" onClick={() => setAsk(true)} aria-label="Neues Spiel / Zurücksetzen">↺<span className="hide-mobile"> Neues Spiel / Zurücksetzen</span></button>
       {ask && (
         <Modal onClose={() => setAsk(false)}>
           <div className="card stack center">
@@ -89,17 +89,17 @@ function Setup() {
       d.phase = 'startDraw';
     });
   return (
-    <div className="screen">
+    <div className="screen m1-setup">
       <TopBar title="Mitspieler eintragen" />
       <div className="grid2">
         <div className="panel stack">
           <h3>Spieler hinzufügen</h3>
           <form className="row" onSubmit={(e) => (e.preventDefault(), add())}>
-            <input className="input grow" value={name} maxLength={20} placeholder="Name" onChange={(e) => setName(e.target.value)} style={{ flex: 1, minWidth: 160 }} />
-            <button className="btn green" type="submit" disabled={!name.trim()}>＋ Hinzufügen</button>
+            <input className="input grow" value={name} maxLength={20} placeholder="Name" onChange={(e) => setName(e.target.value)} style={{ flex: 1, minWidth: 120 }} />
+            <button className="btn green" type="submit" disabled={!name.trim()} aria-label="Hinzufügen">＋<span className="hide-mobile"> Hinzufügen</span></button>
           </form>
           {err && <p className="err">{err}</p>}
-          <div className="list">
+          <div className="list m1-players">
             {s.players.map((p, i) => (
               <div className="list-item" key={p.id}>
                 <span className="head" style={{ width: '1.6em' }}>{i + 1}.</span>
