@@ -28,7 +28,10 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+/* Die Seite selbst scrollt und zoomt nie (kein Gummiband, kein Pull-to-Refresh, kein Doppeltipp-Zoom) */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; }
+body { position: fixed; inset: 0; width: 100%; }
+#root { height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: none; }
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -763,3 +766,94 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 /* QR-Code-Fenster */
 .qr-card { align-items: center; gap: 10px; }
 @media (orientation: landscape) and (max-height: 520px) { .qr-card h2 { font-size: 1.3em; } .qr-card p { margin: 0; } }
+
+/* ---------- Kein Scrollen: auf kurzen Handy-Bildschirmen alles etwas kompakter ---------- */
+.mini-head { flex-wrap: nowrap; }
+.mini-head h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-height: 760px) and (max-width: 600px) {
+  .screen { gap: 10px; padding-top: max(28px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .panel { padding: 12px 14px; }
+  .btn.huge { min-height: 58px; font-size: 1.35em; }
+  .btn.big { min-height: 50px; font-size: 1.1em; }
+  h1 { font-size: clamp(1.7rem, 5.2vh, 2.6rem); }
+  .crown-big { width: clamp(3rem, 10vh, 6rem); }
+  .mini-screen { padding-top: max(28px, env(safe-area-inset-top)); padding-bottom: 10px; }
+  .mini-wrap, .mini-col, .mini-cols { gap: 8px; }
+  .mini-screen .ring { zoom: 0.7; }
+  .mini-screen .card { padding: 10px 12px; }
+  .m1-players { max-height: 26vh; overflow-y: auto; }
+}
+@media (max-height: 700px) and (max-width: 600px) { .m1-players { max-height: 22vh !important; } }
+@media (orientation: landscape) and (max-height: 520px) {
+  .screen { gap: 8px; padding-top: 28px; padding-bottom: 8px; }
+  .panel { padding: 10px 14px; }
+  h1 { font-size: 1.6rem; }
+  .btn.huge { min-height: 50px; font-size: 1.2em; }
+  .btn.big { min-height: 44px; font-size: 1.05em; }
+  .m2-start .crown-big { display: none; }
+  .m1-players { max-height: 40vh; overflow-y: auto; }
+  .join-screen { display: grid; grid-template-columns: 1.4fr 1fr; align-items: start; align-content: center; max-width: 900px !important; }
+  .join-screen > .topbar, .join-screen > h1, .join-screen > p { grid-column: 1 / -1; }
+}
+
+/* Minispiele quer: ohne Inhalte links (z. B. mit Hauptscreen) eine breite Spalte statt einer leeren */
+.mini-info:empty { display: none; }
+@media (orientation: landscape) {
+  .mini-cols:has(> .mini-info:empty) { grid-template-columns: minmax(0, 860px); justify-content: center; }
+  .wissen-opts { display: grid !important; grid-template-columns: 1fr 1fr; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .lobby-phone { gap: 6px; padding-top: 26px; padding-bottom: 6px; }
+  .lobby-title .head { font-size: 1.3em; }
+  .lobby-note { display: none; }
+  .mini-head h2 { font-size: 1.15em; }
+  .mini-screen .question { font-size: 1.05em !important; }
+}
+
+/* Handy quer: Lobby zweispaltig, Formulare und Minispiele kompakter */
+@media (orientation: landscape) and (max-height: 520px) {
+  .lobby-phone { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr); grid-auto-flow: row dense; column-gap: 16px; row-gap: 8px; align-content: center; max-width: 860px; }
+  .lobby-phone > * { grid-column: 1; }
+  .lobby-phone > .shelf { grid-column: 2; grid-row: 1 / span 4; align-self: start; }
+  .lobby-phone > .btn.block { grid-column: 2; }
+  .join-screen .input { padding-top: 6px; padding-bottom: 6px; }
+  .join-screen .input.code { font-size: 1.4em; }
+  .join-screen .panel.stack { gap: 6px; }
+  .m1-setup { gap: 6px; }
+  .wissen-opts + p.small { display: none; }
+  .mini-screen .ring { zoom: 0.55; }
+}
+
+@media (max-height: 760px) and (max-width: 600px) { .m1-setup { gap: 8px; padding-bottom: 6px; } }
+@media (orientation: landscape) and (max-height: 520px) { .m1-setup { padding-top: 24px; padding-bottom: 4px; } .m1-setup .panel h3 { font-size: 1.05em; } }
+
+/* Modus 1 – Spieler eintragen: auf Handys kompakte Zeilen, lange Listen scrollen nur in ihrem Kasten */
+@media (max-width: 600px) {
+  .topbar { flex-wrap: nowrap; }
+  .topbar h2 { font-size: clamp(1.1rem, 5.6vw, 1.6rem); min-width: 0; }
+  .m1-players { max-height: 34vh; overflow-y: auto; }
+  .m1-players { gap: 6px; }
+  .m1-players > * { flex-shrink: 0; }
+  .m1-players .list-item { padding: 4px 8px; gap: 8px; min-height: 0; }
+  .m1-setup .input { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
+  .m1-setup form .btn { min-height: 44px; }
+  .m1-players .btn.sm { min-height: 36px; }
+  .m1-setup .btn.huge { font-size: 1.3em; }
+  /* Einstellungen: Beschriftung und Zähler in einer Zeile */
+  .m1-setup .row.between { flex-wrap: nowrap; gap: 8px; }
+  .m1-setup .row.between > span:first-child { min-width: 0; line-height: 1.2; }
+  .m1-setup .row.between .row { flex-wrap: nowrap; gap: 6px; }
+  .m1-setup .stepper { gap: 4px; }
+  .m1-setup .stepper .btn.sm { min-height: 36px; min-width: 36px; padding: 0; }
+  .m1-setup .stepper .val { min-width: 1.6em; font-size: 1.3em; }
+  .m1-setup .row.between .btn.ghost.sm { min-height: 36px; padding: 0.2em 0.5em; }
+}
+
+.m1-players > * { flex-shrink: 0; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .m1-players { gap: 5px; }
+  .m1-players .list-item { padding: 3px 8px; gap: 8px; }
+  .m1-setup .input { min-height: 40px; padding-top: 3px; padding-bottom: 3px; }
+  .m1-setup form .btn { min-height: 40px; }
+  .m1-players .btn.sm { min-height: 34px; }
+}

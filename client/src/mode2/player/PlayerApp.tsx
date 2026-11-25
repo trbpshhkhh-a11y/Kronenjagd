@@ -75,7 +75,7 @@ function JoinForm({ initialCode, conn, notice }: { initialCode: string; conn: Re
   }, [conn.error]);
   const valid = code.length === CODE_LENGTH && name.trim().length >= 2 && name.trim().length <= 14;
   return (
-    <div className="screen" style={{ maxWidth: 560, justifyContent: 'center' }}>
+    <div className="screen join-screen" style={{ maxWidth: 560, justifyContent: 'center' }}>
       <div className="topbar"><button className="btn ghost sm" onClick={() => go('/nur-app')}>⬅ Zurück</button></div>
       <h1 className="gold center">Lobby beitreten</h1>
       {notice && <p className="center err">{notice}</p>}
