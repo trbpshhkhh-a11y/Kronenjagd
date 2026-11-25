@@ -92,7 +92,7 @@ export function TokenSvg({ color, letter }: { color: string; letter: string }) {
       <path d="M12 60 Q30 40 48 60 Z" fill={color} stroke="#1a0f08" strokeWidth="3" />
       <circle cx="30" cy="28" r="22" fill={color} stroke="#1a0f08" strokeWidth="3.5" />
       <circle cx="23" cy="20" r="6" fill="rgba(255,255,255,0.45)" />
-      <text x="30" y="37" textAnchor="middle" fontFamily="Fredoka, sans-serif" fontWeight="700" fontSize="26" fill={light ? '#1a0f08' : '#fff'} stroke={light ? 'none' : 'rgba(0,0,0,0.4)'} strokeWidth="1">
+      <text x="30" y="37" textAnchor="middle" fontFamily="'Plus Jakarta Sans Variable', sans-serif" fontWeight="800" fontSize="26" fill={light ? '#1a0f08' : '#fff'} stroke={light ? 'none' : 'rgba(0,0,0,0.4)'} strokeWidth="1">
         {letter}
       </text>
     </svg>
