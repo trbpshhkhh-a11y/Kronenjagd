@@ -12,6 +12,7 @@ import { DrawCanvas } from './DrawCanvas';
 import { FlunkerPlayer } from '../games/Flunker';
 import { HuehnerPhone } from '../games/Huehner';
 import { FlitzerPhone } from '../games/Flitzer';
+import { SongsPlayer } from '../games/Songs';
 
 type Send = (m: any) => void;
 const act = (send: Send, a: any) => send({ t: 'act', a: { t: 'mini', a } });
@@ -284,6 +285,8 @@ function Inner({ v, send, inner }: { v: PlayerView; send: Send; inner: any }) {
       return <MalPlayer v={v} send={send} inner={inner} />;
     case 'flunker':
       return <FlunkerPlayer v={v} send={send} inner={inner} />;
+    case 'songs':
+      return <SongsPlayer v={v} send={send} inner={inner} />;
     case 'zahlen':
       return (
         <div className="stack">

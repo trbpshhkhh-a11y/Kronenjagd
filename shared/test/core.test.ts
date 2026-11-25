@@ -27,13 +27,14 @@ describe('Auslosungen', () => {
       prev = f;
     }
   });
-  it('Spielestapel: alle 10 Spiele kommen, bevor einer doppelt kommt', () => {
+  it('Spielestapel: alle Spiele kommen, bevor einer doppelt kommt', () => {
     const rng = seededRng(9);
-    const deck = newDeck(BRETT_GAME_IDS.length);
+    const n = BRETT_GAME_IDS.length;
+    const deck = newDeck(n);
     for (let round = 0; round < 5; round++) {
       const seen = new Set<string>();
-      for (let i = 0; i < 10; i++) seen.add(drawNextGame(deck, rng, 6)!);
-      expect(seen.size).toBe(10);
+      for (let i = 0; i < n; i++) seen.add(drawNextGame(deck, rng, 6)!);
+      expect(seen.size).toBe(n);
     }
   });
   it('Spiele mit 2 Teams werden bei 3 Spielern nicht gezogen', () => {
@@ -178,8 +179,8 @@ describe('Spielbrett', () => {
       expect(f.y).toBeLessThan(100);
     }
   });
-  it('genau 10 Spiele für Modus 1', () => {
-    expect(BRETT_GAME_IDS).toHaveLength(10);
-    expect(GAMES.filter((g) => !g.nurOnline)).toHaveLength(10);
+  it('genau 11 Spiele für Modus 1 (10 vom Brettspiel + Rückwärts-Songs)', () => {
+    expect(BRETT_GAME_IDS).toHaveLength(11);
+    expect(GAMES.filter((g) => !g.nurOnline)).toHaveLength(11);
   });
 });

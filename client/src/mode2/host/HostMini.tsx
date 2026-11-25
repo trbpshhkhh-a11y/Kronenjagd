@@ -5,6 +5,7 @@ import { LiveDrawing } from '../LiveDrawing';
 import { FlunkerHost } from '../games/Flunker';
 import { HuehnerHost } from '../games/Huehner';
 import { FlitzerHost } from '../games/Flitzer';
+import { SongsHost } from '../games/Songs';
 import { GameSlotMachine } from '../../components/SlotMachine';
 import { RulesContent } from '../../components/Rules';
 import { TimerRing, Dot } from '../../components/ui';
@@ -248,6 +249,8 @@ function GameView({ v, inner }: { v: HostView; inner: any }) {
       return <MalHost v={v} inner={inner} />;
     case 'flunker':
       return <FlunkerHost v={v} inner={inner} portrait={P} />;
+    case 'songs':
+      return <SongsHost v={v} inner={inner} portrait={P} />;
     case 'huehner':
       return <HuehnerHost v={v} inner={inner} portrait={P} />;
     case 'flitzer':

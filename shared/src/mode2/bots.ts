@@ -115,7 +115,7 @@ export function chooseSwap(v: PlayerView, level: BotLevel, rng: Rng): string {
 }
 
 /** Spiele, die Bots gut spielen können */
-export const BOT_FREUNDLICH: GameId[] = ['schaetzen', 'wissen', 'kopfrechnen', 'gegenstaende', 'slf', 'zahlen', 'flunker', 'huehner', 'flitzer'];
+export const BOT_FREUNDLICH: GameId[] = ['schaetzen', 'wissen', 'kopfrechnen', 'gegenstaende', 'slf', 'zahlen', 'flunker', 'huehner', 'flitzer', 'songs'];
 
 export function chooseGame(v: PlayerView, rng: Rng): GameId {
   const good = v.playableGames.filter((g) => BOT_FREUNDLICH.includes(g));
@@ -194,6 +194,9 @@ function miniPlan(v: PlayerView, level: BotLevel, opts: BotOptions): BotPlan | n
     case 'gegenstaende':
       if (inner.stage !== 'abfrage' || inner.meineWahl) return null;
       return { sig: `gegen-${inner.frageNr}`, delay: before([1200, 4500], inner.until, now, 800), act: skill(level) };
+    case 'songs':
+      if (inner.stage !== 'hoeren' || inner.meins) return null;
+      return { sig: `song-${inner.nr}`, delay: before(speed(level, [6000, 22000]), inner.until, now), act: skill(level) };
     case 'schaetzen':
       if (inner.stage !== 'frage' || inner.meine !== null) return null;
       return { sig: `sch-${inner.nr}`, delay: before([4000, 14000], inner.until, now), act: skill(level) };

@@ -60,7 +60,7 @@ describe('Flunker-Quiz: Punkte', () => {
   it('nur online: nicht in Modus 1', () => {
     expect(GAMES.find((g) => g.id === 'flunker')!.nurOnline).toBe(true);
     expect(BRETT_GAME_IDS).not.toContain('flunker');
-    expect(BRETT_GAME_IDS).toHaveLength(10);
+    expect(BRETT_GAME_IDS).toHaveLength(11);
   });
 });
 

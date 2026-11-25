@@ -19,6 +19,7 @@ import { normalize, startsWithLetter, fuzzyEquals } from '../text';
 import { flunkerImpl, type FlunkerState } from './flunker';
 import { huehnerImpl, type HuehnerState } from './huehner/game';
 import { flitzerImpl, flitzerAdvance, flitzerSnapshot, type FlitzerState } from './flitzer/game';
+import { songsImpl, type SongsState } from './songs';
 
 export interface MCtx extends Ctx {
   s: GameState;
@@ -183,7 +184,7 @@ export interface BegriffeState {
   botInfo: BotInfo | null;
 }
 
-export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState | FlunkerState | HuehnerState | FlitzerState;
+export type MiniInner = G7State | KopfState | StirnState | GegenState | SlfState | SchaetzState | MalState | ZahlenState | WissenState | BegriffeState | FlunkerState | HuehnerState | FlitzerState | SongsState;
 
 /** Aktionen der Spieler in Minispielen */
 export type MiniAction =
@@ -208,6 +209,7 @@ export type MiniAction =
   | { k: 'hop'; row: number; col: number; safe?: boolean }
   | { k: 'raus' }
   | { k: 'lenk'; a: number; m: number }
+  | { k: 'songTipp'; text: string }
   /** nur Bots: simulierte Fähigkeit (Erfolg ausgewürfelt), wird im Minispiel aufgelöst */
   | { k: 'skill'; success: boolean }
   /** nur Bots als Kenner bei Zahlen erraten */
@@ -1074,6 +1076,7 @@ const IMPLS: Record<GameId, Impl<any>> = {
   flunker: flunkerImpl,
   huehner: huehnerImpl,
   flitzer: flitzerImpl,
+  songs: songsImpl,
 };
 
 export const miniInit = (game: GameId, c: MCtx): MiniInner => IMPLS[game].init(c);
