@@ -1,11 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@fontsource/fredoka/400.css';
-import '@fontsource/fredoka/600.css';
-import '@fontsource/fredoka/700.css';
-import '@fontsource/nunito/400.css';
-import '@fontsource/nunito/700.css';
-import '@fontsource/nunito/800.css';
+// Schriften: Fraunces (Überschriften, Knöpfe – warme Serifenschrift mit optischer Größe) + Plus Jakarta Sans (Text)
+import '@fontsource-variable/fraunces/opsz.css';
+import '@fontsource-variable/plus-jakarta-sans/wght.css';
 import './styles.css';
 import { App } from './App';
 import { registerSW } from 'virtual:pwa-register';
