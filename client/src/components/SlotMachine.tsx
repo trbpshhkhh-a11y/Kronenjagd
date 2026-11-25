@@ -17,6 +17,7 @@ export const GAME_ICON: Record<GameId, string> = {
   flunker: '🤥',
   huehner: '🐔',
   flitzer: '🏎️',
+  songs: '🎵',
 };
 
 interface Item {

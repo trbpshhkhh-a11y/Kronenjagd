@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import {
   cryptoRng, mathRound, MathTask, drawSchaetzfragen, drawWissen, drawKategorien, drawGegenstaende, drawBegriffe, SLF_BUCHSTABEN,
   pick, shuffle, randInt, G7State, g7Advance, Gegenstand, Schaetzfrage, WissenFrage, formatNumber, zahlenBonus, BEGRIFFE_DURCHGAENGE,
+  drawSongs, SONGS,
 } from '@kronen/shared';
+import { abspielen, unlockAudio } from '../../lib/melody';
 import { useM1, M1State, nameOf } from '../store';
 import { finishGame, TeamCards } from '../Mode1App';
 import { GameShell, SecretShare, RoundTimer, TeamLine } from './common';
@@ -34,6 +36,7 @@ export function GameScreen() {
     case 'zahlen': return <Zahlen />;
     case 'wissen': return <Wissen />;
     case 'begriffe': return <Begriffe />;
+    case 'songs': return <Songs />;
     default: return null;
   }
 }
@@ -487,6 +490,70 @@ function Wissen() {
               </div>
               <div className="row center">
                 <button className="btn gold big" onClick={() => set((g) => { g.correct.push(g.sel); g.sel = []; g.idx++; g.show = false; })}>{d.idx < 4 ? 'Nächste Frage ➜' : 'Fertig'}</button>
+              </div>
+            </div>
+          )}
+          <div className="row center">{teams.map((t, i) => <span key={i} className="chip">{t.name}: <b className="gold">{scores[i]}</b></span>)}</div>
+        </>
+      ) : (
+        <TeamResult s={s} scores={scores} onTake={() => finishGame(update, { kind: 'team', teams, scores })} />
+      )}
+    </GameShell>
+  );
+}
+
+/* ----------------------------- Rückwärts-Songs ---------------------- */
+
+interface SongsData { ids: number[]; idx: number; show: boolean; sel: number[]; correct: number[][] }
+function Songs() {
+  const { s, update } = useM1();
+  const [d, set] = useData<SongsData>((st) => ({ ids: drawSongs(st.pools, cryptoRng, 5), idx: 0, show: false, sel: [], correct: [] }));
+  const [stop, setStop] = useState<(() => void) | null>(null);
+  useEffect(() => () => stop?.(), [stop]);
+  if (!d) return null;
+  const teams = s.game!.teams;
+  const scores = teams.map((_, i) => d.correct.filter((c) => c.includes(i)).length);
+  const done = d.idx >= d.ids.length;
+  const song = SONGS[d.ids[Math.min(d.idx, d.ids.length - 1)]];
+  const play = (rueckwaerts: boolean) => {
+    stop?.();
+    unlockAudio();
+    setStop(() => abspielen(song, { rueckwaerts }));
+  };
+  return (
+    <GameShell>
+      {!done ? (
+        <>
+          <p className="center head">Lied {d.idx + 1} von {d.ids.length}</p>
+          <div className="card stack center" style={{ alignItems: 'center' }}>
+            {!d.show ? (
+              <>
+                <p style={{ margin: 0 }}>Hört genau hin und schreibt den Liedtitel auf!</p>
+                <button className="btn gold huge" onClick={() => play(true)}>◀◀ Rückwärts abspielen</button>
+                <p className="small" style={{ margin: 0 }}>So oft abspielen, wie ihr wollt.</p>
+              </>
+            ) : (
+              <>
+                <p className="small" style={{ margin: 0 }}>Das Lied war:</p>
+                <div className="task" style={{ color: 'var(--green)', fontSize: 'clamp(1.8rem,5vw,3.6rem)' }}>{song.titel}</div>
+                <button className="btn big" onClick={() => play(false)}>▶ Vorwärts anhören</button>
+              </>
+            )}
+          </div>
+          {!d.show ? (
+            <div className="row center"><button className="btn gold big" onClick={() => { stop?.(); set((g) => void (g.show = true)); }}>Lösung zeigen</button></div>
+          ) : (
+            <div className="panel stack">
+              <h3 className="center">Wer lag richtig?</h3>
+              <div className="row center">
+                {teams.map((t, i) => (
+                  <button key={i} className={`btn big ${d.sel.includes(i) ? 'gold selected' : ''}`} onClick={() => set((g) => void (g.sel = g.sel.includes(i) ? g.sel.filter((x) => x !== i) : [...g.sel, i]))}>
+                    {d.sel.includes(i) ? '✔ ' : ''}{t.name}
+                  </button>
+                ))}
+              </div>
+              <div className="row center">
+                <button className="btn gold big" onClick={() => { stop?.(); set((g) => { g.correct.push(g.sel); g.sel = []; g.idx++; g.show = false; }); }}>{d.idx < d.ids.length - 1 ? 'Nächstes Lied ➜' : 'Fertig'}</button>
               </div>
             </div>
           )}

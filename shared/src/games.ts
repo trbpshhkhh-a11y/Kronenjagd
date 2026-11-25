@@ -11,7 +11,8 @@ export type GameId =
   | 'begriffe'
   | 'flunker'
   | 'huehner'
-  | 'flitzer';
+  | 'flitzer'
+  | 'songs';
 
 /** einzel = jeder für sich, zweier = Zweier-Teams (ggf. ein Dreierteam), zweiTeams = 2 Teams */
 export type TeamMode = 'einzel' | 'zweier' | 'zweiTeams';
@@ -229,6 +230,21 @@ export const GAMES: GameDef[] = [
       gewinn: 'Bonusfelder nach Platz: 1. Platz 5, 2. Platz 4, 3. Platz 3, 4. Platz 2, 5. Platz 1.',
     },
     app: ['Wer nicht ins Ziel kommt, wird nach geschafften Runden gewertet.'],
+  },
+  {
+    id: 'songs', nr: 14, name: 'Rückwärts-Songs', teamMode: 'einzel', minPlayers: 2,
+    rules: {
+      utensilien: 'Lautsprecher (Fernseher oder Handy), mit Spielbrett: Zettel und Stift',
+      teams: 'Jeder für sich',
+      ablauf: [
+        'Die App spielt ein bekanntes Lied rückwärts ab – Weihnachtslieder, Kinderlieder und Klassiker.',
+        'Jeder überlegt für sich, welches Lied das ist, und loggt den Titel ein (mit Spielbrett: aufschreiben).',
+        'Danach wird aufgelöst und das Lied vorwärts gespielt. Wer richtig lag, bekommt einen Punkt.',
+        'Insgesamt werden 5 Lieder erraten.',
+      ],
+      gewinn: 'Jeder Mitspieler darf die Anzahl seiner richtig erkannten Lieder zusätzlich zur Augenzahl vorgehen.',
+    },
+    app: ['Der Titel wird auf dem Handy eingetippt und eingeloggt – kleine Tippfehler und Teiltitel (z. B. „Tannenbaum“) zählen trotzdem. Das Lied läuft auf dem Hauptscreen (ohne Hauptscreen auf jedem Handy) mehrmals hintereinander.'],
   },
 ];
 

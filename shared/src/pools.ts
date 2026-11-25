@@ -1,6 +1,6 @@
 import { Rng, shuffle, pickUnique } from './rng';
 import { DeckState, newDeck, drawIndex, drawMany } from './deck';
-import { SCHAETZFRAGEN, WISSEN, BEGRIFFE, KATEGORIEN, GEGENSTAENDE, FLUNKER_FRAGEN, Schaetzfrage, WissenFrage, Gegenstand, FlunkerFrage } from './content';
+import { SCHAETZFRAGEN, WISSEN, BEGRIFFE, KATEGORIEN, GEGENSTAENDE, FLUNKER_FRAGEN, SONGS, Schaetzfrage, WissenFrage, Gegenstand, FlunkerFrage } from './content';
 
 /** Sitzungs-Stapel aller Inhalte: Ziehen ohne Wiederholung, leer -> neu mischen. */
 export interface PoolState {
@@ -10,6 +10,7 @@ export interface PoolState {
   kategorien: DeckState;
   gegenstaende: DeckState;
   flunker: DeckState;
+  songs: DeckState;
 }
 
 export function newPools(): PoolState {
@@ -20,6 +21,7 @@ export function newPools(): PoolState {
     kategorien: newDeck(KATEGORIEN.length),
     gegenstaende: newDeck(GEGENSTAENDE.length),
     flunker: newDeck(FLUNKER_FRAGEN.length),
+    songs: newDeck(SONGS.length),
   };
 }
 
@@ -34,6 +36,8 @@ export function fixPools(p: PoolState | undefined): PoolState {
 export const drawSchaetzfragen = (p: PoolState, rng: Rng, n: number): Schaetzfrage[] => drawMany(p.schaetzen, rng, n).map((i) => SCHAETZFRAGEN[i]);
 export const drawWissen = (p: PoolState, rng: Rng, n: number): WissenFrage[] => drawMany(p.wissen, rng, n).map((i) => WISSEN[i]);
 export const drawKategorien = (p: PoolState, rng: Rng, n: number): string[] => drawMany(p.kategorien, rng, n).map((i) => KATEGORIEN[i]);
+/** Lieder für Rückwärts-Songs (Indizes in SONGS) */
+export const drawSongs = (p: PoolState, rng: Rng, n: number): number[] => drawMany(p.songs, rng, n);
 export const drawFlunker = (p: PoolState, rng: Rng, n: number): FlunkerFrage[] => drawMany(p.flunker, rng, n).map((i) => FLUNKER_FRAGEN[i]);
 export const drawGegenstaende = (p: PoolState, rng: Rng, n: number): Gegenstand[] => drawMany(p.gegenstaende, rng, n).map((i) => GEGENSTAENDE[i]);
 export function drawBegriffe(p: PoolState, rng: Rng, n: number): string[] {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   cryptoRng, drawStartFields, drawCrownField, drawNextGame, gameById, makeTeams, GAMES, computeBonus, GameResult, addBonus, GameId,
+  BRETT_GAME_IDS,
 } from '@kronen/shared';
 import { useM1, M1State, nameOf } from './store';
 import { SlotRoller, FIELD_NUMBERS } from '../components/Roller';
@@ -346,7 +347,7 @@ function GameDraw() {
         {done && (
           <>
             <Confetti duration={2500} />
-            <p className="muted">Spiel {g.nr} von 10 · {g.rules.teams.split('(')[0]}</p>
+            <p className="muted">Spiel {BRETT_GAME_IDS.indexOf(g.id) + 1} von {BRETT_GAME_IDS.length} · {g.rules.teams.split('(')[0]}</p>
             <div className="row center">
               <RulesButton id={g.id} className="big" />
               <button className="btn red big" onClick={() => update((d) => {
