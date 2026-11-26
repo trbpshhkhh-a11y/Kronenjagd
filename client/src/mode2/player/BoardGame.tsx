@@ -8,7 +8,8 @@ import { useEffect, useState } from 'react';
 import { PlayerView, BOARD, gameById } from '@kronen/shared';
 import { BoardLayer, CrownTable, statusText, useLeft, playerName, displayName, tokenLetter, useViewport, RotateHint, BonusAnsage } from '../common';
 import { Die, Dot, FieldBadge } from '../../components/ui';
-import { CrownSvg, TokenSvg } from '../../components/icons';
+import { CrownSvg } from '../../components/icons';
+import { AvatarFace } from '../../components/Avatar';
 import { Confetti } from '../../components/Decor';
 import { EventCardScene } from '../../components/EventCard';
 
@@ -111,7 +112,7 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
   return (
     <div className="stack" style={{ gap: land ? 8 : 10 }}>
       <div className="side-me">
-        <span style={{ width: '2em', height: '2.3em', flexShrink: 0 }}><TokenSvg color={me.color} letter={tokenLetter(me)} /></span>
+        <span style={{ width: '2.3em', height: '2.3em', flexShrink: 0 }}><AvatarFace a={me.avatar} color={me.color} /></span>
         <span className="grow" style={{ minWidth: 0 }}>
           <b className="head ellipsis">{me.name}</b>
           {v.iAmLeader && <span className="badge" style={{ fontSize: '0.65em', marginLeft: 4 }}>Leitung</span>}
@@ -167,7 +168,7 @@ function IntroOverlay({ v, send }: { v: PlayerView; send: Send }) {
             return (
               <div key={id} className="list-item" style={{ animation: `cardIn .4s ${i * 0.25}s both`, padding: '4px 8px' }}>
                 <b className="head gold">{i + 1}.</b>
-                <span style={{ width: '1.5em', height: '1.8em' }}><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
+                <span style={{ width: '1.8em', height: '1.8em' }}><AvatarFace a={p.avatar} color={p.color} /></span>
                 <span className="grow head ellipsis">{displayName(p)}{p.id === v.me.id ? ' (du)' : ''}</span>
                 <FieldBadge n={p.start} showIcon={false} />
               </div>

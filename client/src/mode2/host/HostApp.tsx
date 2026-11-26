@@ -6,7 +6,8 @@ import { useWakeLock } from '../../lib/hooks';
 import { load, save } from '../../lib/storage';
 import { Stage, BoardLayer, CrownTable, statusText, useLeft, playerName, playerOf, useToast, usePortrait, displayName, tokenLetter, RotateHint, BonusAnsage } from '../common';
 import { Die, Dot, FieldBadge, Confirm } from '../../components/ui';
-import { CrownSvg, TokenSvg } from '../../components/icons';
+import { CrownSvg } from '../../components/icons';
+import { AvatarFace } from '../../components/Avatar';
 import { Snow, Confetti } from '../../components/Decor';
 import { SlotRoller, FIELD_NUMBERS } from '../../components/Roller';
 import { HostMini } from './HostMini';
@@ -129,7 +130,7 @@ function Game({ v, send, onExit }: { v: HostView; send: Send; onExit: () => void
   const board = <BoardLayer view={boardView} highlight={ph.k === 'intro' ? null : v.turnPlayerId} jump={ph.k === 'karte'} previews={ph.k === 'richtung' ? ph.options : undefined} />;
   const status = (
     <div className="panel dark" style={portrait ? { display: 'flex', alignItems: 'center', gap: 20, padding: '12px 24px' } : { position: 'absolute', left: 16, right: 16, bottom: 8, height: 112, zIndex: 20, display: 'flex', alignItems: 'center', gap: 24, padding: '8px 28px' }}>
-      {cur && <span style={{ width: 60, height: 70, flexShrink: 0 }}><TokenSvg color={cur.color} letter={tokenLetter(cur)} /></span>}
+      {cur && <span style={{ width: 74, height: 74, flexShrink: 0 }}><AvatarFace a={cur.avatar} color={cur.color} /></span>}
       <span className="head grow" style={{ fontSize: portrait ? 36 : 40 }}>{statusText(v)}</span>
       {v.bonusRunde && <span className="badge green" style={{ fontSize: 28 }}>Bonusrunde · Sonderfelder ruhen</span>}
       {ph.k === 'gewuerfelt' && <Die value={ph.wurf} size="52px" />}
@@ -221,7 +222,7 @@ function Intro({ v, send }: { v: HostView; send: Send }) {
             return (
               <div key={id} className="panel stack" style={{ alignItems: 'center', animation: `cardIn .4s ${i * 0.25}s both`, fontSize: 30 }}>
                 <span className="head gold" style={{ fontSize: 50 }}>{i + 1}.</span>
-                <span style={{ width: 70, height: 80 }}><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
+                <span style={{ width: 80, height: 80 }}><AvatarFace a={p.avatar} color={p.color} /></span>
                 <b>{displayName(p)}</b>
               </div>
             );

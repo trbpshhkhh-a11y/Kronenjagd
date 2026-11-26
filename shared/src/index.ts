@@ -23,3 +23,4 @@ export * from './mode2/huehner/huhn';
 export * from './mode2/flitzer/track';
 export * from './mode2/flitzer/game';
 export * from './mode2/songs';
+export * from './avatar';

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   ClientMessage, ServerMessage, viewForHost, viewForPlayer, startGame, updateSettings, renamePlayer, playerAction, hostAction,
-  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick, startBonusRunde,
+  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick, startBonusRunde, setAvatar,
 } from '@kronen/shared';
 import { LobbyManager, Lobby, LobbyError } from './lobbies';
 
@@ -150,6 +150,7 @@ function handle(c: Conn, msg: ClientMessage) {
     }
     case 'createPlay': {
       const { lobby, playerId, token } = manager.createAsPlayer(String(msg.name ?? ''));
+      if (msg.avatar) try { setAvatar(lobby.state, playerId, msg.avatar); } catch { /* ungültig: Zufallsfigur behalten */ }
       attachPlayer(c, lobby, playerId);
       send(c, { t: 'joined', code: lobby.code, token, playerId });
       return broadcast(lobby, true);
@@ -178,6 +179,7 @@ function handle(c: Conn, msg: ClientMessage) {
     }
     case 'join': {
       const { lobby, playerId, token } = manager.join(String(msg.code), String(msg.name ?? ''), c.ip);
+      if (msg.avatar) try { setAvatar(lobby.state, playerId, msg.avatar); } catch { /* ungültig: Zufallsfigur behalten */ }
       attachPlayer(c, lobby, playerId);
       send(c, { t: 'joined', code: lobby.code, token, playerId });
       return broadcast(lobby, true);
@@ -199,6 +201,11 @@ function handle(c: Conn, msg: ClientMessage) {
         return closeLobby(lobby, 'Alle haben die Lobby verlassen.');
       }
       return broadcast(lobby, true);
+    }
+    case 'avatar': {
+      const { lobby, playerId } = requirePlayer(c);
+      setAvatar(lobby.state, playerId, msg.avatar);
+      return broadcast(lobby);
     }
     case 'rename': {
       const { lobby, playerId } = requirePlayer(c);

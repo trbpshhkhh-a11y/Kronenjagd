@@ -9,6 +9,7 @@ import type { Team } from '../teams';
 import { miniHostView, miniPlayerView, MCtx } from './minigames';
 import { playableGames, canLead } from './engine';
 import type { BotLevel } from './constants';
+import type { Avatar } from '../avatar';
 
 export interface PublicPlayer {
   id: string;
@@ -20,6 +21,7 @@ export interface PublicPlayer {
   pos: number;
   start: number;
   bot: BotLevel | null;
+  avatar: Avatar;
 }
 
 export interface MiniView {
@@ -70,7 +72,7 @@ export interface PlayerView extends BaseView {
 }
 
 const pub = (s: GameState): PublicPlayer[] =>
-  s.players.map(({ id, name, color, connected, kronen, bonus, pos, start, bot }) => ({ id, name, color, connected, kronen, bonus, pos, start, bot }));
+  s.players.map(({ id, name, color, connected, kronen, bonus, pos, start, bot, avatar }) => ({ id, name, color, connected, kronen, bonus, pos, start, bot, avatar }));
 
 function base(s: GameState, now: number): BaseView {
   return {

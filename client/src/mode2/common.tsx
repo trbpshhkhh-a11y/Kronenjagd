@@ -2,7 +2,8 @@ import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useRe
 import { BOARD, BaseView, PublicPlayer, Crown, MoveOption, gameById, CARD_TEXT } from '@kronen/shared';
 import boardImg from '@assets/spielbrett.png';
 import ruheImg from '../board/spielbrett-ruhe.png';
-import { TokenSvg, CrownSvg } from '../components/icons';
+import { CrownSvg } from '../components/icons';
+import { AvatarFace, Figur } from '../components/Avatar';
 import { useServerClock } from '../lib/hooks';
 
 export { boardImg };
@@ -144,7 +145,7 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
         const dx = off.get(p.id) ?? 0;
         return (
           <div key={p.id} className={`token ${highlight === p.id ? 'turn' : ''} ${jump ? 'jump' : ''}`} style={{ left: `${x + dx}%`, top: `${y}%` }} title={p.name}>
-            <TokenSvg color={p.color} letter={tokenLetter(p)} />
+            <Figur a={p.avatar} color={p.color} title={p.name} />
           </div>
         );
       })}
@@ -209,7 +210,7 @@ export function CrownTable({ view, compact }: { view: BaseView; compact?: boolea
       <div className="stack" style={{ gap: 6 }}>
         {sorted.map((p) => (
           <div key={p.id} className="row" style={{ gap: 10, opacity: p.connected ? 1 : 0.5 }}>
-            <span className="dot" style={{ background: p.color }} />
+            <span className="ct-face"><AvatarFace a={p.avatar} color={p.color} /></span>
             <span className="grow" style={{ fontWeight: 800, outline: view.turnPlayerId === p.id ? undefined : undefined }}>
               {view.turnPlayerId === p.id ? '▶ ' : ''}{displayName(p)}
             </span>
@@ -288,7 +289,7 @@ export function BonusAnsage({ v, big }: { v: BaseView; big?: boolean }) {
     <div className={`bonus-ansage ${big ? 'big' : ''}`}>
       <div className="bonus-kicker">Bonusrunde</div>
       <div className="bonus-who">
-        {p && <span className="bonus-token"><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>}
+        {p && <span className="bonus-token"><AvatarFace a={p.avatar} color={p.color} /></span>}
         <span><b>{p ? displayName(p) : '?'}</b> darf <b className="bonus-n">{ph.schritte}</b> {ph.schritte === 1 ? 'Feld' : 'Felder'} gehen</span>
       </div>
       {danach.length > 0 && <div className="bonus-next">Danach: {danach.map((x) => displayName(x)).join(', ')}</div>}

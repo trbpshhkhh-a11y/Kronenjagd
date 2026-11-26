@@ -1,3 +1,4 @@
+import type { Avatar } from '../avatar';
 import type { GameId } from '../games';
 import type { DeckState } from '../deck';
 import type { PoolState } from '../pools';
@@ -25,6 +26,8 @@ export interface Player {
   start: number;
   /** null = Mensch, sonst Schwierigkeit des Bots */
   bot: BotLevel | null;
+  /** selbst gestaltete Spielfigur */
+  avatar: Avatar;
   /** Bot-Planung (nur Server-intern, wird nicht verschickt) */
   botAt: number | null;
   botSig: string | null;

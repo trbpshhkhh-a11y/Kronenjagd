@@ -4,6 +4,7 @@
  * übergebenen Zustand mit injiziertem Zufall (ctx.rng) und Zeit (ctx.now),
  * damit jeder Zustand der Zustandsmaschine testbar ist.
  */
+import { avatarFromId, sanitizeAvatar } from '../avatar';
 import { GAME_IDS, GameId, gameById, isPlayable } from '../games';
 import { newDeck, drawIndex } from '../deck';
 import { newPools } from '../pools';
@@ -96,7 +97,7 @@ export function addPlayer(s: GameState, rawName: unknown, id: string, token: str
   if (nameTaken(s, name)) throw new GameError('Dieser Name ist schon vergeben.');
   const used = new Set(s.players.map((p) => p.color));
   const color = SPIELER_FARBEN.find((c) => !used.has(c)) ?? SPIELER_FARBEN[0];
-  const p: Player = { id, name, color, token, connected: true, disconnectedAt: null, kronen: 0, bonus: 0, pos: 0, start: 0, bot: null, botAt: null, botSig: null };
+  const p: Player = { id, name, color, token, connected: true, disconnectedAt: null, kronen: 0, bonus: 0, pos: 0, start: 0, bot: null, avatar: avatarFromId(id), botAt: null, botSig: null };
   s.players.push(p);
   if (!s.leaderId) s.leaderId = p.id;
   s.lastActivity = now;
@@ -120,7 +121,7 @@ export function addBot(s: GameState, level: unknown = 'mittel', now = 0): Player
   const used = new Set(s.players.map((p) => p.color));
   const color = SPIELER_FARBEN.find((c) => !used.has(c)) ?? SPIELER_FARBEN[0];
   const id = 'bot' + idx;
-  const p: Player = { id, name: BOT_NAMEN[idx], color, token: `bot:${id}:${Math.random().toString(36).slice(2)}`, connected: true, disconnectedAt: null, kronen: 0, bonus: 0, pos: 0, start: 0, bot: lvl, botAt: null, botSig: null };
+  const p: Player = { id, name: BOT_NAMEN[idx], color, token: `bot:${id}:${Math.random().toString(36).slice(2)}`, connected: true, disconnectedAt: null, kronen: 0, bonus: 0, pos: 0, start: 0, bot: lvl, avatar: avatarFromId(id + ':' + BOT_NAMEN[idx]), botAt: null, botSig: null };
   s.players.push(p);
   s.lastActivity = now;
   touch(s);
@@ -166,6 +167,16 @@ export function renamePlayer(s: GameState, id: string, rawName: unknown) {
   const name = validateName(rawName);
   if (nameTaken(s, name, id)) throw new GameError('Dieser Name ist schon vergeben.');
   p.name = name;
+  touch(s);
+}
+
+/** Eigene Spielfigur setzen (jederzeit, auch während des Spiels) */
+export function setAvatar(s: GameState, id: string, raw: unknown) {
+  const p = playerById(s, id);
+  if (!p) throw new GameError('Unbekannter Spieler');
+  const a = sanitizeAvatar(raw);
+  if (!a) throw new GameError('Ungültige Spielfigur');
+  p.avatar = a;
   touch(s);
 }
 

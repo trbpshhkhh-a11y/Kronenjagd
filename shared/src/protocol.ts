@@ -4,20 +4,23 @@ import type { HostView, PlayerView } from './mode2/views';
 import type { Settings } from './mode2/types';
 import type { Stroke } from './mode2/minigames';
 import type { BotLevel } from './mode2/constants';
+import type { Avatar } from './avatar';
 
 export type ClientMessage =
   | { t: 'create' }
   /** Lobby ohne Hauptscreen erstellen: dieses Gerät spielt mit und leitet die Lobby */
-  | { t: 'createPlay'; name: string }
+  | { t: 'createPlay'; name: string; avatar?: Avatar }
   /** Als Hauptscreen einer bestehenden Lobby beitreten (auch nach dem Start) */
   | { t: 'joinScreen'; code: string }
   | { t: 'addBot'; level?: BotLevel }
   | { t: 'botLevel'; playerId: string; level: BotLevel }
   | { t: 'resumeHost'; code: string; token: string }
-  | { t: 'join'; code: string; name: string }
+  | { t: 'join'; code: string; name: string; avatar?: Avatar }
   | { t: 'resume'; code: string; token: string }
   | { t: 'leave' }
   | { t: 'rename'; name: string }
+  /** eigene Spielfigur ändern */
+  | { t: 'avatar'; avatar: Avatar }
   | { t: 'kick'; playerId: string }
   | { t: 'settings'; settings: Partial<Settings> }
   | { t: 'start' }

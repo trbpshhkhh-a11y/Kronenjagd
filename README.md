@@ -91,6 +91,8 @@ Ein Hauptscreen kann sich auch **nachträglich dazuschalten**, sogar während de
 
 **Mitspieler:** QR-Code scannen oder „Nur App → Beitreten“, Code und Namen eingeben. Insgesamt 2 bis 10 Spieler, mindestens 1 Mensch.
 
+**Eigene Spielfigur:** In der Lobby das eigene Feld (oder „✎ Figur“) antippen und die Figur gestalten: Kopfbedeckung (Weihnachtsmütze, Krone, Rentiergeweih, Elfenmütze …), Frisur, Haarfarbe, Hautton, Augen, Mund und ein Extra (Brille, Rauschebart, rote Nase …). Die Figur erscheint als Spielfigur auf dem Brett und als Porträt in Lobby, Kronentafel und Statuszeile. Das Gerät merkt sich die Figur für die nächste Lobby. Bots bekommen eine zufällige Figur.
+
 **Bots:** Die Lobby-Leitung tippt „+ Bot“ in der Spielerleiste. Ein Antippen der Schwierigkeit schaltet zwischen leicht, mittel und schwer um. Die Einstellungen (Kronen zum Sieg, Spiele, Timer) öffnen sich über den Button „Einstellungen“. Bots spielen ganz normal mit: Sie würfeln, wählen Richtungen (schwere Bots steuern gezielt Kronen an), ziehen Karten und spielen Minispiele. Sie handeln mit kurzer Verzögerung, damit man zusehen kann. Bots schummeln nicht: Sie sehen nur, was ein Mensch in ihrer Rolle auch sieht. Wie oft sie richtig liegen, hängt von der Schwierigkeit ab. Bots können nicht zeichnen und nicht erklären. Bei Montagsmaler, Stirnraten und Begriffe erklären sind sie deshalb nur Rater, und diese Spiele kommen nur, wenn genug Menschen dabei sind.
 
 **Spielablauf:**
@@ -143,6 +145,7 @@ client/                      React + Vite + TypeScript (beide Modi, PWA)
 Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Für Bots gibt es zusätzlich `slfAntworten.ts` (Antworten für Stadt Land Fluss je Kategorie) und `zahlenHinweise.ts` (Hinweisbegriffe von klein bis groß für „Zahlen erraten“). Neue Einträge einfach anhängen. Innerhalb einer Sitzung wiederholt sich nichts, bis ein Pool leer ist. Dann wird er neu gemischt. Die Tests prüfen Mindestgrößen und Duplikate.
 
 ### Feldkoordinaten / Brett austauschen
+- **`/#/dev/avatare`** zeigt viele Zufallsfiguren (zum Prüfen der Avatar-Zeichnungen).
 - **`/#/dev/board-debug`** zeichnet Nummern, Feldtypen und Verbindungen über das Brettbild (Weichen pink).
 - **`/#/dev/feld-editor`**: Felder nacheinander anklicken, Typ und Nachbarn anpassen, `board.json` exportieren und unter `client/src/board/board.json` speichern.
 
@@ -157,7 +160,7 @@ Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Für Bots 
 Es werden keine personenbezogenen Daten gespeichert. Lobbys existieren nur im Arbeitsspeicher des Servers und werden nach dem Spiel (spätestens nach 4 Stunden Inaktivität) gelöscht. Auf dem Gerät liegen nur der Spielstand (Modus 1) und das Wiederverbindungs-Token (Modus 2) im `localStorage`. Es gibt keine Cookies.
 
 ### Entwickler-Testmodus
-Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (`debugMini`, `debugPhase`), um gezielt ein Minispiel oder eine Ereigniskarte zu starten. Im normalen Betrieb sind sie abgeschaltet.
+Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (`debugMini`, `debugPhase`, `debugBonus`), um gezielt ein Minispiel oder eine Ereigniskarte zu starten. Im normalen Betrieb sind sie abgeschaltet.
 
 ---
 

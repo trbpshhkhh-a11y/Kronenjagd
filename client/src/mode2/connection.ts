@@ -1,3 +1,4 @@
+import { savedAvatar } from '../components/AvatarEditor';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, ServerMessage, HostView, PlayerView, Stroke } from '@kronen/shared';
 import { wsUrl } from '../lib/server';
@@ -90,7 +91,7 @@ export function useConnection<V extends HostView | PlayerView>(role: Role, opts:
           else if (joinScreenRef.current) ws.send(JSON.stringify({ t: 'joinScreen', code: joinScreenRef.current }));
           else if (createRef.current) ws.send(JSON.stringify({ t: 'create' }));
         } else if (s) ws.send(JSON.stringify({ t: 'resume', code: s.code, token: s.token }));
-        else if (createPlayRef.current) ws.send(JSON.stringify({ t: 'createPlay', name: createPlayRef.current }));
+        else if (createPlayRef.current) ws.send(JSON.stringify({ t: 'createPlay', name: createPlayRef.current, avatar: savedAvatar() ?? undefined }));
         for (const m of queue.current.splice(0)) ws.send(JSON.stringify(m));
         // Uhr-Abgleich: anfangs schnell mehrere Pings, danach alle 10 s
         let n = 0;
