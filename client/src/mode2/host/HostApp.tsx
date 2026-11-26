@@ -4,7 +4,7 @@ import { useConnection } from '../connection';
 import { useRoute, go } from '../../lib/router';
 import { useWakeLock } from '../../lib/hooks';
 import { load, save } from '../../lib/storage';
-import { Stage, BoardLayer, CrownTable, statusText, useLeft, playerName, playerOf, useToast, usePortrait, displayName, tokenLetter, RotateHint } from '../common';
+import { Stage, BoardLayer, CrownTable, statusText, useLeft, playerName, playerOf, useToast, usePortrait, displayName, tokenLetter, RotateHint, BonusAnsage } from '../common';
 import { Die, Dot, FieldBadge, Confirm } from '../../components/ui';
 import { CrownSvg, TokenSvg } from '../../components/icons';
 import { Snow, Confetti } from '../../components/Decor';
@@ -131,7 +131,7 @@ function Game({ v, send, onExit }: { v: HostView; send: Send; onExit: () => void
     <div className="panel dark" style={portrait ? { display: 'flex', alignItems: 'center', gap: 20, padding: '12px 24px' } : { position: 'absolute', left: 16, right: 16, bottom: 8, height: 112, zIndex: 20, display: 'flex', alignItems: 'center', gap: 24, padding: '8px 28px' }}>
       {cur && <span style={{ width: 60, height: 70, flexShrink: 0 }}><TokenSvg color={cur.color} letter={tokenLetter(cur)} /></span>}
       <span className="head grow" style={{ fontSize: portrait ? 36 : 40 }}>{statusText(v)}</span>
-      {cur && cur.bonus > 0 && ph.k === 'wuerfeln' && <span className="badge green" style={{ fontSize: 30 }}>+{cur.bonus} Bonus</span>}
+      {v.bonusRunde && <span className="badge green" style={{ fontSize: 28 }}>Bonusrunde · Sonderfelder ruhen</span>}
       {ph.k === 'gewuerfelt' && <Die value={ph.wurf} size="52px" />}
       {ph.k === 'richtung' && <DirTimer v={v} until={ph.until} />}
     </div>
@@ -142,6 +142,7 @@ function Game({ v, send, onExit }: { v: HostView; send: Send; onExit: () => void
       {toast && <div className={`toast ${toast.kind}`} style={portrait ? { whiteSpace: 'normal', maxWidth: 1000, textAlign: 'center' } : undefined}>{toast.text}</div>}
       {ph.k === 'intro' && <Intro v={v} send={send} />}
       {ph.k === 'gewuerfelt' && <DiceOverlay v={v} />}
+      {ph.k === 'bonusStart' && <Overlay dim={0.3}><BonusAnsage v={v} big /></Overlay>}
       {(ph.k === 'karteZiehen' || ph.k === 'karte') && <CardOverlay v={v} />}
       {showMini && <HostMini v={v} send={send} />}
       {ph.k === 'sieg' && <Victory v={v} send={send} onExit={onExit} />}

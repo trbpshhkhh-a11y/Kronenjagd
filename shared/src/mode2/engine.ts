@@ -44,6 +44,7 @@ export function createGameState(code: string, now: number, opts: { screenMode?: 
     crowns: [],
     crownSeq: 0,
     phase: { k: 'lobby' },
+    bonusRunde: null,
     mini: null,
     cardDeck: newDeck(CARDS.length),
     gameDeck: newDeck(GAME_IDS.length),
@@ -313,6 +314,7 @@ export function startGame(s: GameState, ctx: Ctx) {
     p.botSig = null;
   });
   s.turnNo = 0;
+  s.bonusRunde = null;
   s.order = shuffle(ctx.rng, s.players.map((p) => p.id));
   s.turn = 0;
   s.cardDeck = newDeck(CARDS.length);
@@ -336,10 +338,62 @@ function beginTurn(s: GameState) {
   s.trail = [];
 }
 
-export function endTurn(s: GameState) {
+export function endTurn(s: GameState, now = 0) {
   if (s.phase.k === 'sieg') return;
+  // In der Bonusrunde ist nach jedem Bonuszug der Nächste aus der Bonus-Reihe dran
+  if (s.bonusRunde) return nextBonus(s, now);
   s.turn = (s.turn + 1) % s.order.length;
   beginTurn(s);
+}
+
+/* ------------------------------------------------------------------ */
+/* Bonusrunde nach einem Minispiel                                     */
+/* ------------------------------------------------------------------ */
+
+export const BONUS_ANSAGE_MS = 2200;
+
+/**
+ * Nach einem Minispiel gehen alle sofort ihre Bonusfelder – zuerst der Spieler, der dran war,
+ * dann in der normalen Zugreihenfolge. Sonderfelder ruhen dabei (keine Effekte).
+ * Danach ist ganz normal der nächste Spieler dran.
+ */
+export function startBonusRunde(s: GameState, ctx: Ctx) {
+  s.mini = null;
+  const n = s.order.length;
+  const origin = s.turn;
+  const queue: string[] = [];
+  for (let k = 0; k < n; k++) {
+    const id = s.order[(origin + k) % n];
+    if ((playerById(s, id)?.bonus ?? 0) > 0) queue.push(id);
+  }
+  if (!queue.length) return endTurn(s, ctx.now);
+  s.bonusRunde = { origin, queue, mover: null };
+  nextBonus(s, ctx.now);
+}
+
+function nextBonus(s: GameState, now: number) {
+  const br = s.bonusRunde!;
+  for (;;) {
+    const id = br.queue.shift();
+    if (id === undefined) {
+      // alle Bonusfelder gegangen: weiter mit dem Spieler nach dem, der vor dem Minispiel dran war
+      s.bonusRunde = null;
+      s.turn = br.origin % Math.max(1, s.order.length);
+      s.turn = (s.turn + 1) % s.order.length;
+      beginTurn(s);
+      return;
+    }
+    const p = playerById(s, id);
+    const idx = s.order.indexOf(id);
+    if (!p || idx < 0 || p.bonus <= 0) continue;
+    const schritte = p.bonus;
+    p.bonus = 0;
+    br.mover = id;
+    s.turn = idx;
+    s.trail = [p.pos];
+    s.phase = { k: 'bonusStart', id, schritte, until: now + BONUS_ANSAGE_MS };
+    return;
+  }
 }
 
 /** Vorheriges Feld der aktuellen Bewegung (für die Richtung) */
@@ -353,7 +407,7 @@ export function offerDirections(s: GameState, remaining: number, now: number) {
   s.phase = { k: 'richtung', remaining, options, until: now + s.settings.timer.richtung * 1000 };
 }
 
-function startMove(s: GameState, path: number[], remainingAfter: number, effects: boolean, grund: 'zug' | 'plus2' | 'minus2', now: number) {
+function startMove(s: GameState, path: number[], remainingAfter: number, effects: boolean, grund: 'zug' | 'plus2' | 'minus2' | 'bonus', now: number) {
   if (path.length === 0) {
     s.phase = { k: 'bewegen', path, idx: 0, remainingAfter: 0, effects, nextAt: now, grund };
     return;
@@ -373,7 +427,7 @@ function backPath(s: GameState, steps: number): number[] {
 }
 
 function onLanded(s: GameState, p: Player, effects: boolean, ctx: Ctx) {
-  if (!effects) return endTurn(s);
+  if (!effects) return endTurn(s, ctx.now);
   const type = fieldType(p.pos);
   switch (type) {
     case 'plus2':
@@ -388,7 +442,7 @@ function onLanded(s: GameState, p: Player, effects: boolean, ctx: Ctx) {
         s.phase = { k: 'karte', card: 'tausch', stage: 'wahl', until: ctx.now + 30000, feld: true };
         return;
       }
-      return endTurn(s);
+      return endTurn(s, ctx.now);
     case 'ereignis':
       toast(s, `${label(p)} zieht eine Ereigniskarte!`, 'feld');
       s.phase = { k: 'karteZiehen', until: ctx.now + 30000 };
@@ -397,7 +451,7 @@ function onLanded(s: GameState, p: Player, effects: boolean, ctx: Ctx) {
       toast(s, 'Minispiel!', 'feld');
       return startMinigame(s, null, null, ctx);
     default:
-      return endTurn(s);
+      return endTurn(s, ctx.now);
   }
 }
 
@@ -476,7 +530,7 @@ export function startMinigame(s: GameState, forced: GameId | null, chosenBy: str
   }
   if (!game) {
     toast(s, 'Kein Minispiel verfügbar.', 'info');
-    return endTurn(s);
+    return endTurn(s, ctx.now);
   }
   s.phase = { k: 'minispiel' };
   // Zeit für den Spielautomaten: Hebel, Walze, kurz das Ergebnis zeigen
@@ -530,8 +584,8 @@ function miniStep(s: GameState, ctx: Ctx): boolean {
     }
     case 'ergebnis':
       if (ctx.now < (m.until ?? 0)) return false;
-      s.mini = null;
-      endTurn(s);
+      // Bonusfelder werden sofort gegangen (Bonusrunde), danach geht es normal weiter
+      startBonusRunde(s, ctx);
       return true;
   }
 }
@@ -589,7 +643,7 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       requireTurn(s, pid);
       const opt = ph.options.find((o) => o.key === a.key);
       if (!opt) throw new GameError('Ungültige Richtung');
-      startMove(s, opt.path, ph.remaining - opt.path.length, true, 'zug', ctx.now);
+      startMove(s, opt.path, ph.remaining - opt.path.length, !s.bonusRunde, s.bonusRunde ? 'bonus' : 'zug', ctx.now);
       break;
     }
     case 'drawCard':
@@ -736,7 +790,7 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
       if (ctx.now - p.disconnectedAt < GETRENNT_UEBERSPRINGEN_MS) return false;
       if (!s.players.some((x) => x.connected)) return false;
       toast(s, `${label(p)} ist nicht verbunden – Zug wird übersprungen.`, 'info');
-      endTurn(s);
+      endTurn(s, ctx.now);
       return true;
     }
     case 'gewuerfelt':
@@ -745,12 +799,18 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
       offerDirections(s, ph.total, ctx.now);
       return true;
     case 'richtung': {
-      if (ctx.now < ph.until) return false;
+      // in der Bonusrunde nicht auf getrennte Spieler warten
+      const wegBeiBonus = !!s.bonusRunde && !!p && !p.connected;
+      if (ctx.now < ph.until && !wegBeiBonus) return false;
       const opt = ph.options[0];
-      toast(s, `Zeit abgelaufen – es geht ${opt.label}.`, 'info');
-      startMove(s, opt.path, ph.remaining - opt.path.length, true, 'zug', ctx.now);
+      if (!wegBeiBonus) toast(s, `Zeit abgelaufen – es geht ${opt.label}.`, 'info');
+      startMove(s, opt.path, ph.remaining - opt.path.length, !s.bonusRunde, s.bonusRunde ? 'bonus' : 'zug', ctx.now);
       return true;
     }
+    case 'bonusStart':
+      if (ctx.now < ph.until) return false;
+      offerDirections(s, ph.schritte, ctx.now);
+      return true;
     case 'bewegen': {
       if (ctx.now < ph.nextAt) return false;
       if (ph.idx < ph.path.length) {
@@ -788,7 +848,7 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
           toast(s, 'Zeit abgelaufen – kein Tausch.', 'info');
           s.phase = { ...ph, stage: 'fertig', until: ctx.now + 1500 };
         }
-      } else endTurn(s);
+      } else endTurn(s, ctx.now);
       return true;
     case 'minispiel':
       return miniStep(s, ctx);

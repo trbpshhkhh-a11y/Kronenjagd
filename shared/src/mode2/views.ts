@@ -54,6 +54,8 @@ export interface BaseView {
   screenMode: boolean;
   leaderId: string | null;
   turnNo: number;
+  /** Bonusrunde nach einem Minispiel (Sonderfelder ruhen), sonst null */
+  bonusRunde: { mover: string | null; queue: string[] } | null;
 }
 
 export interface HostView extends BaseView {
@@ -89,6 +91,7 @@ function base(s: GameState, now: number): BaseView {
     screenMode: s.screenMode,
     leaderId: s.leaderId,
     turnNo: s.turnNo,
+    bonusRunde: s.bonusRunde ? { mover: s.bonusRunde.mover, queue: [...s.bonusRunde.queue] } : null,
   };
 }
 

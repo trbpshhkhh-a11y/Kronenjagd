@@ -252,12 +252,12 @@ function Overview() {
                 </span>
                 <span className="small muted hide-mobile">Start</span>
                 {p.start !== null && <FieldBadge n={p.start} showIcon={false} />}
-                <span className={`badge ${p.bonus > 0 ? 'green' : 'gray'}`} title="Bonusfelder für die nächste Runde">+{p.bonus} Bonus</span>
+                {p.bonus > 0 && <span className="badge green" title="Noch nicht gegangene Bonusfelder">+{p.bonus} Bonus</span>}
               </div>
             ))}
           </div>
           <div className="row">
-            <button className="btn sm" disabled={!anyBonus} onClick={() => setAskBonus(true)}>✔ Bonusfelder verbraucht</button>
+            {anyBonus && <button className="btn sm" onClick={() => setAskBonus(true)}>✔ Bonusfelder gegangen</button>}
             <button className="btn sm ghost" onClick={() => setSettings(true)}>⚙ Einstellungen</button>
           </div>
         </div>
@@ -443,26 +443,30 @@ export function finishGame(update: (fn: (s: M1State) => void) => void, result: G
 function Result() {
   const { s, update } = useM1();
   const g = s.game ? gameById(s.game.id) : null;
-  const rows = [...s.players].sort((a, b) => (s.lastBonus?.[b.id] ?? 0) - (s.lastBonus?.[a.id] ?? 0));
+  const rows = s.players.filter((p) => (s.lastBonus?.[p.id] ?? 0) > 0 || p.bonus > 0);
   return (
     <div className="screen">
       <TopBar title={g ? `${g.name} – Ergebnis` : 'Ergebnis'} />
       <Confetti duration={2500} />
       <div className="panel stack">
-        <h2>Bonusfelder für die nächste Runde</h2>
-        <p className="muted">Zusätzlich zur gewürfelten Augenzahl vorgehen:</p>
+        <span className="bonus-kicker" style={{ alignSelf: 'flex-start' }}>Bonusrunde</span>
+        <h2>Jetzt gehen alle ihre Bonusfelder</h2>
+        <p style={{ margin: 0 }}>
+          Wer vor dem Minispiel dran war, beginnt – danach der Reihe nach wie beim Würfeln. Anschließend ist ganz normal der Nächste dran.
+        </p>
+        <p className="bonus-note" style={{ margin: 0, fontSize: '0.95em' }}>Alle Sonderfelder ruhen: +2, −2, Tausch-, Ereignis- und Minispielfelder zählen dabei nicht.</p>
         <div className="list">
+          {rows.length === 0 && <p className="muted">Diesmal hat niemand Bonusfelder bekommen.</p>}
           {rows.map((p) => (
             <div className="list-item" key={p.id}>
               <span className="head grow" style={{ fontSize: '1.3em' }}>{p.name}</span>
-              <span className="badge green" style={{ fontSize: '1.1em' }}>+{s.lastBonus?.[p.id] ?? 0} aus diesem Spiel</span>
-              <span className="badge">insgesamt +{p.bonus}</span>
+              <span className="badge green" style={{ fontSize: '1.2em' }}>+{p.bonus} {p.bonus === 1 ? 'Feld' : 'Felder'}</span>
             </div>
           ))}
         </div>
       </div>
       <div className="row center">
-        <button className="btn gold big" onClick={() => update((d) => { d.game = null; d.phase = 'overview'; })}>Zur Übersicht</button>
+        <button className="btn gold big" onClick={() => update((d) => { d.players.forEach((p) => (p.bonus = 0)); d.game = null; d.phase = 'overview'; })}>✔ Alle sind gegangen</button>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { PlayerView, BOARD, gameById } from '@kronen/shared';
-import { BoardLayer, CrownTable, statusText, useLeft, playerName, displayName, tokenLetter, useViewport, RotateHint } from '../common';
+import { BoardLayer, CrownTable, statusText, useLeft, playerName, displayName, tokenLetter, useViewport, RotateHint, BonusAnsage } from '../common';
 import { Die, Dot, FieldBadge } from '../../components/ui';
 import { CrownSvg, TokenSvg } from '../../components/icons';
 import { Confetti } from '../../components/Decor';
@@ -72,6 +72,7 @@ export function BoardGame({ v, send, onExit, onClose }: { v: PlayerView; send: S
       )}
       {ph.k === 'intro' && <IntroOverlay v={v} send={send} />}
       {ph.k === 'gewuerfelt' && <DiceOverlay v={v} land={land} />}
+      {ph.k === 'bonusStart' && <div className="phone-overlay" style={{ background: 'rgba(10,5,2,.35)', pointerEvents: 'none' }}><BonusAnsage v={v} /></div>}
       {(ph.k === 'karteZiehen' || ph.k === 'karte') && <CardOverlay v={v} send={send} land={land} h={h} />}
       {ph.k === 'sieg' && <VictoryOverlay v={v} send={send} onExit={onExit} onClose={onClose} land={land} />}
     </div>
@@ -120,13 +121,13 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
           </span>
         </span>
       </div>
-      <div className="side-status">{myTurn && ph.k === 'wuerfeln' ? 'Du bist dran!' : statusText(v)}</div>
+      {v.bonusRunde && <div className="side-bonus">Bonusrunde – Sonderfelder ruhen</div>}
+      <div className="side-status">{myTurn && ph.k === 'wuerfeln' ? 'Du bist dran!' : myTurn && v.bonusRunde && ph.k === 'richtung' ? 'Deine Bonusfelder!' : statusText(v)}</div>
       {myTurn && ph.k === 'wuerfeln' && (
         <>
           <button className="btn red big block" disabled={rolling} onClick={() => { setRolling(true); send({ t: 'act', a: { t: 'roll' } }); }}>
             {rolling ? <Die value={1} rolling size="0.9em" /> : null} Würfeln
           </button>
-          {me.bonus > 0 && <span className="small center">+{me.bonus} Bonusfelder kommen dazu</span>}
           <span className="small muted center">Tippen oder Handy schütteln</span>
         </>
       )}

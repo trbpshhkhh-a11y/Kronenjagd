@@ -227,7 +227,7 @@ describe('Zugablauf', () => {
     }
     counts.forEach((c) => expect(c).toBeGreaterThan(850));
   });
-  it('Bonusfelder werden im nächsten Zug addiert und danach gelöscht', () => {
+  it('übrige Bonusfelder (Altstand) werden beim Wurf addiert und danach gelöscht', () => {
     const { s, rng, t } = setup(2);
     toTurnPhase(s, rng, t);
     const p = currentPlayer(s)!;
@@ -623,8 +623,8 @@ describe('Minispiele & Ansichten', () => {
     expect(inner.stage).toBe('loesung');
     expect(inner.scores).toEqual([1, 0, 1, 0]);
     // bis zum Ende ohne weitere Antworten: Bonus = richtige Antworten
-    advance(s, rng, t, 5 * 30000);
-    const bonus = Object.fromEntries(s.players.map((p) => [p.id, p.bonus]));
+    for (let k = 0; k < 2000 && s.mini?.stage !== 'ergebnis'; k++) advance(s, rng, t, 250, 250);
+    const bonus = s.mini!.result!.bonus;
     expect([bonus[ids[0]], bonus[ids[1]], bonus[ids[2]], bonus[ids[3]]]).toEqual([1, 0, 1, 0]);
   });
 
@@ -660,19 +660,25 @@ describe('Minispiele & Ansichten', () => {
     expect(inner.termIdx).toBe(1);
   });
 
-  it('Nach dem Minispiel ist der nächste Spieler dran, Bonus zählt im nächsten Zug', () => {
+  it('Nach dem Minispiel: Bonusrunde, danach ist der Nächste dran und würfelt ohne Bonus', () => {
     const { s, t, rng } = startMini('zahlen', 4);
     const before = s.turn;
     const inner = s.mini!.inner as any;
     for (const r of inner.raters) playerAction(s, r, { t: 'mini', a: { k: 'zahlTipp', value: inner.secret } }, { rng, now: t.now });
     advance(s, rng, t, 10000);
     hostAction(s, { t: 'weiter' }, { rng, now: t.now });
+    expect(s.bonusRunde).not.toBeNull();
+    // alle Bonuszüge ablaufen lassen (Richtung per Zeitablauf)
+    for (let k = 0; k < 2000 && s.bonusRunde; k++) {
+      if (s.phase.k === 'richtung') playerAction(s, currentPlayer(s)!.id, { t: 'direction', key: s.phase.options[0].key }, { rng, now: t.now });
+      advance(s, rng, t, 250, 250);
+    }
+    expect(s.bonusRunde).toBeNull();
     expect(s.phase.k).toBe('wuerfeln');
     expect(s.turn).toBe((before + 1) % 4);
-    const p = currentPlayer(s)!;
-    expect(p.bonus).toBe(5);
+    expect(s.players.every((p) => p.bonus === 0)).toBe(true);
     rollWith(s, t, 1);
-    expect(s.phase).toMatchObject({ total: 6 });
+    expect(s.phase).toMatchObject({ total: 1 });
   });
 
   it('jedes Spiel läuft komplett durch (ohne Eingaben, nur Timer)', () => {
@@ -683,6 +689,88 @@ describe('Minispiele & Ansichten', () => {
       expect(s.phase.k).toBe('wuerfeln');
       expect(s.mini).toBeNull();
     }
+  });
+});
+
+describe('Bonusrunde nach dem Minispiel', () => {
+  /** Minispiel-Ende simulieren: Ergebnis mit Bonus, dann „Weiter“ */
+  function afterMini(bonus: number[], seed = 3) {
+    const { s, rng, t } = setup(4, seed);
+    toTurnPhase(s, rng, t);
+    s.turn = 1; // Spieler mit Zug-Index 1 war dran
+    startMinigame(s, 'schaetzen', null, { rng, now: t.now });
+    advance(s, rng, t, 10000);
+    s.order.forEach((id, i) => (s.players.find((p) => p.id === id)!.bonus = bonus[i]));
+    s.mini!.stage = 'ergebnis';
+    s.mini!.result = { bonus: {}, rows: [] };
+    s.mini!.until = t.now;
+    advance(s, rng, t, 250);
+    return { s, rng, t };
+  }
+  const idAt = (s: GameState, i: number) => s.order[i];
+
+  it('Reihenfolge: zuerst wer dran war, dann der Reihe nach; ohne Bonus wird übersprungen', () => {
+    const { s, rng, t } = afterMini([4, 2, 0, 3]);
+    const moved: string[] = [];
+    for (let k = 0; k < 2000 && s.bonusRunde; k++) {
+      if (s.phase.k === 'bonusStart' && moved[moved.length - 1] !== s.phase.id) {
+        moved.push(s.phase.id);
+        expect(currentPlayer(s)!.id).toBe(s.phase.id);
+      }
+      if (s.phase.k === 'richtung') playerAction(s, currentPlayer(s)!.id, { t: 'direction', key: s.phase.options[0].key }, { rng, now: t.now });
+      advance(s, rng, t, 250, 250);
+    }
+    expect(moved).toEqual([idAt(s, 1), idAt(s, 3), idAt(s, 0)]);
+    // danach ist der Spieler nach dem dran, der vor dem Minispiel dran war
+    expect(s.phase.k).toBe('wuerfeln');
+    expect(s.turn).toBe(2);
+  });
+  it('Bonusschritte = Bonus, Richtung wählbar, Sonderfelder ruhen (kein +2, keine Karte, kein Minispiel)', () => {
+    const { s, rng, t } = afterMini([0, 2, 0, 0]);
+    const p = currentPlayer(s)!;
+    expect(s.phase).toMatchObject({ k: 'bonusStart', id: p.id, schritte: 2 });
+    expect(p.bonus).toBe(0);
+    // von Feld 2 aus 2 Schritte Richtung 4 (grünes +2-Feld)
+    p.pos = 2;
+    s.trail = [2];
+    advance(s, rng, t, 2500);
+    expect(s.phase.k).toBe('richtung');
+    choose(s, p.id, 3, rng, t);
+    expect(s.phase).toMatchObject({ k: 'bewegen', effects: false, grund: 'bonus' });
+    advance(s, rng, t, 3000);
+    expect(p.pos).toBe(4);
+    expect(fieldType(4)).toBe('plus2');
+    // kein Effekt: Bonusrunde vorbei, normaler Zug des Nächsten
+    expect(s.bonusRunde).toBeNull();
+    expect(s.phase.k).toBe('wuerfeln');
+    expect(s.turn).toBe(2);
+    expect(s.mini).toBeNull();
+  });
+  it('Kronen werden auch in der Bonusrunde eingesammelt', () => {
+    const { s, rng, t } = afterMini([0, 1, 0, 0]);
+    const p = currentPlayer(s)!;
+    p.pos = 5;
+    s.trail = [5];
+    s.crowns[0].field = 6;
+    s.crowns[0].value = 1;
+    advance(s, rng, t, 2500);
+    choose(s, p.id, 6, rng, t);
+    advance(s, rng, t, 2000);
+    expect(p.pos).toBe(6);
+    expect(p.kronen).toBe(1);
+  });
+  it('Ansicht zeigt die Bonusrunde (für die ruhenden Sonderfelder)', () => {
+    const { s, t } = afterMini([1, 1, 0, 0]);
+    const v = viewForHost(s, t.now);
+    expect(v.bonusRunde).toEqual({ mover: idAt(s, 1), queue: [idAt(s, 0)] });
+  });
+  it('getrennte Spieler halten die Bonusrunde nicht auf', () => {
+    const { s, rng, t } = afterMini([0, 3, 0, 0]);
+    setConnected(s, idAt(s, 1), false, t.now);
+    advance(s, rng, t, 2500);
+    advance(s, rng, t, 4000);
+    expect(s.bonusRunde).toBeNull();
+    expect(s.phase.k).toBe('wuerfeln');
   });
 });
 

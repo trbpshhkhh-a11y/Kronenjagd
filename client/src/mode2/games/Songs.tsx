@@ -66,9 +66,12 @@ function useLaeuft(inner: any) {
 
 function TonAn({ big }: { big?: boolean }) {
   return (
-    <button className={`btn gold ${big ? 'huge' : 'big'} block`} onClick={unlockAudio}>
-      🔊 Ton einschalten
-    </button>
+    <div className="stack" style={{ gap: 4, alignItems: 'center', width: '100%' }}>
+      <button className={`btn gold ${big ? 'huge' : 'big'} block`} onClick={unlockAudio}>
+        🔊 Ton einschalten
+      </button>
+      <span className="small muted center">Kein Ton? Lautstärke prüfen – am iPhone den Lautlos-Schalter ausschalten.</span>
+    </div>
   );
 }
 

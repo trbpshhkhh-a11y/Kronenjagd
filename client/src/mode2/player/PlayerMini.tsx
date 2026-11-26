@@ -84,7 +84,7 @@ export function PlayerMini({ v, send }: { v: PlayerView; send: Send }) {
         <div className="stack">
           <Confetti duration={2500} />
           <div className="card center">
-            <h3>Deine Bonusfelder für den nächsten Zug</h3>
+            <h3>Deine Bonusfelder – gleich in der Bonusrunde</h3>
             <div className="mega" style={{ color: 'var(--green)', textShadow: 'none' }}>+{m.result.bonus[v.me.id] ?? 0}</div>
           </div>
           {v.iAmLeader && <button className="btn gold" onClick={() => host({ t: 'weiter' })}>Weiter</button>}

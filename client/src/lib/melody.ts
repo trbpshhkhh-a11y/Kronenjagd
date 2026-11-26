@@ -15,18 +15,50 @@ let ctx: AudioContext | null = null;
 const listeners = new Set<() => void>();
 
 function audio(): AudioContext | null {
-  if (ctx) return ctx;
+  if (ctx && ctx.state !== 'closed') return ctx;
   const C = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!C) return null;
+  // iPhone/iPad (ab iOS 17): Ton auch bei eingeschaltetem Lautlos-Schalter abspielen
+  try {
+    const as = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (as) as.type = 'playback';
+  } catch {
+    /* nicht unterstützt */
+  }
   ctx = new C();
   ctx.onstatechange = () => listeners.forEach((f) => f());
   return ctx;
 }
 
+/**
+ * Ältere iPhones: Web-Ton bleibt bei Lautlos-Schalter stumm. Ein leiser, endlos laufender
+ * <audio>-Ton (gestartet bei einer Berührung) schaltet auf „Medien“ um – dann hört man alles.
+ */
+let stillerTon: HTMLAudioElement | null = null;
+function stillerTonAn() {
+  if (stillerTon || typeof Audio === 'undefined') return;
+  try {
+    const sr = 8000, n = sr / 2;
+    const buf = new ArrayBuffer(44 + n * 2);
+    const v = new DataView(buf);
+    const w = (o: number, t: string) => [...t].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    const el = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+    el.loop = true;
+    el.setAttribute('playsinline', '');
+    el.play().then(() => (stillerTon = el)).catch(() => {});
+  } catch {
+    /* egal */
+  }
+}
+
 /** Ton freischalten (Browser erlauben Ton erst nach einer Berührung) */
 export function unlockAudio() {
   const c = audio();
-  if (!c || c.state === 'running') return;
+  if (!c) return;
+  if (/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document) stillerTonAn();
+  if (c.state === 'running') return;
   c.resume().catch(() => {});
   try {
     // iOS: ein stiller Ton innerhalb der Berührung schaltet frei
@@ -37,6 +69,13 @@ export function unlockAudio() {
   } catch {
     /* egal */
   }
+}
+
+/** Nach Bildschirmsperre / App-Wechsel den Ton wieder aufnehmen */
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+  });
 }
 
 export const audioBereit = () => !!ctx && ctx.state === 'running';
@@ -114,6 +153,8 @@ export function abspielen(m: Melodie, opts: { rueckwaerts: boolean; at?: number;
   const p = puffer(m);
   if (!c || !p) return () => {};
   const buf = opts.rueckwaerts ? p.rueck : p.vor;
+  // pausierter Ton (z. B. nach Bildschirmsperre): wieder aufnehmen
+  if (c.state !== 'running') c.resume().catch(() => {});
   const src = c.createBufferSource();
   src.buffer = buf;
   const gain = c.createGain();

@@ -79,7 +79,9 @@ export type Phase =
   | { k: 'wuerfeln' }
   | { k: 'gewuerfelt'; wurf: number; bonus: number; total: number; until: number }
   | { k: 'richtung'; remaining: number; options: MoveOption[]; until: number }
-  | { k: 'bewegen'; path: number[]; idx: number; remainingAfter: number; effects: boolean; nextAt: number; grund: 'zug' | 'plus2' | 'minus2' }
+  | { k: 'bewegen'; path: number[]; idx: number; remainingAfter: number; effects: boolean; nextAt: number; grund: 'zug' | 'plus2' | 'minus2' | 'bonus' }
+  /** Bonusrunde: dieser Spieler darf gleich seine Bonusfelder gehen */
+  | { k: 'bonusStart'; id: string; schritte: number; until: number }
   | { k: 'karteZiehen'; until: number }
   | { k: 'karte'; card: CardId; stage: 'zeigen' | 'wahl' | 'fertig'; until: number; ziel?: number; info?: string; /** true = gelbes Feld statt Ereigniskarte */ feld?: boolean }
   | { k: 'minispiel' }
@@ -118,6 +120,20 @@ export interface GameState {
   turnNo: number;
   /** Felder, die im aktuellen Zug betreten wurden (inkl. Start) */
   trail: number[];
+  /**
+   * Bonusrunde nach einem Minispiel: alle gehen nacheinander ihre Bonusfelder
+   * (ab dem Spieler, der dran war). Sonderfelder ruhen in dieser Zeit.
+   */
+  bonusRunde: BonusRunde | null;
+}
+
+export interface BonusRunde {
+  /** Zug-Index des Spielers, der vor dem Minispiel dran war */
+  origin: number;
+  /** wer noch Bonusfelder gehen darf (in dieser Reihenfolge) */
+  queue: string[];
+  /** wer gerade geht */
+  mover: string | null;
 }
 
 export interface Ctx {

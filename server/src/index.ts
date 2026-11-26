@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   ClientMessage, ServerMessage, viewForHost, viewForPlayer, startGame, updateSettings, renamePlayer, playerAction, hostAction,
-  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick,
+  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick, startBonusRunde,
 } from '@kronen/shared';
 import { LobbyManager, Lobby, LobbyError } from './lobbies';
 
@@ -291,6 +291,19 @@ function handle(c: Conn, msg: ClientMessage) {
         lobby.state.cardDeck = { size: lobby.state.cardDeck.size, remaining: [d.card ?? 0] };
         lobby.state.phase = { k: 'karteZiehen', until: now + 30000 };
       }
+      lobby.state.version++;
+      return broadcast(lobby);
+    }
+    case 'debugBonus' as string: {
+      // Nur für Entwickler-Tests (KJ_DEBUG=1): Bonusrunde mit vorgegebenen Bonusfeldern starten
+      if (process.env.KJ_DEBUG !== '1') throw new GameError('Unbekannte Nachricht');
+      const lobby = requireLeader(c);
+      const bonus = (msg as unknown as { bonus: number[] }).bonus ?? [];
+      lobby.state.order.forEach((id, i) => {
+        const p = lobby.state.players.find((x) => x.id === id);
+        if (p) p.bonus = Math.max(0, Math.min(10, Number(bonus[i]) || 0));
+      });
+      startBonusRunde(lobby.state, ctx);
       lobby.state.version++;
       return broadcast(lobby);
     }

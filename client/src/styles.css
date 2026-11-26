@@ -890,3 +890,16 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 .sg-player .card { padding: 12px; }
 @media (max-height: 760px) and (max-width: 600px) { .sg-vinyl { --s: 96px; } .sg-bars { height: 26px; } }
 @media (orientation: landscape) and (max-height: 520px) { .sg-vinyl { --s: 80px; } .sg-bars { height: 22px; } }
+
+/* ---------- Bonusrunde ---------- */
+.board-ruhe { position: absolute; inset: 0; opacity: 0; transition: opacity 0.9s ease; pointer-events: none; }
+.board-ruhe.on { opacity: 1; }
+.bonus-ansage { background: linear-gradient(180deg, #fffaf0, #f3e2bd); color: var(--ink); border: 4px solid var(--gold); border-radius: 22px; padding: 14px 22px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5); text-align: center; animation: pop 0.45s both; max-width: min(92vw, 560px); }
+.bonus-ansage.big { padding: 34px 60px; max-width: 1200px; font-size: 44px; border-width: 6px; border-radius: 34px; }
+.bonus-kicker { display: inline-block; font-family: var(--font-head); font-weight: 700; color: #fff; background: linear-gradient(180deg, #5cb85c, #2e7d32); border-radius: 999px; padding: 0.1em 0.9em; font-size: 0.85em; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.4em; }
+.bonus-who { display: flex; align-items: center; justify-content: center; gap: 0.5em; font-family: var(--font-head); font-size: 1.35em; line-height: 1.15; }
+.bonus-token { width: 1.6em; height: 1.85em; flex: 0 0 auto; }
+.bonus-n { color: var(--green); font-size: 1.3em; }
+.bonus-next { margin-top: 0.4em; font-size: 0.8em; opacity: 0.85; }
+.bonus-note { margin-top: 0.35em; font-size: 0.72em; color: var(--red-dark); font-weight: 700; }
+.side-bonus { background: linear-gradient(180deg, #5cb85c, #2e7d32); color: #fff; border-radius: 12px; padding: 4px 8px; font-family: var(--font-head); font-size: 0.9em; text-align: center; }

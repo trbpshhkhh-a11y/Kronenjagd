@@ -76,8 +76,8 @@ Optional kannst du unter **Settings → Secrets and variables → Actions → Va
 ### Modus 1 – Mit Spielbrett
 1. Mitspieler eintragen (mindestens 2), optional „Kronen zum Sieg“ (Standard 5, abschaltbar) und Timer für Stadt Land Fluss einstellen.
 2. Die App lost die **Startfelder** und die **Position der Krone** aus (mit Animation). Die erste Krone landet nie auf einem Startfeld. Wo die Figuren später stehen, weiß die App in Modus 1 nicht – beim Weiterlosen achtet ihr selbst darauf.
-3. **Übersicht**: Kronen, Startfelder und Bonusfelder aller Spieler sowie die Kronenposition. Buttons „Nächstes Spiel auslosen“, „Krone zuordnen“ und „Bonusfelder verbraucht“.
-4. Nach jedem Spiel tragt ihr die Ergebnisse ein. Die App berechnet daraus die **Bonusfelder**, die man in der nächsten Runde zusätzlich zur Augenzahl vorgehen darf.
+3. **Übersicht**: Kronen, Startfelder und Bonusfelder aller Spieler sowie die Kronenposition. Buttons „Nächstes Spiel auslosen“ und „Krone zuordnen“.
+4. Nach jedem Spiel tragt ihr die Ergebnisse ein. Die App berechnet daraus die **Bonusfelder**. Die werden sofort in der **Bonusrunde** gegangen: zuerst, wer vor dem Minispiel dran war, dann der Reihe nach. Alle Sonderfelder ruhen dabei. Danach ist ganz normal der Nächste dran.
 5. **Geheime Inhalte** (Montagsmaler, Begriffe erklären, Zahlen erraten) erscheinen nie auf dem Hauptscreen. Die App zeigt einen **QR-Code**: Der Zeichner/Erklärer/Kenner scannt ihn mit dem eigenen Handy. Der Inhalt steckt verschlüsselt in der URL, dafür ist kein Server nötig. Alternativ gibt es „Auf diesem Gerät anzeigen“ mit Gedrückthalten.
 
 Der Spielstand liegt im `localStorage`. Versehentliches Neuladen schadet also nicht.
@@ -97,7 +97,7 @@ Ein Hauptscreen kann sich auch **nachträglich dazuschalten**, sogar während de
 1. Sobald das Spiel läuft, wird im **Querformat** gespielt: Das ganze Brett füllt den Bildschirm, Kronentafel, Status und der Würfeln-Button liegen am Rand. (Hochkant erscheint ein Hinweis zum Drehen, auf Android gibt es einen Button „Vollbild & Querformat“.)
 2. Wer dran ist, würfelt und **tippt die Richtung direkt auf dem Brett an**: Die möglichen Wege leuchten in verschiedenen Farben, angetippt werden kann jedes leuchtende Feld. Die Feldnummern sind nur Orientierung, gezogen wird entlang der Strecke im Bild. Kommt die Figur an eine **Abzweigung**, entscheidet der Spieler dort neu, wohin die restlichen Felder gehen.
 3. Es liegen immer **2 Kronen** auf dem Brett (30 % Chance auf eine **große Krone** mit 2 Punkten). Wer auf einer Krone landet oder über sie hinwegzieht, bekommt sie. Kronen werden **nie auf ein Feld gelost, auf dem gerade ein Spieler steht** (oder eine andere Krone liegt).
-4. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird vom Stapel gezogen und aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder für den nächsten Zug). Das Minispiel wird mit einem Spielautomaten (einarmiger Bandit) ausgelost. Minispiele laufen auf dem Handy ebenfalls im Querformat, zweispaltig.
+4. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird vom Stapel gezogen und aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder). Das Minispiel wird mit einem Spielautomaten (einarmiger Bandit) ausgelost. Minispiele laufen auf dem Handy ebenfalls im Querformat, zweispaltig.
 5. Ohne Hauptscreen zeigt jedes Handy zusätzlich die Kronentafel, den Würfel, die Ereigniskarte und in den Minispielen alles, was sonst der Fernseher zeigt (Aufgaben, Bild bei „Gegenstände merken“, Zeichnung beim Montagsmaler live, Ranglisten). Geheime Inhalte bleiben geheim.
 
 **Rückwärts-Songs (beide Modi):** Die App spielt ein bekanntes Lied rückwärts ab, jeder loggt den Titel ein (mit Spielbrett: aufschreiben). Richtig = ein Punkt, 5 Lieder. Kleine Tippfehler und Teiltitel zählen („Tannenbaum“). Die Melodien erzeugt die App selbst (Weihnachtslieder, Kinderlieder, Klassik, Volkslieder in `shared/src/content/songs.ts`) – es werden keine Aufnahmen verwendet, weil Aufnahmen bekannter Pop-Songs urheberrechtlich geschützt sind. In Modus 2 spielt der Hauptscreen das Lied in Dauerschleife; ohne Hauptscreen spielen alle Handys gleichzeitig. Browser erlauben Ton erst nach einer Berührung – notfalls erscheint „Ton einschalten“.
@@ -167,14 +167,13 @@ Vorgegebene, über Konstanten änderbare Annahmen:
 - Kronen werden auch **beim Vorbeiziehen** eingesammelt, nicht nur beim Landen.
 - Gelbe Kreispfeil-Felder bedeuten in Modus 2 **„Position mit einem beliebigen Mitspieler tauschen“** (wie die Ereigniskarte Spielertausch, 30 s Zeit, danach kein Tausch).
 - +2 und −2 werden in Modus 2 automatisch ausgeführt, die Folgefelder lösen keine Effekte aus (Kronen werden dabei aber eingesammelt). +2 geht in Laufrichtung weiter (an einer Weiche geradeaus), −2 geht den gerade gelaufenen Weg zurück.
-- Bei Minispielen spielen **alle** mit, die Belohnung sind **Bonusfelder** für den nächsten Zug (keine Kronen).
+- Bei Minispielen spielen **alle** mit, die Belohnung sind **Bonusfelder** (keine Kronen). Sie werden direkt nach dem Spiel in der **Bonusrunde** gegangen: zuerst der Spieler, der vor dem Minispiel dran war, dann in Zugreihenfolge; jeder wählt die Richtung selbst. In dieser Zeit ruhen alle Sonderfelder (+2, −2, Tausch, Ereignis, Minispiel) und werden auf dem Brett als normale Felder gezeigt. Kronen werden aber eingesammelt. Danach ist der Spieler nach dem dran, der vor dem Minispiel dran war.
 - Gezogen wird entlang der Strecke im Bild, nicht nach Feldnummern (siehe Hinweise zum Brett).
 - Ein Hauptscreen ist optional. Ist einer da, spielt er nicht mit.
 
 Eigene Annahmen (einfachste sinnvolle Lösung):
 - **Würfel-Einstellung:** Gespielt wird mit einem normalen Würfel (1 bis 6). In den Lobby-Einstellungen wird das nur angezeigt, nicht verändert.
 - **Spiele mit 2 Teams** (Stirnraten, Montagsmaler) werden in beiden Modi erst ab 4 Spielern ausgelost. Spiele mit Zweier-Teams gehen ab 2 Spielern.
-- **Bonusfelder** aus mehreren Spielen addieren sich, solange sie nicht verbraucht sind.
 - **Game of 7:** Ein Fehlversuch setzt auf 0, das Team wirft in der nächsten Runde aber die aktuelle Aufprallzahl mit. Am Spielende zählt die erreichte Stufe auch bei Teams, die nicht eingeloggt haben. In Modus 2 ist das Spiel standardmäßig aktiv und kann in der Lobby abgeschaltet werden.
 - **Zahlen erraten:** Die Kenner nennen Begriffe, deren „Größe“ zur Zahl passt (1 = winzig/wenig, 10 = riesig/sehr viel). In einem Dreierteam gibt es zwei Kenner. In Modus 2 läuft dafür ein Timer von 180 s (einstellbar).
 - **Begriffe erklären:** Jedes Team spielt 2 Durchgänge, der Erklärer wechselt. In Modus 1 zeigt die Geheimansicht 12 Begriffe pro Durchgang.

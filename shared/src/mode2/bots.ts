@@ -63,7 +63,7 @@ export function botPlan(v: PlayerView, level: BotLevel, opts: BotOptions = {}): 
       return { sig: `roll-${t}`, delay: D, act: () => ({ t: 'roll' }) };
     case 'richtung':
       return {
-        sig: `dir-${t}-${ph.remaining}-${v.me.pos}`,
+        sig: `dir-${t}-${v.bonusRunde ? 'bonus' : 'zug'}-${ph.remaining}-${v.me.pos}`,
         delay: [1200, 2800],
         act: (rng) => ({ t: 'direction', key: chooseDirection(v, level, rng) }),
       };

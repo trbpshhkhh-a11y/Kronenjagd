@@ -62,7 +62,7 @@ export function HostMini({ v, send }: { v: HostView; send: Send }) {
         {m.stage === 'ergebnis' && m.result && (
           <div className="stack" style={{ alignItems: 'center', gap: 20 }}>
             <Confetti duration={3000} />
-            <h2 style={{ fontSize: 56 }}>Rangliste – Bonusfelder für den nächsten Zug</h2>
+            <h2 style={{ fontSize: 56 }}>Rangliste – gleich geht’s in die Bonusrunde</h2>
             <div className="stack" style={{ width: P ? '100%' : 1200, gap: 12 }}>
               {m.result.rows.map((r, i) => (
                 <div key={i} className="list-item" style={{ fontSize: 38 }}>
