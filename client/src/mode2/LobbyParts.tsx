@@ -3,7 +3,8 @@ import {
   BaseView, GAMES, GameId, TIMER_LABELS, TimerSettings, BOT_LEVELS, BOT_LEVEL_LABEL, MAX_SPIELER, requiredHumans,
 } from '@kronen/shared';
 import { Stepper, Die, Modal } from '../components/ui';
-import { TokenSvg, CrownSvg } from '../components/icons';
+import { CrownSvg } from '../components/icons';
+import { AvatarFace } from '../components/Avatar';
 import { createPortal } from 'react-dom';
 import { QR } from '../components/QR';
 import { absoluteUrl } from '../lib/router';
@@ -15,7 +16,7 @@ type Send = (m: any) => void;
  * Spielerleiste der Lobby: Figuren auf einem Holzsims.
  * Die Lobby-Leitung kann Bots hinzufügen (+ Bot), ihre Schwierigkeit umschalten (Antippen) und Spieler entfernen.
  */
-export function PlayerShelf({ v, send, canEdit, meId, big }: { v: BaseView; send: Send; canEdit: boolean; meId?: string; big?: boolean }) {
+export function PlayerShelf({ v, send, canEdit, meId, big, onEditMe }: { v: BaseView; send: Send; canEdit: boolean; meId?: string; big?: boolean; onEditMe?: () => void }) {
   const full = v.players.length >= MAX_SPIELER;
   const many = v.players.length + (canEdit ? 1 : 0) > 6;
   const nextLevel = (l: (typeof BOT_LEVELS)[number]) => BOT_LEVELS[(BOT_LEVELS.indexOf(l) + 1) % BOT_LEVELS.length];
@@ -29,7 +30,11 @@ export function PlayerShelf({ v, send, canEdit, meId, big }: { v: BaseView; send
       <div className="shelf-grid">
         {v.players.map((p) => (
           <div key={p.id} className={`ptile ${p.id === meId ? 'me' : ''}`}>
-            <span className="ptile-token"><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
+            {p.id === meId && onEditMe ? (
+              <button className="ptile-token edit" onClick={onEditMe} aria-label="Figur gestalten"><AvatarFace a={p.avatar} color={p.color} /><span className="ptile-pen">✎</span></button>
+            ) : (
+              <span className="ptile-token"><AvatarFace a={p.avatar} color={p.color} /></span>
+            )}
             <span className="ptile-name">
               <span className="ellipsis">{p.bot ? p.name.replace(/^Bot /, '') : p.name}</span>
               {p.bot ? (

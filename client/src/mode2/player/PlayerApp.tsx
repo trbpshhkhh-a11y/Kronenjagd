@@ -9,6 +9,7 @@ import { emitRt } from '../rtBus';
 import { PlayerShelf, SettingsButton, GiftTag } from '../LobbyParts';
 import { Modal, Confirm } from '../../components/ui';
 import { PlayerMini } from './PlayerMini';
+import { AvatarEditor, savedAvatar } from '../../components/AvatarEditor';
 import { BoardGame } from './BoardGame';
 
 export default function PlayerApp({ initialCode = '' }: { initialCode?: string }) {
@@ -79,7 +80,7 @@ function JoinForm({ initialCode, conn, notice }: { initialCode: string; conn: Re
       <div className="topbar"><button className="btn ghost sm" onClick={() => go('/nur-app')}>⬅ Zurück</button></div>
       <h1 className="gold center">Lobby beitreten</h1>
       {notice && <p className="center err">{notice}</p>}
-      <form className="panel stack" onSubmit={(e) => { e.preventDefault(); if (!valid) return; setBusy(true); conn.clearError(); conn.send({ t: 'join', code, name: name.trim() }); }}>
+      <form className="panel stack" onSubmit={(e) => { e.preventDefault(); if (!valid) return; setBusy(true); conn.clearError(); conn.send({ t: 'join', code, name: name.trim(), avatar: savedAvatar() ?? undefined }); }}>
         <label className="stack" style={{ gap: 6 }}>
           <b>Lobby-Code (steht auf dem Hauptscreen)</b>
           <input className="input code" value={code} maxLength={CODE_LENGTH} autoCapitalize="characters" autoComplete="off" inputMode="text" onChange={(e) => setCode(normalizeCode(e.target.value))} placeholder="ABCDE" />
@@ -100,8 +101,7 @@ function JoinForm({ initialCode, conn, notice }: { initialCode: string; conn: Re
 }
 
 function WaitingRoom({ v, send, onLeave }: { v: PlayerView; send: Send; onLeave: () => void }) {
-  const [edit, setEdit] = useState(false);
-  const [name, setName] = useState(v.me.name);
+  const [figur, setFigur] = useState(false);
   const [ask, setAsk] = useState(false);
   const leader = v.players.find((p) => p.id === v.leaderId);
   const humans = v.players.filter((p) => !p.bot).length;
@@ -112,7 +112,7 @@ function WaitingRoom({ v, send, onLeave }: { v: PlayerView; send: Send; onLeave:
         <span className="head gold">Kronen sammeln</span>
       </div>
       <GiftTag code={v.code} />
-      <PlayerShelf v={v} send={send} canEdit={v.iAmLeader} meId={v.me.id} />
+      <PlayerShelf v={v} send={send} canEdit={v.iAmLeader} meId={v.me.id} onEditMe={() => setFigur(true)} />
       {!v.iAmLeader && (
         <p className="center small lobby-wait">
           {v.screenMode && v.hostConnected ? 'Warte, bis der Hauptscreen das Spiel startet …' : `Warte, bis ${leader ? leader.name : 'die Lobby-Leitung'} das Spiel startet …`}
@@ -120,7 +120,7 @@ function WaitingRoom({ v, send, onLeave }: { v: PlayerView; send: Send; onLeave:
       )}
       <div className="lobby-actions">
         <SettingsButton v={v} send={send} canEdit={v.iAmLeader} className="sm" />
-        <button className="btn sm" onClick={() => setEdit(true)}>Name</button>
+        <button className="btn sm gold" onClick={() => setFigur(true)}>✎ Figur</button>
         <button className="btn sm ghost" onClick={() => setAsk(true)}>Verlassen</button>
       </div>
       {v.iAmLeader && (
@@ -129,14 +129,18 @@ function WaitingRoom({ v, send, onLeave }: { v: PlayerView; send: Send; onLeave:
         </button>
       )}
       {v.iAmLeader && !v.hostConnected && <p className="small center muted lobby-note">Gespielt wird im Querformat · ein Fernseher kann sich mit dem Code dazuschalten</p>}
-      {edit && (
-        <Modal onClose={() => setEdit(false)}>
-          <form className="panel stack" onSubmit={(e) => { e.preventDefault(); send({ t: 'rename', name }); setEdit(false); }}>
-            <h3>Namen ändern</h3>
-            <input className="input" value={name} maxLength={14} onChange={(e) => setName(e.target.value)} autoFocus />
-            <button className="btn green" type="submit">Speichern</button>
-          </form>
-        </Modal>
+      {figur && (
+        <AvatarEditor
+          initial={v.me.avatar}
+          color={v.me.color}
+          name={v.me.name}
+          onClose={() => setFigur(false)}
+          onSave={(a, nm) => {
+            send({ t: 'avatar', avatar: a });
+            if (nm && nm !== v.me.name) send({ t: 'rename', name: nm });
+            setFigur(false);
+          }}
+        />
       )}
       {ask && <Confirm text="Lobby verlassen?" yes="Verlassen" onYes={onLeave} onNo={() => setAsk(false)} />}
     </>

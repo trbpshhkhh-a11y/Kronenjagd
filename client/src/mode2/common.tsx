@@ -1,7 +1,9 @@
 import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BOARD, BaseView, PublicPlayer, Crown, MoveOption, gameById, CARD_TEXT } from '@kronen/shared';
 import boardImg from '@assets/spielbrett.png';
-import { TokenSvg, CrownSvg } from '../components/icons';
+import ruheImg from '../board/spielbrett-ruhe.png';
+import { CrownSvg } from '../components/icons';
+import { AvatarFace, Figur } from '../components/Avatar';
 import { useServerClock } from '../lib/hooks';
 
 export { boardImg };
@@ -114,6 +116,8 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
   return (
     <div className={`board-wrap ${onPick && previews?.length ? 'pickable' : ''}`} onClick={pick}>
       <img className="board-img" src={boardImg} alt="Spielbrett" draggable={false} />
+      {/* Bonusrunde: alle Sonderfelder ruhen und sehen wie normale Felder aus */}
+      <img className={`board-img board-ruhe ${view.bonusRunde ? 'on' : ''}`} src={ruheImg} alt="" aria-hidden draggable={false} />
       {previews?.map((o, k) => {
         const col = OPTION_COLORS[k % OPTION_COLORS.length];
         const t = fieldXY(o.target);
@@ -141,7 +145,7 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
         const dx = off.get(p.id) ?? 0;
         return (
           <div key={p.id} className={`token ${highlight === p.id ? 'turn' : ''} ${jump ? 'jump' : ''}`} style={{ left: `${x + dx}%`, top: `${y}%` }} title={p.name}>
-            <TokenSvg color={p.color} letter={tokenLetter(p)} />
+            <Figur a={p.avatar} color={p.color} title={p.name} />
           </div>
         );
       })}
@@ -206,7 +210,7 @@ export function CrownTable({ view, compact }: { view: BaseView; compact?: boolea
       <div className="stack" style={{ gap: 6 }}>
         {sorted.map((p) => (
           <div key={p.id} className="row" style={{ gap: 10, opacity: p.connected ? 1 : 0.5 }}>
-            <span className="dot" style={{ background: p.color }} />
+            <span className="ct-face"><AvatarFace a={p.avatar} color={p.color} /></span>
             <span className="grow" style={{ fontWeight: 800, outline: view.turnPlayerId === p.id ? undefined : undefined }}>
               {view.turnPlayerId === p.id ? '▶ ' : ''}{displayName(p)}
             </span>
@@ -234,9 +238,11 @@ export function statusText(v: BaseView): string {
     case 'gewuerfelt':
       return ph.bonus > 0 ? `${cur} würfelt ${ph.wurf} + ${ph.bonus} Bonus = ${ph.total} Felder` : `${cur} würfelt … ${ph.wurf}!`;
     case 'richtung':
-      return `${cur} wählt die Richtung (noch ${ph.remaining} ${ph.remaining === 1 ? 'Feld' : 'Felder'})`;
+      return `${v.bonusRunde ? 'Bonusrunde: ' : ''}${cur} wählt die Richtung (noch ${ph.remaining} ${ph.remaining === 1 ? 'Feld' : 'Felder'})`;
     case 'bewegen':
-      return ph.grund === 'plus2' ? `${cur}: +2 Felder` : ph.grund === 'minus2' ? `${cur}: −2 Felder` : `${cur} zieht …`;
+      return ph.grund === 'plus2' ? `${cur}: +2 Felder` : ph.grund === 'minus2' ? `${cur}: −2 Felder` : ph.grund === 'bonus' ? `Bonusrunde: ${cur} geht …` : `${cur} zieht …`;
+    case 'bonusStart':
+      return `Bonusrunde: ${playerName(v, ph.id)} darf ${ph.schritte} ${ph.schritte === 1 ? 'Feld' : 'Felder'} gehen`;
     case 'karteZiehen':
       return `${cur} zieht eine Ereigniskarte`;
     case 'karte':
@@ -271,4 +277,23 @@ export function useToast(view: BaseView | null) {
     return () => clearTimeout(id);
   }, [view?.toast?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   return shown;
+}
+
+/** Ansage der Bonusrunde: wer jetzt geht und wer danach dran ist */
+export function BonusAnsage({ v, big }: { v: BaseView; big?: boolean }) {
+  const ph = v.phase;
+  if (ph.k !== 'bonusStart' || !v.bonusRunde) return null;
+  const p = playerOf(v, ph.id);
+  const danach = v.bonusRunde.queue.map((id) => playerOf(v, id)).filter(Boolean) as PublicPlayer[];
+  return (
+    <div className={`bonus-ansage ${big ? 'big' : ''}`}>
+      <div className="bonus-kicker">Bonusrunde</div>
+      <div className="bonus-who">
+        {p && <span className="bonus-token"><AvatarFace a={p.avatar} color={p.color} /></span>}
+        <span><b>{p ? displayName(p) : '?'}</b> darf <b className="bonus-n">{ph.schritte}</b> {ph.schritte === 1 ? 'Feld' : 'Felder'} gehen</span>
+      </div>
+      {danach.length > 0 && <div className="bonus-next">Danach: {danach.map((x) => displayName(x)).join(', ')}</div>}
+      <div className="bonus-note">Alle Sonderfelder ruhen – sie zählen jetzt nicht.</div>
+    </div>
+  );
 }

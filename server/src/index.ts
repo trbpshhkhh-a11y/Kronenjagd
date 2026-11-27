@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   ClientMessage, ServerMessage, viewForHost, viewForPlayer, startGame, updateSettings, renamePlayer, playerAction, hostAction,
-  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick,
+  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick, startBonusRunde, setAvatar,
 } from '@kronen/shared';
 import { LobbyManager, Lobby, LobbyError } from './lobbies';
 
@@ -150,6 +150,7 @@ function handle(c: Conn, msg: ClientMessage) {
     }
     case 'createPlay': {
       const { lobby, playerId, token } = manager.createAsPlayer(String(msg.name ?? ''));
+      if (msg.avatar) try { setAvatar(lobby.state, playerId, msg.avatar); } catch { /* ungültig: Zufallsfigur behalten */ }
       attachPlayer(c, lobby, playerId);
       send(c, { t: 'joined', code: lobby.code, token, playerId });
       return broadcast(lobby, true);
@@ -178,6 +179,7 @@ function handle(c: Conn, msg: ClientMessage) {
     }
     case 'join': {
       const { lobby, playerId, token } = manager.join(String(msg.code), String(msg.name ?? ''), c.ip);
+      if (msg.avatar) try { setAvatar(lobby.state, playerId, msg.avatar); } catch { /* ungültig: Zufallsfigur behalten */ }
       attachPlayer(c, lobby, playerId);
       send(c, { t: 'joined', code: lobby.code, token, playerId });
       return broadcast(lobby, true);
@@ -199,6 +201,11 @@ function handle(c: Conn, msg: ClientMessage) {
         return closeLobby(lobby, 'Alle haben die Lobby verlassen.');
       }
       return broadcast(lobby, true);
+    }
+    case 'avatar': {
+      const { lobby, playerId } = requirePlayer(c);
+      setAvatar(lobby.state, playerId, msg.avatar);
+      return broadcast(lobby);
     }
     case 'rename': {
       const { lobby, playerId } = requirePlayer(c);
@@ -291,6 +298,19 @@ function handle(c: Conn, msg: ClientMessage) {
         lobby.state.cardDeck = { size: lobby.state.cardDeck.size, remaining: [d.card ?? 0] };
         lobby.state.phase = { k: 'karteZiehen', until: now + 30000 };
       }
+      lobby.state.version++;
+      return broadcast(lobby);
+    }
+    case 'debugBonus' as string: {
+      // Nur für Entwickler-Tests (KJ_DEBUG=1): Bonusrunde mit vorgegebenen Bonusfeldern starten
+      if (process.env.KJ_DEBUG !== '1') throw new GameError('Unbekannte Nachricht');
+      const lobby = requireLeader(c);
+      const bonus = (msg as unknown as { bonus: number[] }).bonus ?? [];
+      lobby.state.order.forEach((id, i) => {
+        const p = lobby.state.players.find((x) => x.id === id);
+        if (p) p.bonus = Math.max(0, Math.min(10, Number(bonus[i]) || 0));
+      });
+      startBonusRunde(lobby.state, ctx);
       lobby.state.version++;
       return broadcast(lobby);
     }

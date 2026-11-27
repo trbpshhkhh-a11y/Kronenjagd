@@ -6,9 +6,10 @@
  */
 import { useEffect, useState } from 'react';
 import { PlayerView, BOARD, gameById } from '@kronen/shared';
-import { BoardLayer, CrownTable, statusText, useLeft, playerName, displayName, tokenLetter, useViewport, RotateHint } from '../common';
+import { BoardLayer, CrownTable, statusText, useLeft, playerName, displayName, tokenLetter, useViewport, RotateHint, BonusAnsage } from '../common';
 import { Die, Dot, FieldBadge } from '../../components/ui';
-import { CrownSvg, TokenSvg } from '../../components/icons';
+import { CrownSvg } from '../../components/icons';
+import { AvatarFace } from '../../components/Avatar';
 import { Confetti } from '../../components/Decor';
 import { EventCardScene } from '../../components/EventCard';
 
@@ -72,6 +73,7 @@ export function BoardGame({ v, send, onExit, onClose }: { v: PlayerView; send: S
       )}
       {ph.k === 'intro' && <IntroOverlay v={v} send={send} />}
       {ph.k === 'gewuerfelt' && <DiceOverlay v={v} land={land} />}
+      {ph.k === 'bonusStart' && <div className="phone-overlay" style={{ background: 'rgba(10,5,2,.35)', pointerEvents: 'none' }}><BonusAnsage v={v} /></div>}
       {(ph.k === 'karteZiehen' || ph.k === 'karte') && <CardOverlay v={v} send={send} land={land} h={h} />}
       {ph.k === 'sieg' && <VictoryOverlay v={v} send={send} onExit={onExit} onClose={onClose} land={land} />}
     </div>
@@ -110,7 +112,7 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
   return (
     <div className="stack" style={{ gap: land ? 8 : 10 }}>
       <div className="side-me">
-        <span style={{ width: '2em', height: '2.3em', flexShrink: 0 }}><TokenSvg color={me.color} letter={tokenLetter(me)} /></span>
+        <span style={{ width: '2.3em', height: '2.3em', flexShrink: 0 }}><AvatarFace a={me.avatar} color={me.color} /></span>
         <span className="grow" style={{ minWidth: 0 }}>
           <b className="head ellipsis">{me.name}</b>
           {v.iAmLeader && <span className="badge" style={{ fontSize: '0.65em', marginLeft: 4 }}>Leitung</span>}
@@ -120,13 +122,13 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
           </span>
         </span>
       </div>
-      <div className="side-status">{myTurn && ph.k === 'wuerfeln' ? 'Du bist dran!' : statusText(v)}</div>
+      {v.bonusRunde && <div className="side-bonus">Bonusrunde – Sonderfelder ruhen</div>}
+      <div className="side-status">{myTurn && ph.k === 'wuerfeln' ? 'Du bist dran!' : myTurn && v.bonusRunde && ph.k === 'richtung' ? 'Deine Bonusfelder!' : statusText(v)}</div>
       {myTurn && ph.k === 'wuerfeln' && (
         <>
           <button className="btn red big block" disabled={rolling} onClick={() => { setRolling(true); send({ t: 'act', a: { t: 'roll' } }); }}>
             {rolling ? <Die value={1} rolling size="0.9em" /> : null} Würfeln
           </button>
-          {me.bonus > 0 && <span className="small center">+{me.bonus} Bonusfelder kommen dazu</span>}
           <span className="small muted center">Tippen oder Handy schütteln</span>
         </>
       )}
@@ -166,7 +168,7 @@ function IntroOverlay({ v, send }: { v: PlayerView; send: Send }) {
             return (
               <div key={id} className="list-item" style={{ animation: `cardIn .4s ${i * 0.25}s both`, padding: '4px 8px' }}>
                 <b className="head gold">{i + 1}.</b>
-                <span style={{ width: '1.5em', height: '1.8em' }}><TokenSvg color={p.color} letter={tokenLetter(p)} /></span>
+                <span style={{ width: '1.8em', height: '1.8em' }}><AvatarFace a={p.avatar} color={p.color} /></span>
                 <span className="grow head ellipsis">{displayName(p)}{p.id === v.me.id ? ' (du)' : ''}</span>
                 <FieldBadge n={p.start} showIcon={false} />
               </div>

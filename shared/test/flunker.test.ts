@@ -110,11 +110,13 @@ describe('Flunker-Quiz: Ablauf', () => {
   });
   it('läuft mit Bots über 3 Runden bis zur Rangliste, Belohnung nach Platz', () => {
     const { s, rng, t } = start(1, 3, 4);
+    for (let k = 0; k < 2400 && s.mini?.stage !== 'ergebnis'; k++) advance(s, rng, t, 250, 250);
+    expect(s.mini!.stage).toBe('ergebnis');
+    // Mensch hat nie geschrieben/abgestimmt: Bots können nur über die echte Antwort punkten
+    const bonus = Object.values(s.mini!.result!.bonus);
+    expect(bonus.reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+    bonus.forEach((b) => expect([0, 1, 2, 3, 4, 5]).toContain(b));
     advance(s, rng, t, 10 * 60 * 1000, 500);
     expect(s.mini).toBeNull();
-    // Mensch hat nie geschrieben/abgestimmt: Bots können nur über die echte Antwort punkten
-    const bonusSum = s.players.reduce((a, p) => a + p.bonus, 0);
-    expect(bonusSum).toBeGreaterThan(0);
-    s.players.forEach((p) => expect([0, 1, 2, 3, 4, 5]).toContain(p.bonus));
   });
 });

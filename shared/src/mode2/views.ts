@@ -9,6 +9,7 @@ import type { Team } from '../teams';
 import { miniHostView, miniPlayerView, MCtx } from './minigames';
 import { playableGames, canLead } from './engine';
 import type { BotLevel } from './constants';
+import type { Avatar } from '../avatar';
 
 export interface PublicPlayer {
   id: string;
@@ -20,6 +21,7 @@ export interface PublicPlayer {
   pos: number;
   start: number;
   bot: BotLevel | null;
+  avatar: Avatar;
 }
 
 export interface MiniView {
@@ -54,6 +56,8 @@ export interface BaseView {
   screenMode: boolean;
   leaderId: string | null;
   turnNo: number;
+  /** Bonusrunde nach einem Minispiel (Sonderfelder ruhen), sonst null */
+  bonusRunde: { mover: string | null; queue: string[] } | null;
 }
 
 export interface HostView extends BaseView {
@@ -68,7 +72,7 @@ export interface PlayerView extends BaseView {
 }
 
 const pub = (s: GameState): PublicPlayer[] =>
-  s.players.map(({ id, name, color, connected, kronen, bonus, pos, start, bot }) => ({ id, name, color, connected, kronen, bonus, pos, start, bot }));
+  s.players.map(({ id, name, color, connected, kronen, bonus, pos, start, bot, avatar }) => ({ id, name, color, connected, kronen, bonus, pos, start, bot, avatar }));
 
 function base(s: GameState, now: number): BaseView {
   return {
@@ -89,6 +93,7 @@ function base(s: GameState, now: number): BaseView {
     screenMode: s.screenMode,
     leaderId: s.leaderId,
     turnNo: s.turnNo,
+    bonusRunde: s.bonusRunde ? { mover: s.bonusRunde.mover, queue: [...s.bonusRunde.queue] } : null,
   };
 }
 

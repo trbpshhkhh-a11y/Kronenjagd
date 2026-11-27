@@ -76,8 +76,8 @@ Optional kannst du unter **Settings → Secrets and variables → Actions → Va
 ### Modus 1 – Mit Spielbrett
 1. Mitspieler eintragen (mindestens 2), optional „Kronen zum Sieg“ (Standard 5, abschaltbar) und Timer für Stadt Land Fluss einstellen.
 2. Die App lost die **Startfelder** und die **Position der Krone** aus (mit Animation). Die erste Krone landet nie auf einem Startfeld. Wo die Figuren später stehen, weiß die App in Modus 1 nicht – beim Weiterlosen achtet ihr selbst darauf.
-3. **Übersicht**: Kronen, Startfelder und Bonusfelder aller Spieler sowie die Kronenposition. Buttons „Nächstes Spiel auslosen“, „Krone zuordnen“ und „Bonusfelder verbraucht“.
-4. Nach jedem Spiel tragt ihr die Ergebnisse ein. Die App berechnet daraus die **Bonusfelder**, die man in der nächsten Runde zusätzlich zur Augenzahl vorgehen darf.
+3. **Übersicht**: Kronen, Startfelder und Bonusfelder aller Spieler sowie die Kronenposition. Buttons „Nächstes Spiel auslosen“ und „Krone zuordnen“.
+4. Nach jedem Spiel tragt ihr die Ergebnisse ein. Die App berechnet daraus die **Bonusfelder**. Die werden sofort in der **Bonusrunde** gegangen: zuerst, wer vor dem Minispiel dran war, dann der Reihe nach. Alle Sonderfelder ruhen dabei. Danach ist ganz normal der Nächste dran.
 5. **Geheime Inhalte** (Montagsmaler, Begriffe erklären, Zahlen erraten) erscheinen nie auf dem Hauptscreen. Die App zeigt einen **QR-Code**: Der Zeichner/Erklärer/Kenner scannt ihn mit dem eigenen Handy. Der Inhalt steckt verschlüsselt in der URL, dafür ist kein Server nötig. Alternativ gibt es „Auf diesem Gerät anzeigen“ mit Gedrückthalten.
 
 Der Spielstand liegt im `localStorage`. Versehentliches Neuladen schadet also nicht.
@@ -91,13 +91,15 @@ Ein Hauptscreen kann sich auch **nachträglich dazuschalten**, sogar während de
 
 **Mitspieler:** QR-Code scannen oder „Nur App → Beitreten“, Code und Namen eingeben. Insgesamt 2 bis 10 Spieler, mindestens 1 Mensch.
 
+**Eigene Spielfigur:** In der Lobby das eigene Feld (oder „✎ Figur“) antippen und die Figur gestalten: Kopfbedeckung (Weihnachtsmütze, Krone, Rentiergeweih, Elfenmütze …), Frisur, Haarfarbe, Hautton, Augen, Mund und ein Extra (Brille, Rauschebart, rote Nase …). Die Figur erscheint als Spielfigur auf dem Brett und als Porträt in Lobby, Kronentafel und Statuszeile. Das Gerät merkt sich die Figur für die nächste Lobby. Bots bekommen eine zufällige Figur.
+
 **Bots:** Die Lobby-Leitung tippt „+ Bot“ in der Spielerleiste. Ein Antippen der Schwierigkeit schaltet zwischen leicht, mittel und schwer um. Die Einstellungen (Kronen zum Sieg, Spiele, Timer) öffnen sich über den Button „Einstellungen“. Bots spielen ganz normal mit: Sie würfeln, wählen Richtungen (schwere Bots steuern gezielt Kronen an), ziehen Karten und spielen Minispiele. Sie handeln mit kurzer Verzögerung, damit man zusehen kann. Bots schummeln nicht: Sie sehen nur, was ein Mensch in ihrer Rolle auch sieht. Wie oft sie richtig liegen, hängt von der Schwierigkeit ab. Bots können nicht zeichnen und nicht erklären. Bei Montagsmaler, Stirnraten und Begriffe erklären sind sie deshalb nur Rater, und diese Spiele kommen nur, wenn genug Menschen dabei sind.
 
 **Spielablauf:**
 1. Sobald das Spiel läuft, wird im **Querformat** gespielt: Das ganze Brett füllt den Bildschirm, Kronentafel, Status und der Würfeln-Button liegen am Rand. (Hochkant erscheint ein Hinweis zum Drehen, auf Android gibt es einen Button „Vollbild & Querformat“.)
 2. Wer dran ist, würfelt und **tippt die Richtung direkt auf dem Brett an**: Die möglichen Wege leuchten in verschiedenen Farben, angetippt werden kann jedes leuchtende Feld. Die Feldnummern sind nur Orientierung, gezogen wird entlang der Strecke im Bild. Kommt die Figur an eine **Abzweigung**, entscheidet der Spieler dort neu, wohin die restlichen Felder gehen.
 3. Es liegen immer **2 Kronen** auf dem Brett (30 % Chance auf eine **große Krone** mit 2 Punkten). Wer auf einer Krone landet oder über sie hinwegzieht, bekommt sie. Kronen werden **nie auf ein Feld gelost, auf dem gerade ein Spieler steht** (oder eine andere Krone liegt).
-4. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird vom Stapel gezogen und aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder für den nächsten Zug). Das Minispiel wird mit einem Spielautomaten (einarmiger Bandit) ausgelost. Minispiele laufen auf dem Handy ebenfalls im Querformat, zweispaltig.
+4. Sonderfelder: grün +2, rot −2, gelb = Position mit einem beliebigen Mitspieler tauschen, blau = Ereigniskarte (wird vom Stapel gezogen und aufgedeckt), lila = Minispiel (alle spielen mit, Belohnung sind Bonusfelder). Das Minispiel wird mit einem Spielautomaten (einarmiger Bandit) ausgelost. Minispiele laufen auf dem Handy ebenfalls im Querformat, zweispaltig.
 5. Ohne Hauptscreen zeigt jedes Handy zusätzlich die Kronentafel, den Würfel, die Ereigniskarte und in den Minispielen alles, was sonst der Fernseher zeigt (Aufgaben, Bild bei „Gegenstände merken“, Zeichnung beim Montagsmaler live, Ranglisten). Geheime Inhalte bleiben geheim.
 
 **Rückwärts-Songs (beide Modi):** Die App spielt ein bekanntes Lied rückwärts ab, jeder loggt den Titel ein (mit Spielbrett: aufschreiben). Richtig = ein Punkt, 5 Lieder. Kleine Tippfehler und Teiltitel zählen („Tannenbaum“). Die Melodien erzeugt die App selbst (Weihnachtslieder, Kinderlieder, Klassik, Volkslieder in `shared/src/content/songs.ts`) – es werden keine Aufnahmen verwendet, weil Aufnahmen bekannter Pop-Songs urheberrechtlich geschützt sind. In Modus 2 spielt der Hauptscreen das Lied in Dauerschleife; ohne Hauptscreen spielen alle Handys gleichzeitig. Browser erlauben Ton erst nach einer Berührung – notfalls erscheint „Ton einschalten“.
@@ -143,6 +145,7 @@ client/                      React + Vite + TypeScript (beide Modi, PWA)
 Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Für Bots gibt es zusätzlich `slfAntworten.ts` (Antworten für Stadt Land Fluss je Kategorie) und `zahlenHinweise.ts` (Hinweisbegriffe von klein bis groß für „Zahlen erraten“). Neue Einträge einfach anhängen. Innerhalb einer Sitzung wiederholt sich nichts, bis ein Pool leer ist. Dann wird er neu gemischt. Die Tests prüfen Mindestgrößen und Duplikate.
 
 ### Feldkoordinaten / Brett austauschen
+- **`/#/dev/avatare`** zeigt viele Zufallsfiguren (zum Prüfen der Avatar-Zeichnungen).
 - **`/#/dev/board-debug`** zeichnet Nummern, Feldtypen und Verbindungen über das Brettbild (Weichen pink).
 - **`/#/dev/feld-editor`**: Felder nacheinander anklicken, Typ und Nachbarn anpassen, `board.json` exportieren und unter `client/src/board/board.json` speichern.
 
@@ -157,7 +160,7 @@ Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Für Bots 
 Es werden keine personenbezogenen Daten gespeichert. Lobbys existieren nur im Arbeitsspeicher des Servers und werden nach dem Spiel (spätestens nach 4 Stunden Inaktivität) gelöscht. Auf dem Gerät liegen nur der Spielstand (Modus 1) und das Wiederverbindungs-Token (Modus 2) im `localStorage`. Es gibt keine Cookies.
 
 ### Entwickler-Testmodus
-Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (`debugMini`, `debugPhase`), um gezielt ein Minispiel oder eine Ereigniskarte zu starten. Im normalen Betrieb sind sie abgeschaltet.
+Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (`debugMini`, `debugPhase`, `debugBonus`), um gezielt ein Minispiel oder eine Ereigniskarte zu starten. Im normalen Betrieb sind sie abgeschaltet.
 
 ---
 
@@ -167,14 +170,13 @@ Vorgegebene, über Konstanten änderbare Annahmen:
 - Kronen werden auch **beim Vorbeiziehen** eingesammelt, nicht nur beim Landen.
 - Gelbe Kreispfeil-Felder bedeuten in Modus 2 **„Position mit einem beliebigen Mitspieler tauschen“** (wie die Ereigniskarte Spielertausch, 30 s Zeit, danach kein Tausch).
 - +2 und −2 werden in Modus 2 automatisch ausgeführt, die Folgefelder lösen keine Effekte aus (Kronen werden dabei aber eingesammelt). +2 geht in Laufrichtung weiter (an einer Weiche geradeaus), −2 geht den gerade gelaufenen Weg zurück.
-- Bei Minispielen spielen **alle** mit, die Belohnung sind **Bonusfelder** für den nächsten Zug (keine Kronen).
+- Bei Minispielen spielen **alle** mit, die Belohnung sind **Bonusfelder** (keine Kronen). Sie werden direkt nach dem Spiel in der **Bonusrunde** gegangen: zuerst der Spieler, der vor dem Minispiel dran war, dann in Zugreihenfolge; jeder wählt die Richtung selbst. In dieser Zeit ruhen alle Sonderfelder (+2, −2, Tausch, Ereignis, Minispiel) und werden auf dem Brett als normale Felder gezeigt. Kronen werden aber eingesammelt. Danach ist der Spieler nach dem dran, der vor dem Minispiel dran war.
 - Gezogen wird entlang der Strecke im Bild, nicht nach Feldnummern (siehe Hinweise zum Brett).
 - Ein Hauptscreen ist optional. Ist einer da, spielt er nicht mit.
 
 Eigene Annahmen (einfachste sinnvolle Lösung):
 - **Würfel-Einstellung:** Gespielt wird mit einem normalen Würfel (1 bis 6). In den Lobby-Einstellungen wird das nur angezeigt, nicht verändert.
 - **Spiele mit 2 Teams** (Stirnraten, Montagsmaler) werden in beiden Modi erst ab 4 Spielern ausgelost. Spiele mit Zweier-Teams gehen ab 2 Spielern.
-- **Bonusfelder** aus mehreren Spielen addieren sich, solange sie nicht verbraucht sind.
 - **Game of 7:** Ein Fehlversuch setzt auf 0, das Team wirft in der nächsten Runde aber die aktuelle Aufprallzahl mit. Am Spielende zählt die erreichte Stufe auch bei Teams, die nicht eingeloggt haben. In Modus 2 ist das Spiel standardmäßig aktiv und kann in der Lobby abgeschaltet werden.
 - **Zahlen erraten:** Die Kenner nennen Begriffe, deren „Größe“ zur Zahl passt (1 = winzig/wenig, 10 = riesig/sehr viel). In einem Dreierteam gibt es zwei Kenner. In Modus 2 läuft dafür ein Timer von 180 s (einstellbar).
 - **Begriffe erklären:** Jedes Team spielt 2 Durchgänge, der Erklärer wechselt. In Modus 1 zeigt die Geheimansicht 12 Begriffe pro Durchgang.

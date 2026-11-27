@@ -13,6 +13,7 @@ const HostApp = lazy(() => import('./mode2/host/HostApp'));
 const PlayerApp = lazy(() => import('./mode2/player/PlayerApp'));
 const FeldEditor = lazy(() => import('./dev/FeldEditor'));
 const BoardDebug = lazy(() => import('./dev/BoardDebug'));
+const AvatarGalerie = lazy(() => import('./dev/AvatarGalerie'));
 
 export function App() {
   const r = useRoute();
@@ -36,6 +37,8 @@ export function App() {
         return <HostApp />;
       case '/spieler':
         return <PlayerApp />;
+      case '/dev/avatare':
+        return <AvatarGalerie />;
       case '/dev/feld-editor':
         return <FeldEditor />;
       case '/dev/board-debug':
