@@ -21,6 +21,8 @@ export type ClientMessage =
   | { t: 'rename'; name: string }
   /** eigene Spielfigur ändern */
   | { t: 'avatar'; avatar: Avatar }
+  /** Lobby-Leitung: Titelliste der eigenen Lieder (die Dateien bleiben auf dem Gerät) */
+  | { t: 'eigeneLieder'; lieder: unknown[] }
   | { t: 'kick'; playerId: string }
   | { t: 'settings'; settings: Partial<Settings> }
   | { t: 'start' }

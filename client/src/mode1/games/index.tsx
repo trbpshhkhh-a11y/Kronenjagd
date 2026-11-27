@@ -4,7 +4,8 @@ import {
   pick, shuffle, randInt, G7State, g7Advance, Gegenstand, Schaetzfrage, WissenFrage, formatNumber, zahlenBonus, BEGRIFFE_DURCHGAENGE,
   drawSongs, SONGS,
 } from '@kronen/shared';
-import { abspielen, unlockAudio } from '../../lib/melody';
+import { abspielen, unlockAudio, pufferAbspielen } from '../../lib/melody';
+import { liederLaden, ausschnitt, LiedMeta } from '../../lib/eigeneLieder';
 import { useM1, M1State, nameOf } from '../store';
 import { finishGame, TeamCards } from '../Mode1App';
 import { GameShell, SecretShare, RoundTimer, TeamLine } from './common';
@@ -504,27 +505,67 @@ function Wissen() {
 
 /* ----------------------------- Rückwärts-Songs ---------------------- */
 
-interface SongsData { ids: number[]; idx: number; show: boolean; sel: number[]; correct: number[][] }
+type SongItem = { t: 'app'; i: number } | { t: 'eigen'; id: string; titel: string; kuenstler: string };
+interface SongsData { items?: SongItem[]; ids?: number[]; idx: number; show: boolean; sel: number[]; correct: number[][] }
+
+/** Lieder wählen: aus der App, eigene (auf diesem Gerät) oder gemischt */
+function songItems(st: M1State, eigene: LiedMeta[]): SongItem[] {
+  const q = eigene.length ? st.songQuelle ?? 'app' : 'app';
+  const nEigen = q === 'eigene' ? Math.min(5, eigene.length) : q === 'beide' ? Math.min(3, eigene.length) : 0;
+  const e: SongItem[] = shuffle(cryptoRng, eigene).slice(0, nEigen).map((m) => ({ t: 'eigen', id: m.id, titel: m.titel, kuenstler: m.kuenstler }));
+  const a: SongItem[] = drawSongs(st.pools, cryptoRng, 5 - e.length).map((i) => ({ t: 'app', i }));
+  const out: SongItem[] = [];
+  while (e.length || a.length) {
+    if (e.length) out.push(e.shift()!);
+    if (a.length) out.push(a.shift()!);
+  }
+  return out;
+}
+
 function Songs() {
+  const { s } = useM1();
+  const [eigene, setEigene] = useState<LiedMeta[] | null>((s.songQuelle ?? 'app') === 'app' || s.game?.data ? [] : null);
+  useEffect(() => {
+    if (eigene === null) liederLaden().then(setEigene);
+  }, [eigene]);
+  if (eigene === null) return <GameShell><p className="center">Lade eigene Lieder …</p></GameShell>;
+  return <SongsRunde eigene={eigene} />;
+}
+
+function SongsRunde({ eigene }: { eigene: LiedMeta[] }) {
   const { s, update } = useM1();
-  const [d, set] = useData<SongsData>((st) => ({ ids: drawSongs(st.pools, cryptoRng, 5), idx: 0, show: false, sel: [], correct: [] }));
+  const [d, set] = useData<SongsData>((st) => ({ items: songItems(st, eigene), idx: 0, show: false, sel: [], correct: [] }));
   const [stop, setStop] = useState<(() => void) | null>(null);
+  const [fehlt, setFehlt] = useState(false);
   useEffect(() => () => stop?.(), [stop]);
   if (!d) return null;
+  const items: SongItem[] = d.items ?? (d.ids ?? []).map((i) => ({ t: 'app', i }));
   const teams = s.game!.teams;
   const scores = teams.map((_, i) => d.correct.filter((c) => c.includes(i)).length);
-  const done = d.idx >= d.ids.length;
-  const song = SONGS[d.ids[Math.min(d.idx, d.ids.length - 1)]];
-  const play = (rueckwaerts: boolean) => {
+  const done = d.idx >= items.length;
+  const item = items[Math.min(d.idx, items.length - 1)];
+  const titel = item.t === 'app' ? SONGS[item.i].titel : item.titel;
+  const kuenstler = item.t === 'eigen' ? item.kuenstler : '';
+  const play = async (rueckwaerts: boolean) => {
     stop?.();
     unlockAudio();
-    setStop(() => abspielen(song, { rueckwaerts }));
+    setFehlt(false);
+    if (item.t === 'app') {
+      setStop(() => abspielen(SONGS[item.i], { rueckwaerts }));
+      return;
+    }
+    try {
+      const a = await ausschnitt(item.id);
+      setStop(() => pufferAbspielen(rueckwaerts ? a.rueck : a.vor, {}));
+    } catch {
+      setFehlt(true);
+    }
   };
   return (
     <GameShell>
       {!done ? (
         <>
-          <p className="center head">Lied {d.idx + 1} von {d.ids.length}</p>
+          <p className="center head">Lied {d.idx + 1} von {items.length}</p>
           <div className="card stack center" style={{ alignItems: 'center' }}>
             {!d.show ? (
               <>
@@ -535,10 +576,12 @@ function Songs() {
             ) : (
               <>
                 <p className="small" style={{ margin: 0 }}>Das Lied war:</p>
-                <div className="task" style={{ color: 'var(--green)', fontSize: 'clamp(1.8rem,5vw,3.6rem)' }}>{song.titel}</div>
+                <div className="task" style={{ color: 'var(--green)', fontSize: 'clamp(1.8rem,5vw,3.6rem)' }}>{titel}</div>
+                {kuenstler && <p style={{ margin: 0, fontWeight: 700 }}>{kuenstler}</p>}
                 <button className="btn big" onClick={() => play(false)}>▶ Vorwärts anhören</button>
               </>
             )}
+            {fehlt && <p className="err small" style={{ margin: 0 }}>Dieses Lied ist auf diesem Gerät nicht mehr gespeichert.</p>}
           </div>
           {!d.show ? (
             <div className="row center"><button className="btn gold big" onClick={() => { stop?.(); set((g) => void (g.show = true)); }}>Lösung zeigen</button></div>
@@ -553,7 +596,7 @@ function Songs() {
                 ))}
               </div>
               <div className="row center">
-                <button className="btn gold big" onClick={() => { stop?.(); set((g) => { g.correct.push(g.sel); g.sel = []; g.idx++; g.show = false; }); }}>{d.idx < d.ids.length - 1 ? 'Nächstes Lied ➜' : 'Fertig'}</button>
+                <button className="btn gold big" onClick={() => { stop?.(); set((g) => { g.correct.push(g.sel); g.sel = []; g.idx++; g.show = false; }); }}>{d.idx < items.length - 1 ? 'Nächstes Lied ➜' : 'Fertig'}</button>
               </div>
             </div>
           )}

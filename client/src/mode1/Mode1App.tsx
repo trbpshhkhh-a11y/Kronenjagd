@@ -6,6 +6,8 @@ import {
 import { useM1, M1State, nameOf } from './store';
 import { SlotRoller, FIELD_NUMBERS } from '../components/Roller';
 import { GameSlotMachine } from '../components/SlotMachine';
+import { EigeneLiederFenster } from '../components/EigeneLieder';
+import { liederLaden } from '../lib/eigeneLieder';
 import { FieldBadge, Confirm, Modal, Stepper } from '../components/ui';
 import { CrownSvg } from '../components/icons';
 import { Confetti } from '../components/Decor';
@@ -323,6 +325,7 @@ function Overview() {
                 </span>
               )}
             </div>
+            <M1SongQuelle />
             <button className="btn big" onClick={() => setSettings(false)}>Fertig</button>
           </div>
         </Modal>
@@ -500,3 +503,39 @@ function Winner() {
 }
 
 export type { GameId };
+
+/** Einstellung Rückwärts-Songs (Modus 1): eigene Lieder liegen auf diesem Gerät */
+function M1SongQuelle() {
+  const { s, update } = useM1();
+  const [anzahl, setAnzahl] = useState<number | null>(null);
+  const [fenster, setFenster] = useState(false);
+  useEffect(() => {
+    liederLaden().then((l) => setAnzahl(l.length));
+  }, [fenster]);
+  const q = s.songQuelle ?? 'app';
+  const opt = (k: 'app' | 'eigene' | 'beide', label: string, disabled = false) => (
+    <button key={k} className={`gchip ${q === k ? 'on' : ''}`} disabled={disabled} onClick={() => update((d) => void (d.songQuelle = k))}>
+      {q === k ? '✓' : '–'} {label}
+    </button>
+  );
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      <span>Rückwärts-Songs</span>
+      <div className="game-chips">
+        {opt('app', 'Lieder aus der App')}
+        {opt('eigene', `Eigene Lieder (${anzahl ?? '…'})`, !anzahl)}
+        {opt('beide', 'Gemischt', !anzahl)}
+      </div>
+      <button className="btn sm" onClick={() => setFenster(true)}>🎵 Eigene Lieder verwalten</button>
+      {fenster && (
+        <EigeneLiederFenster
+          onClose={() => setFenster(false)}
+          onFertig={(l) => {
+            setFenster(false);
+            update((d) => void (d.songQuelle = l.length ? (d.songQuelle && d.songQuelle !== 'app' ? d.songQuelle : 'eigene') : 'app'));
+          }}
+        />
+      )}
+    </div>
+  );
+}

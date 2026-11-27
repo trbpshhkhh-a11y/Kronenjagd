@@ -4,6 +4,7 @@
  * übergebenen Zustand mit injiziertem Zufall (ctx.rng) und Zeit (ctx.now),
  * damit jeder Zustand der Zustandsmaschine testbar ist.
  */
+import { sanitizeEigeneLieder } from './eigeneLieder';
 import { avatarFromId, sanitizeAvatar } from '../avatar';
 import { GAME_IDS, GameId, gameById, isPlayable } from '../games';
 import { newDeck, drawIndex } from '../deck';
@@ -31,7 +32,7 @@ export type PlayerAction =
 
 export type HostAction = { t: 'weiter' } | { t: 'beenden' } | { t: 'neueRunde' };
 
-export const defaultSettings = (): Settings => ({ kronenZumSieg: 5, aktiveSpiele: [...GAME_IDS], timer: { ...DEFAULT_TIMER } });
+export const defaultSettings = (): Settings => ({ kronenZumSieg: 5, aktiveSpiele: [...GAME_IDS], timer: { ...DEFAULT_TIMER }, songQuelle: 'app' });
 
 export function createGameState(code: string, now: number, opts: { screenMode?: boolean } = {}): GameState {
   const screenMode = opts.screenMode ?? true;
@@ -46,6 +47,8 @@ export function createGameState(code: string, now: number, opts: { screenMode?: 
     crownSeq: 0,
     phase: { k: 'lobby' },
     bonusRunde: null,
+    eigeneLieder: null,
+    eigeneDeck: null,
     mini: null,
     cardDeck: newDeck(CARDS.length),
     gameDeck: newDeck(GAME_IDS.length),
@@ -170,6 +173,19 @@ export function renamePlayer(s: GameState, id: string, rawName: unknown) {
   touch(s);
 }
 
+/**
+ * Eigene Lieder der Lobby-Leitung übernehmen (nur Titel und Länge). `von` ist das Gerät, das die
+ * Dateien hat ('host' oder Spieler-ID) – nur dieses spielt sie ab. Leere Liste = keine eigenen Lieder.
+ */
+export function setEigeneLieder(s: GameState, von: string, raw: unknown) {
+  const lieder = sanitizeEigeneLieder(raw);
+  s.eigeneLieder = lieder.length ? { von, lieder } : null;
+  s.eigeneDeck = lieder.length ? newDeck(lieder.length) : null;
+  if (lieder.length && s.settings.songQuelle === 'app') s.settings.songQuelle = 'eigene';
+  if (!lieder.length && s.settings.songQuelle !== 'app') s.settings.songQuelle = 'app';
+  touch(s);
+}
+
 /** Eigene Spielfigur setzen (jederzeit, auch während des Spiels) */
 export function setAvatar(s: GameState, id: string, raw: unknown) {
   const p = playerById(s, id);
@@ -211,6 +227,10 @@ export function updateSettings(s: GameState, patch: Partial<Settings>) {
     const list = GAME_IDS.filter((g) => patch.aktiveSpiele!.includes(g));
     if (list.length === 0) throw new GameError('Mindestens ein Spiel muss aktiv sein.');
     s.settings.aktiveSpiele = list;
+  }
+  if (patch.songQuelle !== undefined) {
+    if (!['app', 'eigene', 'beide'].includes(patch.songQuelle)) throw new GameError('Ungültige Liederquelle');
+    s.settings.songQuelle = patch.songQuelle;
   }
   if (patch.timer !== undefined) {
     for (const [k, v] of Object.entries(patch.timer)) {

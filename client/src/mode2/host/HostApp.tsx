@@ -14,7 +14,7 @@ import { HostMini } from './HostMini';
 import { EventCardScene } from '../../components/EventCard';
 import { emitStroke } from '../LiveDrawing';
 import { emitRt } from '../rtBus';
-import { PlayerShelf, SettingsButton, GiftTag } from '../LobbyParts';
+import { PlayerShelf, SettingsButton, GiftTag, useEigeneLiederSync } from '../LobbyParts';
 
 export default function HostApp() {
   const r = useRoute();
@@ -86,6 +86,8 @@ type Send = ReturnType<typeof useConnection>['send'];
 function Lobby({ v, send, error, clearError, onClose }: { v: HostView; send: Send; error: string | null; clearError: () => void; onClose: () => void }) {
   const portrait = usePortrait();
   const [ask, setAsk] = useState(false);
+  // Der Hauptscreen leitet die Lobby: seine gespeicherten eigenen Lieder melden
+  useEigeneLiederSync(v, send, true, 'host');
   useEffect(() => {
     if (!error) return;
     const t = setTimeout(clearError, 4000);

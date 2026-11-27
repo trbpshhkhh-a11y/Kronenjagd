@@ -6,7 +6,7 @@ import { useWakeLock } from '../../lib/hooks';
 import { ConnBanner, useToast } from '../common';
 import { emitStroke } from '../LiveDrawing';
 import { emitRt } from '../rtBus';
-import { PlayerShelf, SettingsButton, GiftTag } from '../LobbyParts';
+import { PlayerShelf, SettingsButton, GiftTag, useEigeneLiederSync } from '../LobbyParts';
 import { Modal, Confirm } from '../../components/ui';
 import { PlayerMini } from './PlayerMini';
 import { AvatarEditor, savedAvatar } from '../../components/AvatarEditor';
@@ -102,6 +102,7 @@ function JoinForm({ initialCode, conn, notice }: { initialCode: string; conn: Re
 
 function WaitingRoom({ v, send, onLeave }: { v: PlayerView; send: Send; onLeave: () => void }) {
   const [figur, setFigur] = useState(false);
+  useEigeneLiederSync(v, send, v.iAmLeader, v.me.id);
   const [ask, setAsk] = useState(false);
   const leader = v.players.find((p) => p.id === v.leaderId);
   const humans = v.players.filter((p) => !p.bot).length;

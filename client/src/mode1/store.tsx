@@ -30,6 +30,8 @@ export interface M1State {
   game: M1Game | null;
   lastBonus: Record<string, number> | null;
   winner: string | null;
+  /** Rückwärts-Songs: Lieder aus der App, eigene Lieder (auf diesem Gerät) oder gemischt */
+  songQuelle?: 'app' | 'eigene' | 'beide';
 }
 
 const KEY = 'kj_mode1_v1';

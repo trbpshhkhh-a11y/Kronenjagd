@@ -934,3 +934,14 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
   .av-preview { grid-row: 1 / span 3; flex-direction: column; align-items: center; }
   .av-grid { max-height: none; }
 }
+
+.sg-kuenstler { font-family: var(--font-body); font-size: 0.55em; font-weight: 700; color: var(--ink); opacity: 0.7; margin-top: 0.2em; }
+/* Eigene Lieder */
+.el-fenster { gap: 10px; max-height: calc(100dvh - 32px); }
+.el-liste { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 60px; max-height: 50vh; }
+.el-lied { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; padding: 8px 10px; border-radius: 14px; background: rgba(0, 0, 0, 0.22); border: 2px solid rgba(255, 246, 227, 0.12); }
+.el-felder { display: flex; flex-direction: column; gap: 4px; min-width: 0; grid-column: 1 / -1; }
+.el-felder .input { min-height: 38px; padding: 2px 10px; font-size: 0.95em; }
+.el-felder .el-kuenstler { font-size: 0.82em; min-height: 32px; font-weight: 600; }
+.el-ausschnitt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.el-ausschnitt input[type=range] { width: 100%; accent-color: var(--gold); }

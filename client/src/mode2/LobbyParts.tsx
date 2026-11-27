@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BaseView, GAMES, GameId, TIMER_LABELS, TimerSettings, BOT_LEVELS, BOT_LEVEL_LABEL, MAX_SPIELER, requiredHumans,
 } from '@kronen/shared';
@@ -8,7 +8,8 @@ import { AvatarFace } from '../components/Avatar';
 import { createPortal } from 'react-dom';
 import { QR } from '../components/QR';
 import { absoluteUrl } from '../lib/router';
-import { tokenLetter } from './common';
+import { EigeneLiederFenster } from '../components/EigeneLieder';
+import { liederLaden, fuerServer } from '../lib/eigeneLieder';
 
 type Send = (m: any) => void;
 
@@ -110,6 +111,7 @@ export function LobbySettings({ v, send, canEdit }: { v: BaseView; send: Send; c
           );
         })}
       </div>
+      <SongQuelle v={v} send={send} canEdit={canEdit} />
       <details>
         <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Timer (Sekunden)</summary>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 10px', alignItems: 'center', marginTop: 8, fontSize: '0.85em' }}>
@@ -120,6 +122,62 @@ export function LobbySettings({ v, send, canEdit }: { v: BaseView; send: Send; c
       </details>
     </div>
   );
+}
+
+/** Rückwärts-Songs: Lieder aus der App, eigene Lieder oder gemischt */
+function SongQuelle({ v, send, canEdit }: { v: BaseView; send: Send; canEdit: boolean }) {
+  const [fenster, setFenster] = useState(false);
+  const anzahl = v.eigeneLieder?.anzahl ?? 0;
+  const q = v.settings.songQuelle ?? 'app';
+  const von = v.eigeneLieder ? (v.eigeneLieder.von === 'host' ? 'der Hauptscreen' : `das Handy von ${v.players.find((p) => p.id === v.eigeneLieder!.von)?.name ?? 'der Lobby-Leitung'}`) : null;
+  const opt = (k: 'app' | 'eigene' | 'beide', label: string, disabled = false) => (
+    <button key={k} className={`gchip ${q === k ? 'on' : ''}`} disabled={!canEdit || disabled} onClick={() => send({ t: 'settings', settings: { songQuelle: k } })}>
+      {q === k ? '✓' : '–'} {label}
+    </button>
+  );
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      <b>Rückwärts-Songs</b>
+      <div className="game-chips">
+        {opt('app', 'Lieder aus der App')}
+        {opt('eigene', `Eigene Lieder (${anzahl})`, anzahl === 0)}
+        {opt('beide', 'Gemischt', anzahl === 0)}
+      </div>
+      {canEdit && <button className="btn sm" onClick={() => setFenster(true)}>🎵 Eigene Lieder verwalten</button>}
+      {von && (
+        <span className="small muted">
+          Eigene Lieder spielt {von} ab.{anzahl < 5 && q !== 'app' ? ' Bei weniger als 5 eigenen Liedern kommen die übrigen aus der App.' : ''}
+        </span>
+      )}
+      {fenster && (
+        <EigeneLiederFenster
+          onClose={() => setFenster(false)}
+          onFertig={(l) => {
+            send({ t: 'eigeneLieder', lieder: fuerServer(l) });
+            setFenster(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Leitung: gespeicherte eigene Lieder dieses Geräts automatisch an die Lobby melden
+ * (nur Titel), damit man sie nicht jedes Mal neu auswählen muss.
+ */
+export function useEigeneLiederSync(v: BaseView, send: Send, istLeitung: boolean, ich: string) {
+  const done = useRef<string | null>(null);
+  useEffect(() => {
+    if (!istLeitung || v.started || done.current === v.code) return;
+    done.current = v.code;
+    liederLaden().then((l) => {
+      if (!l.length) return;
+      if (v.eigeneLieder && v.eigeneLieder.von === ich && v.eigeneLieder.anzahl === l.length) return;
+      send({ t: 'eigeneLieder', lieder: fuerServer(l) });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [istLeitung, v.code, v.started]);
 }
 
 function TimerRow({ label, value, onChange, canEdit }: { label: string; value: number; onChange: (n: number) => void; canEdit: boolean }) {

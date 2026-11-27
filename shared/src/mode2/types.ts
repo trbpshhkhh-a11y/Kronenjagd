@@ -11,6 +11,27 @@ export interface Settings {
   kronenZumSieg: number;
   aktiveSpiele: GameId[];
   timer: TimerSettings;
+  /** Rückwärts-Songs: Lieder aus der App, eigene Lieder (vom Gerät der Lobby-Leitung) oder gemischt */
+  songQuelle: SongQuelle;
+}
+
+export type SongQuelle = 'app' | 'eigene' | 'beide';
+
+/** Eigenes Lied: nur Titel und Länge – die Musikdatei bleibt auf dem Gerät, das sie abspielt */
+export interface EigenesLied {
+  id: string;
+  titel: string;
+  kuenstler: string;
+  /** weitere richtige Antworten (aus dem Titel abgeleitet) */
+  aliase: string[];
+  /** Länge des Ausschnitts in Sekunden */
+  dauer: number;
+}
+
+export interface EigeneLieder {
+  /** welches Gerät die Dateien hat und abspielt: 'host' oder die Spieler-ID */
+  von: string;
+  lieder: EigenesLied[];
 }
 
 export interface Player {
@@ -128,6 +149,9 @@ export interface GameState {
    * (ab dem Spieler, der dran war). Sonderfelder ruhen in dieser Zeit.
    */
   bonusRunde: BonusRunde | null;
+  /** eigene Lieder für Rückwärts-Songs (nur Titel) */
+  eigeneLieder: EigeneLieder | null;
+  eigeneDeck: import('../deck').DeckState | null;
 }
 
 export interface BonusRunde {
