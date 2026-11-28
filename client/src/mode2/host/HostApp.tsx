@@ -14,7 +14,7 @@ import { HostMini } from './HostMini';
 import { EventCardScene } from '../../components/EventCard';
 import { emitStroke } from '../LiveDrawing';
 import { emitRt } from '../rtBus';
-import { PlayerShelf, SettingsButton, GiftTag } from '../LobbyParts';
+import { PlayerShelf, SettingsButton, GiftTag, useEigeneLiederSync } from '../LobbyParts';
 
 export default function HostApp() {
   const r = useRoute();
@@ -63,6 +63,7 @@ function PortraitTip() {
   const [portrait, setPortrait] = useState(window.innerHeight > window.innerWidth);
   useEffect(() => {
     const on = () => setPortrait(window.innerHeight > window.innerWidth);
+    setTimeout(on, 400);
     window.addEventListener('resize', on);
     return () => window.removeEventListener('resize', on);
   }, []);
@@ -86,6 +87,8 @@ type Send = ReturnType<typeof useConnection>['send'];
 function Lobby({ v, send, error, clearError, onClose }: { v: HostView; send: Send; error: string | null; clearError: () => void; onClose: () => void }) {
   const portrait = usePortrait();
   const [ask, setAsk] = useState(false);
+  // Der Hauptscreen leitet die Lobby: seine gespeicherten eigenen Lieder melden
+  useEigeneLiederSync(v, send, true, 'host');
   useEffect(() => {
     if (!error) return;
     const t = setTimeout(clearError, 4000);
@@ -140,7 +143,7 @@ function Game({ v, send, onExit }: { v: HostView; send: Send; onExit: () => void
   const table = <CrownTable view={ph.k === 'intro' ? { ...v, turnPlayerId: null } : v} />;
   const overlays = (
     <>
-      {toast && <div className={`toast ${toast.kind}`} style={portrait ? { whiteSpace: 'normal', maxWidth: 1000, textAlign: 'center' } : undefined}>{toast.text}</div>}
+      {toast && <div className={`toast ${toast.kind}`} role="status" onPointerDown={(e) => { e.stopPropagation(); toast.close(); }} title="Antippen zum Schließen" style={portrait ? { whiteSpace: 'normal', maxWidth: 1000, textAlign: 'center' } : undefined}>{toast.text}</div>}
       {ph.k === 'intro' && <Intro v={v} send={send} />}
       {ph.k === 'gewuerfelt' && <DiceOverlay v={v} />}
       {ph.k === 'bonusStart' && <Overlay dim={0.3}><BonusAnsage v={v} big /></Overlay>}
@@ -278,9 +281,10 @@ function CardOverlay({ v }: { v: HostView }) {
           <h2 className="gold">{name}</h2>
           {ph.k === 'karteZiehen' && <p>zieht eine Ereigniskarte …</p>}
           {feld && ph.k === 'karte' && ph.stage !== 'fertig' && <p>ist auf einem gelben Feld gelandet und darf die Position mit einem Mitspieler tauschen.</p>}
-          {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'tausch' && <p>wählt, mit wem getauscht wird …</p>}
+          {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'tausch' && <p>wählt, mit wem getauscht wird – oder tauscht nicht …</p>}
           {ph.k === 'karte' && ph.stage === 'wahl' && ph.card === 'spielWahl' && <p>sucht ein Minispiel aus …</p>}
           {ph.k === 'karte' && ph.stage === 'fertig' && ph.card === 'tausch' && ph.info && <p>tauscht mit {ph.info}!</p>}
+          {ph.k === 'karte' && ph.stage === 'fertig' && ph.card === 'tausch' && ph.verzichtet && <p>möchte nicht tauschen.</p>}
         </div>
       </div>
     </Overlay>

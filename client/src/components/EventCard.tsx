@@ -19,7 +19,7 @@ function CardBack({ feld }: { feld?: boolean }) {
 function CardFront({ card, feld, ziel, info }: { card: CardId; feld?: boolean; ziel?: number; info?: string }) {
   const c = CARD_TEXT[card];
   const titel = feld ? 'Gelbes Feld' : c.titel;
-  const text = feld ? 'Tausche die Position mit einem Mitspieler deiner Wahl.' : c.text;
+  const text = feld ? 'Du darfst die Position mit einem Mitspieler tauschen – musst aber nicht.' : c.text;
   return (
     <div className={`ev-face ev-front ${feld ? 'feld' : ''}`}>
       <span className="ev-corner tl">?!</span>

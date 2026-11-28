@@ -11,6 +11,27 @@ export interface Settings {
   kronenZumSieg: number;
   aktiveSpiele: GameId[];
   timer: TimerSettings;
+  /** Rückwärts-Songs: Lieder aus der App, eigene Lieder (vom Gerät der Lobby-Leitung) oder gemischt */
+  songQuelle: SongQuelle;
+}
+
+export type SongQuelle = 'app' | 'eigene' | 'beide';
+
+/** Eigenes Lied: nur Titel und Länge – die Musikdatei bleibt auf dem Gerät, das sie abspielt */
+export interface EigenesLied {
+  id: string;
+  titel: string;
+  kuenstler: string;
+  /** weitere richtige Antworten (aus dem Titel abgeleitet) */
+  aliase: string[];
+  /** Länge des Ausschnitts in Sekunden */
+  dauer: number;
+}
+
+export interface EigeneLieder {
+  /** welches Gerät die Dateien hat und abspielt: 'host' oder die Spieler-ID */
+  von: string;
+  lieder: EigenesLied[];
 }
 
 export interface Player {
@@ -42,7 +63,7 @@ export interface Crown {
 export type CardId = 'tausch' | 'sprung' | 'kronenNeu' | 'krone' | 'spielWahl' | 'zweiVor';
 export const CARDS: CardId[] = ['tausch', 'sprung', 'kronenNeu', 'krone', 'spielWahl', 'zweiVor'];
 export const CARD_TEXT: Record<CardId, { titel: string; text: string }> = {
-  tausch: { titel: 'Spielertausch', text: 'Tausche die Position mit einem Mitspieler deiner Wahl.' },
+  tausch: { titel: 'Spielertausch', text: 'Du darfst die Position mit einem Mitspieler deiner Wahl tauschen – musst aber nicht.' },
   sprung: { titel: 'Feldersprung', text: 'Springe auf Feld' },
   kronenNeu: { titel: 'Kronen neu platzieren', text: 'Beide Kronen werden neu ausgelost.' },
   krone: { titel: '1x Krone', text: 'Du bekommst sofort einen Kronenpunkt!' },
@@ -86,7 +107,7 @@ export type Phase =
   /** Bonusrunde: dieser Spieler darf gleich seine Bonusfelder gehen */
   | { k: 'bonusStart'; id: string; schritte: number; until: number }
   | { k: 'karteZiehen'; until: number }
-  | { k: 'karte'; card: CardId; stage: 'zeigen' | 'wahl' | 'fertig'; until: number; ziel?: number; info?: string; /** true = gelbes Feld statt Ereigniskarte */ feld?: boolean }
+  | { k: 'karte'; card: CardId; stage: 'zeigen' | 'wahl' | 'fertig'; until: number; ziel?: number; info?: string; /** true = gelbes Feld statt Ereigniskarte */ feld?: boolean; /** freiwillig nicht getauscht */ verzichtet?: boolean }
   | { k: 'minispiel' }
   | { k: 'sieg'; winner: string };
 
@@ -128,6 +149,9 @@ export interface GameState {
    * (ab dem Spieler, der dran war). Sonderfelder ruhen in dieser Zeit.
    */
   bonusRunde: BonusRunde | null;
+  /** eigene Lieder für Rückwärts-Songs (nur Titel) */
+  eigeneLieder: EigeneLieder | null;
+  eigeneDeck: import('../deck').DeckState | null;
 }
 
 export interface BonusRunde {

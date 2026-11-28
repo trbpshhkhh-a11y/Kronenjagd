@@ -10,6 +10,7 @@ import { BoardLayer, CrownTable, statusText, useLeft, playerName, displayName, t
 import { Die, Dot, FieldBadge } from '../../components/ui';
 import { CrownSvg } from '../../components/icons';
 import { AvatarFace } from '../../components/Avatar';
+import { AvatarEditor } from '../../components/AvatarEditor';
 import { Confetti } from '../../components/Decor';
 import { EventCardScene } from '../../components/EventCard';
 
@@ -88,6 +89,7 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
   const myTurn = v.turnPlayerId === me.id;
   const left = useLeft(v, ph.k === 'richtung' ? ph.until : null);
   const [rolling, setRolling] = useState(false);
+  const [figur, setFigur] = useState(false);
   useEffect(() => {
     if (ph.k !== 'wuerfeln') setRolling(false);
   }, [ph.k]);
@@ -112,7 +114,7 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
   return (
     <div className="stack" style={{ gap: land ? 8 : 10 }}>
       <div className="side-me">
-        <span style={{ width: '2.3em', height: '2.3em', flexShrink: 0 }}><AvatarFace a={me.avatar} color={me.color} /></span>
+        <button className="side-face" onClick={() => setFigur(true)} aria-label="Figur ändern" title="Figur ändern"><AvatarFace a={me.avatar} color={me.color} /><span className="ptile-pen">✎</span></button>
         <span className="grow" style={{ minWidth: 0 }}>
           <b className="head ellipsis">{me.name}</b>
           {v.iAmLeader && <span className="badge" style={{ fontSize: '0.65em', marginLeft: 4 }}>Leitung</span>}
@@ -137,6 +139,17 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
           Tippe auf das Brett, um die Richtung zu wählen – noch <b>{ph.remaining}</b> {ph.remaining === 1 ? 'Feld' : 'Felder'}
           {left !== null && <span className="badge" style={{ marginLeft: 6 }}>{left}s</span>}
         </div>
+      )}
+      {figur && (
+        <AvatarEditor
+          initial={me.avatar}
+          color={me.color}
+          onClose={() => setFigur(false)}
+          onSave={(av) => {
+            send({ t: 'avatar', avatar: av });
+            setFigur(false);
+          }}
+        />
       )}
       <details className="side-crowns" open>
         <summary className="head">Kronentafel</summary>
@@ -234,6 +247,7 @@ function CardOverlay({ v, send, land, h }: { v: PlayerView; send: Send; land: bo
                   </button>
                 ))}
               </div>
+              <button className="btn sm ghost block" onClick={() => send({ t: 'act', a: { t: 'tauschWahl', target: null } })}>✋ Nicht tauschen</button>
             </>
           )}
           {choosing && ph.card === 'spielWahl' && (

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   ClientMessage, ServerMessage, viewForHost, viewForPlayer, startGame, updateSettings, renamePlayer, playerAction, hostAction,
-  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick, startBonusRunde, setAvatar,
+  tick, setConnected, GameError, cryptoRng, startMinigame, GameId, addBot, setBotLevel, canLead, removePlayer, realtimeTick, startBonusRunde, setAvatar, setEigeneLieder,
 } from '@kronen/shared';
 import { LobbyManager, Lobby, LobbyError } from './lobbies';
 
@@ -201,6 +201,11 @@ function handle(c: Conn, msg: ClientMessage) {
         return closeLobby(lobby, 'Alle haben die Lobby verlassen.');
       }
       return broadcast(lobby, true);
+    }
+    case 'eigeneLieder': {
+      const lobby = requireLeader(c);
+      setEigeneLieder(lobby.state, c.role === 'host' ? 'host' : String(c.playerId), Array.isArray(msg.lieder) ? msg.lieder : []);
+      return broadcast(lobby);
     }
     case 'avatar': {
       const { lobby, playerId } = requirePlayer(c);

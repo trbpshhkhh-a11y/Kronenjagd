@@ -149,10 +149,18 @@ export function melodieDauer(m: Melodie) {
  * schon zurück, wird mittendrin eingestiegen. Liefert eine Stopp-Funktion.
  */
 export function abspielen(m: Melodie, opts: { rueckwaerts: boolean; at?: number; lautstaerke?: number }): () => void {
-  const c = audio();
   const p = puffer(m);
-  if (!c || !p) return () => {};
-  const buf = opts.rueckwaerts ? p.rueck : p.vor;
+  if (!p) return () => {};
+  return pufferAbspielen(opts.rueckwaerts ? p.rueck : p.vor, opts);
+}
+
+/** gemeinsamer Ton-Kontext (auch für eigene Lieder) */
+export const audioContext = () => audio();
+
+/** Einen fertigen Ton-Puffer zu einer Serverzeit abspielen (liegt sie zurück: mittendrin einsteigen) */
+export function pufferAbspielen(buf: AudioBuffer, opts: { at?: number; lautstaerke?: number }): () => void {
+  const c = audio();
+  if (!c) return () => {};
   // pausierter Ton (z. B. nach Bildschirmsperre): wieder aufnehmen
   if (c.state !== 'running') c.resume().catch(() => {});
   const src = c.createBufferSource();

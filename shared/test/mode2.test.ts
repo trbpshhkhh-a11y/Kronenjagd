@@ -400,6 +400,22 @@ describe('Ereigniskarten', () => {
     advance(s, rng, t, 3000);
     expect(currentPlayer(s)!.id).not.toBe(p.id);
   });
+  it('Tauschen ist freiwillig (Karte und gelbes Feld)', () => {
+    const { s, rng, t, p } = toCard();
+    forceCard(s, 'tausch');
+    playerAction(s, p.id, { t: 'drawCard' }, { rng, now: t.now });
+    const pos = s.players.map((x) => x.pos);
+    playerAction(s, p.id, { t: 'tauschWahl', target: null }, { rng, now: t.now });
+    expect(s.players.map((x) => x.pos)).toEqual(pos);
+    expect(s.phase).toMatchObject({ k: 'karte', stage: 'fertig', verzichtet: true });
+    advance(s, rng, t, 3000);
+    expect(currentPlayer(s)!.id).not.toBe(p.id);
+    // gelbes Feld: ebenso verzichtbar
+    const q = currentPlayer(s)!;
+    s.phase = { k: 'karte', card: 'tausch', stage: 'wahl', until: t.now + 30000, feld: true };
+    playerAction(s, q.id, { t: 'tauschWahl', target: null }, { rng, now: t.now });
+    expect(s.phase).toMatchObject({ stage: 'fertig', verzichtet: true });
+  });
   it('Feldersprung: nie aktuelles Feld, Krone am Ziel wird eingesammelt', () => {
     const { s, rng, t, p } = toCard();
     forceCard(s, 'sprung');

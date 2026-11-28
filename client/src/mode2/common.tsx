@@ -5,6 +5,7 @@ import ruheImg from '../board/spielbrett-ruhe.png';
 import { CrownSvg } from '../components/icons';
 import { AvatarFace, Figur } from '../components/Avatar';
 import { useServerClock } from '../lib/hooks';
+import { onViewport, sichtbar } from '../lib/noZoom';
 
 export { boardImg };
 
@@ -18,12 +19,16 @@ export const usePortrait = () => useContext(PortraitCtx);
  * Hochformat: 1080 px breite Spalte, skaliert auf die Gerätebreite, nach unten scrollbar.
  */
 export function Stage({ children }: { children: ReactNode }) {
-  const [dim, setDim] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const [dim, setDim] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
   useLayoutEffect(() => {
-    const on = () => setDim({ w: window.innerWidth, h: window.innerHeight });
+    const on = () => setDim((d) => (d.w === window.innerWidth && d.h === window.innerHeight ? d : { w: window.innerWidth, h: window.innerHeight }));
     on();
     window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
+    const off = onViewport(on);
+    return () => {
+      window.removeEventListener('resize', on);
+      off();
+    };
   }, []);
   if (dim.h > dim.w) {
     const scale = dim.w / 1080;
@@ -145,7 +150,7 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
         const dx = off.get(p.id) ?? 0;
         return (
           <div key={p.id} className={`token ${highlight === p.id ? 'turn' : ''} ${jump ? 'jump' : ''}`} style={{ left: `${x + dx}%`, top: `${y}%` }} title={p.name}>
-            <Figur a={p.avatar} color={p.color} title={p.name} />
+            <Figur a={p.avatar} color={p.color} title={p.name} laeuft={view.phase.k === 'bewegen' && p.id === view.turnPlayerId} />
           </div>
         );
       })}
@@ -155,12 +160,17 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
 
 /** Größe des Fensters (aktualisiert bei Drehen/Größenänderung) */
 export function useViewport() {
-  const [d, setD] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const [d, setD] = useState(() => sichtbar());
   useEffect(() => {
-    const on = () => setD({ w: window.innerWidth, h: window.innerHeight });
+    const on = () => setD((o) => {
+      const n = sichtbar();
+      return o.w === n.w && o.h === n.h ? o : n;
+    });
+    const off = onViewport(on);
     window.addEventListener('resize', on);
     window.addEventListener('orientationchange', on);
     return () => {
+      off();
       window.removeEventListener('resize', on);
       window.removeEventListener('orientationchange', on);
     };
@@ -265,14 +275,15 @@ export function ConnBanner({ status }: { status: string }) {
 }
 
 /** Toast für neue Ereignisse (Kronen usw.) */
+/** Meldung oben (Krone, Tausch …): verschwindet nach 3 s oder sofort beim Antippen (`close`) */
 export function useToast(view: BaseView | null) {
-  const [shown, setShown] = useState<{ text: string; kind: string } | null>(null);
+  const [shown, setShown] = useState<{ text: string; kind: string; close: () => void } | null>(null);
   const last = useRef<number>(view?.toast?.seq ?? 0);
   useEffect(() => {
     const t = view?.toast;
     if (!t || t.seq === last.current) return;
     last.current = t.seq;
-    setShown({ text: t.text, kind: t.kind });
+    setShown({ text: t.text, kind: t.kind, close: () => setShown(null) });
     const id = setTimeout(() => setShown(null), 3000);
     return () => clearTimeout(id);
   }, [view?.toast?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
