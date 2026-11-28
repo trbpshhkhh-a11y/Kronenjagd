@@ -76,7 +76,7 @@ Optional kannst du unter **Settings → Secrets and variables → Actions → Va
 ### Modus 1 – Mit Spielbrett
 1. Mitspieler eintragen (mindestens 2), optional „Kronen zum Sieg“ (Standard 5, abschaltbar) und Timer für Stadt Land Fluss einstellen.
 2. Die App lost die **Startfelder** und die **Position der Krone** aus (mit Animation). Die erste Krone landet nie auf einem Startfeld. Wo die Figuren später stehen, weiß die App in Modus 1 nicht – beim Weiterlosen achtet ihr selbst darauf.
-3. **Übersicht**: Kronen, Startfelder und Bonusfelder aller Spieler sowie die Kronenposition. Buttons „Nächstes Spiel auslosen“ und „Krone zuordnen“.
+3. **Übersicht**: Kronen, Startfelder und Bonusfelder aller Spieler sowie die Kronenposition. Buttons „Nächstes Spiel auslosen“ und „Krone zuordnen“. Für die gedruckten Ereigniskarten gibt es außerdem „Krone neu auslosen“ (Karte „Krone neu platzieren“ oder eine Figur steht auf dem Kronenfeld), „Spiel aussuchen“ (Karte „Spiel aussuchen“: gewähltes Minispiel startet sofort) und im Fenster „Krone zuordnen“ den Abschnitt „Ereigniskarte 1x Krone“ (Kronenpunkt, die Krone auf dem Brett bleibt liegen).
 4. Nach jedem Spiel tragt ihr die Ergebnisse ein. Die App berechnet daraus die **Bonusfelder**. Die werden sofort in der **Bonusrunde** gegangen: zuerst, wer vor dem Minispiel dran war, dann der Reihe nach. Alle Sonderfelder ruhen dabei. Danach ist ganz normal der Nächste dran.
 5. **Geheime Inhalte** (Montagsmaler, Begriffe erklären, Zahlen erraten) erscheinen nie auf dem Hauptscreen. Die App zeigt einen **QR-Code**: Der Zeichner/Erklärer/Kenner scannt ihn mit dem eigenen Handy. Der Inhalt steckt verschlüsselt in der URL, dafür ist kein Server nötig. Alternativ gibt es „Auf diesem Gerät anzeigen“ mit Gedrückthalten.
 

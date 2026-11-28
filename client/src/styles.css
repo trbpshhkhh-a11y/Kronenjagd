@@ -965,3 +965,6 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) { .fig .fig-oben, .fig.laeuft * { animation: none !important; } }
 .av-figur { aspect-ratio: 64 / 100 !important; }
 .side-face { position: relative; width: 2.3em; height: 2.3em; flex-shrink: 0; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; }
+/* Modus 1: Knöpfe für Ereigniskarten (Krone neu auslosen, Spiel aussuchen) */
+.m1-extra { gap: 8px; flex-wrap: wrap; width: 100%; }
+.m1-extra .btn { flex: 1 1 0; min-width: 0; white-space: nowrap; }

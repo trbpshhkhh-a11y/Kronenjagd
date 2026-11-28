@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   cryptoRng, drawStartFields, drawCrownField, drawNextGame, gameById, makeTeams, GAMES, computeBonus, GameResult, addBonus, GameId,
-  BRETT_GAME_IDS,
+  BRETT_GAME_IDS, isPlayable,
 } from '@kronen/shared';
 import { useM1, M1State, nameOf } from './store';
 import { SlotRoller, FIELD_NUMBERS } from '../components/Roller';
@@ -218,8 +218,11 @@ function Overview() {
   const [newCrown, setNewCrown] = useState<number | null>(null);
   const [askBonus, setAskBonus] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [askNeu, setAskNeu] = useState(false);
+  const [wahl, setWahl] = useState(false);
   const sorted = [...s.players].sort((a, b) => b.kronen - a.kronen);
-  const giveCrown = (pid: string) => {
+  /** neueKrone = false: Ereigniskarte „1x Krone“ – der Kronenpunkt zählt, die Krone auf dem Brett bleibt liegen */
+  const giveCrown = (pid: string, neueKrone = true) => {
     const p = s.players.find((x) => x.id === pid)!;
     const willWin = s.kronenZiel !== null && p.kronen + 1 >= s.kronenZiel;
     update((d) => {
@@ -230,10 +233,28 @@ function Overview() {
         d.phase = 'winner';
         return;
       }
-      d.crown = drawCrownField(cryptoRng, d.crown);
+      if (neueKrone) d.crown = drawCrownField(cryptoRng, d.crown);
     });
     setAssign(false);
-    if (!willWin) setNewCrown(Date.now());
+    if (!willWin && neueKrone) setNewCrown(Date.now());
+  };
+  /** Ereigniskarte „Krone neu platzieren“ – oder die Krone wurde auf ein Feld mit einer Figur gelost */
+  const kroneNeu = () => {
+    update((d) => void (d.crown = drawCrownField(cryptoRng, d.crown)));
+    setAskNeu(false);
+    setNewCrown(Date.now());
+  };
+  /** Ereigniskarte „Spiel aussuchen“: das gewählte Spiel startet sofort */
+  const spielWaehlen = (id: GameId) => {
+    const g = gameById(id);
+    update((d) => {
+      d.game = { id, teams: makeTeams(cryptoRng, d.players.map((p) => p.id), g.teamMode, (pid) => nameOf(d, pid)), data: null };
+      // aus dem Stapel nehmen, damit es nicht gleich wieder ausgelost wird
+      const i = d.gameDeck.remaining.indexOf(BRETT_GAME_IDS.indexOf(id));
+      if (i >= 0) d.gameDeck.remaining.splice(i, 1);
+      d.phase = 'teams';
+    });
+    setWahl(false);
   };
   const anyBonus = s.players.some((p) => p.bonus > 0);
   return (
@@ -274,6 +295,10 @@ function Overview() {
             d.game = { id: g, teams: [], data: null };
             d.phase = 'gameDraw';
           })}>🎁 Nächstes Spiel auslosen</button>
+          <div className="row center m1-extra">
+            <button className="btn sm" onClick={() => setAskNeu(true)}>🔄 Krone neu auslosen</button>
+            <button className="btn sm" onClick={() => setWahl(true)}>🎯 Spiel aussuchen</button>
+          </div>
         </div>
       </div>
       {assign && (
@@ -283,6 +308,14 @@ function Overview() {
             <div className="grid2">
               {s.players.map((p) => (
                 <button key={p.id} className="btn big gold" onClick={() => giveCrown(p.id)}>{p.name}</button>
+              ))}
+            </div>
+            <p className="small muted" style={{ margin: 0 }}>Danach wird ein neues Feld für die Krone ausgelost.</p>
+            <h3 style={{ marginTop: 8 }}>Ereigniskarte „1x Krone“</h3>
+            <p className="small" style={{ margin: 0 }}>Der Spieler bekommt einen Kronenpunkt, die Krone auf dem Brett bleibt liegen.</p>
+            <div className="row" style={{ gap: 8 }}>
+              {s.players.map((p) => (
+                <button key={p.id} className="btn sm" onClick={() => giveCrown(p.id, false)}>🃏 {p.name}</button>
               ))}
             </div>
             <button className="btn" onClick={() => setAssign(false)}>Abbrechen</button>
@@ -295,6 +328,21 @@ function Overview() {
             <h2>Neue Krone!</h2>
             <CrownReveal key={newCrown} field={s.crown!} />
             <button className="btn gold big" onClick={() => setNewCrown(null)}>Weiter</button>
+          </div>
+        </Modal>
+      )}
+      {askNeu && <Confirm text="Krone auf ein neues Feld auslosen?" yes="Ja, neu auslosen" onNo={() => setAskNeu(false)} onYes={kroneNeu} />}
+      {wahl && (
+        <Modal onClose={() => setWahl(false)}>
+          <div className="card stack">
+            <h2>Welches Spiel wird gespielt?</h2>
+            <p className="small" style={{ margin: 0 }}>Ereigniskarte „Spiel aussuchen“: Wer die Karte gezogen hat, wählt ein Minispiel. Es startet sofort.</p>
+            <div className="grid2">
+              {BRETT_GAME_IDS.filter((id) => isPlayable(id, s.players.length)).map((id) => (
+                <button key={id} className="btn" onClick={() => spielWaehlen(id)}>{gameById(id).name}</button>
+              ))}
+            </div>
+            <button className="btn" onClick={() => setWahl(false)}>Abbrechen</button>
           </div>
         </Modal>
       )}
