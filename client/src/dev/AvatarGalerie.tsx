@@ -11,7 +11,7 @@ export default function AvatarGalerie() {
       {list.map((a, i) => (
         <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
           <span style={{ width: 90, height: 90 }}><AvatarFace a={a} color={FARBEN[i % FARBEN.length]} /></span>
-          <span style={{ width: 46, height: 63 }}><Figur a={a} color={FARBEN[i % FARBEN.length]} /></span>
+          <span style={{ width: 58, height: 90 }}><Figur a={a} color={FARBEN[i % FARBEN.length]} /></span>
         </div>
       ))}
     </div>

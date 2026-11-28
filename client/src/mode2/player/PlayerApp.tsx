@@ -36,7 +36,7 @@ export default function PlayerApp({ initialCode = '' }: { initialCode?: string }
   const close = () => { conn.send({ t: 'close' }); conn.forget(); go('/'); };
   const common = (
     <>
-      {toast && <div className={`toast mobile-toast ${toast.kind}`}>{toast.text}</div>}
+      {toast && <div className={`toast mobile-toast ${toast.kind}`} role="status" onPointerDown={(e) => { e.stopPropagation(); toast.close(); }}>{toast.text}<span className="toast-x" aria-hidden>✕</span></div>}
       {conn.error && <Modal onClose={conn.clearError}><div className="card stack center"><p className="head" style={{ fontSize: '1.2em' }}>{conn.error}</p><button className="btn" onClick={conn.clearError}>OK</button></div></Modal>}
       <ConnBanner status={conn.status} />
     </>

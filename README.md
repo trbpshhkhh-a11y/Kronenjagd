@@ -91,7 +91,7 @@ Ein Hauptscreen kann sich auch **nachträglich dazuschalten**, sogar während de
 
 **Mitspieler:** QR-Code scannen oder „Nur App → Beitreten“, Code und Namen eingeben. Insgesamt 2 bis 10 Spieler, mindestens 1 Mensch.
 
-**Eigene Spielfigur:** In der Lobby das eigene Feld (oder „✎ Figur“) antippen und die Figur gestalten: Kopfbedeckung (Weihnachtsmütze, Krone, Rentiergeweih, Elfenmütze …), Frisur, Haarfarbe, Hautton, Augen, Mund und ein Extra (Brille, Rauschebart, rote Nase …). Die Figur erscheint als Spielfigur auf dem Brett und als Porträt in Lobby, Kronentafel und Statuszeile. Das Gerät merkt sich die Figur für die nächste Lobby. Bots bekommen eine zufällige Figur.
+**Eigene Spielfigur:** In der Lobby das eigene Feld (oder „✎ Figur“) antippen und die Figur gestalten: Kopfbedeckung (Weihnachtsmütze, Krone, Rentiergeweih, Elfenmütze …), Frisur, Haarfarbe, Hautton, Augen, Mund und ein Extra (Brille, Rauschebart, rote Nase …). Die Figur erscheint als kleine Spielfigur (Person im Weihnachtspulli in Spielerfarbe auf einem Sockel, mit Laufanimation beim Ziehen) auf dem Brett und als Porträt in Lobby, Kronentafel und Statuszeile. Das Gerät merkt sich die Figur für die nächste Lobby. Während des Spiels lässt sie sich über das eigene Porträt in der Seitenleiste ändern. Bots bekommen eine zufällige Figur.
 
 **Bots:** Die Lobby-Leitung tippt „+ Bot“ in der Spielerleiste. Ein Antippen der Schwierigkeit schaltet zwischen leicht, mittel und schwer um. Die Einstellungen (Kronen zum Sieg, Spiele, Timer) öffnen sich über den Button „Einstellungen“. Bots spielen ganz normal mit: Sie würfeln, wählen Richtungen (schwere Bots steuern gezielt Kronen an), ziehen Karten und spielen Minispiele. Sie handeln mit kurzer Verzögerung, damit man zusehen kann. Bots schummeln nicht: Sie sehen nur, was ein Mensch in ihrer Rolle auch sieht. Wie oft sie richtig liegen, hängt von der Schwierigkeit ab. Bots können nicht zeichnen und nicht erklären. Bei Montagsmaler, Stirnraten und Begriffe erklären sind sie deshalb nur Rater, und diese Spiele kommen nur, wenn genug Menschen dabei sind.
 
@@ -170,7 +170,8 @@ Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (
 
 Vorgegebene, über Konstanten änderbare Annahmen:
 - Kronen werden auch **beim Vorbeiziehen** eingesammelt, nicht nur beim Landen.
-- Gelbe Kreispfeil-Felder bedeuten in Modus 2 **„Position mit einem beliebigen Mitspieler tauschen“** (wie die Ereigniskarte Spielertausch, 30 s Zeit, danach kein Tausch).
+- Gelbe Kreispfeil-Felder bedeuten in Modus 2 **„Position mit einem beliebigen Mitspieler tauschen“** (wie die Ereigniskarte Spielertausch, 30 s Zeit, danach kein Tausch). Tauschen ist **freiwillig**: bei Feld und Karte gibt es „Nicht tauschen“. Bots tauschen nur, wenn der andere näher an einer Krone steht.
+- Meldungen oben (Krone, Tausch …) verschwinden nach 3 Sekunden oder sofort beim Antippen.
 - +2 und −2 werden in Modus 2 automatisch ausgeführt, die Folgefelder lösen keine Effekte aus (Kronen werden dabei aber eingesammelt). +2 geht in Laufrichtung weiter (an einer Weiche geradeaus), −2 geht den gerade gelaufenen Weg zurück.
 - Bei Minispielen spielen **alle** mit, die Belohnung sind **Bonusfelder** (keine Kronen). Sie werden direkt nach dem Spiel in der **Bonusrunde** gegangen: zuerst der Spieler, der vor dem Minispiel dran war, dann in Zugreihenfolge; jeder wählt die Richtung selbst. In dieser Zeit ruhen alle Sonderfelder (+2, −2, Tausch, Ereignis, Minispiel) und werden auf dem Brett als normale Felder gezeigt. Kronen werden aber eingesammelt. Danach ist der Spieler nach dem dran, der vor dem Minispiel dran war.
 - Gezogen wird entlang der Strecke im Bild, nicht nach Feldnummern (siehe Hinweise zum Brett).

@@ -106,12 +106,16 @@ export function chooseDirection(v: PlayerView, level: BotLevel, rng: Rng): strin
   return [...opts].sort((a, b) => score(b) - score(a))[0].key;
 }
 
-export function chooseSwap(v: PlayerView, level: BotLevel, rng: Rng): string {
+/** Mit wem tauschen? null = lieber nicht tauschen (wenn niemand näher an einer Krone steht) */
+export function chooseSwap(v: PlayerView, level: BotLevel, rng: Rng): string | null {
   const others = v.players.filter((p) => p.id !== v.me.id);
-  if (level === 'leicht') return pick(rng, others).id;
+  if (!others.length) return null;
+  if (level === 'leicht') return rng() < 0.15 ? null : pick(rng, others).id;
   const crownFields = v.crowns.map((c) => c.field);
-  const dist = (p: PublicPlayer) => distanceToNearest(p.pos, crownFields) + rng() * 0.01;
-  return [...others].sort((a, b) => dist(a) - dist(b))[0].id;
+  const dist = (pos: number) => distanceToNearest(pos, crownFields);
+  const best = [...others].sort((a, b) => dist(a.pos) - dist(b.pos) + (rng() - 0.5) * 0.01)[0];
+  // nur tauschen, wenn der andere näher an einer Krone steht
+  return dist(best.pos) < dist(v.me.pos) ? best.id : null;
 }
 
 /** Spiele, die Bots gut spielen können */

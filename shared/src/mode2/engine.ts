@@ -25,7 +25,8 @@ export type PlayerAction =
   | { t: 'roll' }
   | { t: 'direction'; key: string }
   | { t: 'drawCard' }
-  | { t: 'tauschWahl'; target: string }
+  /** target null = freiwillig nicht tauschen */
+  | { t: 'tauschWahl'; target: string | null }
   | { t: 'spielWahl'; game: GameId }
   | { t: 'ready' }
   | { t: 'mini'; a: MiniAction };
@@ -685,6 +686,12 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
     case 'tauschWahl': {
       if (ph.k !== 'karte' || ph.card !== 'tausch' || ph.stage !== 'wahl') throw new GameError('Jetzt nicht möglich.');
       requireTurn(s, pid);
+      // Tauschen ist freiwillig
+      if (a.target === null) {
+        toast(s, `${label(p)} tauscht nicht.`, 'info');
+        s.phase = { ...ph, stage: 'fertig', until: ctx.now + 1800, info: undefined, verzichtet: true };
+        break;
+      }
       const other = playerById(s, a.target);
       if (!other || other.id === pid) throw new GameError('Bitte einen Mitspieler wählen.');
       const tmp = p.pos;

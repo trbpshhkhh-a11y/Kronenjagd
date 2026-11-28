@@ -30,7 +30,6 @@
 * { box-sizing: border-box; }
 /* Die Seite selbst scrollt und zoomt nie (kein Gummiband, kein Pull-to-Refresh, kein Doppeltipp-Zoom) */
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; }
-body { position: fixed; inset: 0; width: 100%; }
 #root { height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: none; }
 body {
   margin: 0;
@@ -323,17 +322,17 @@ p { margin: 0.4em 0; line-height: 1.4; }
 .board-img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
 .token {
   position: absolute;
-  width: 3%;
-  aspect-ratio: 64 / 88;
-  transform: translate(-50%, -88%);
+  width: 3.9%;
+  aspect-ratio: 64 / 100;
+  transform: translate(-50%, -91%);
   transition: left 0.33s ease-in-out, top 0.33s ease-in-out;
   z-index: 5;
   filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.6));
 }
 .token.jump { transition: left 0.9s cubic-bezier(.5,-0.4,.5,1.4), top 0.9s cubic-bezier(.5,-0.4,.5,1.4); }
 .token.turn { z-index: 6; }
-.token.turn::after { content: ''; position: absolute; left: -18%; right: -18%; bottom: 0; height: 20%; border-radius: 50%; border: 3px solid #fff7c2; animation: ping 1.4s infinite; }
-.token.turn svg { animation: tokenBob 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
+.token.turn::after { content: ''; position: absolute; left: -12%; right: -12%; bottom: 0; height: 14%; border-radius: 50%; border: 3px solid #fff7c2; animation: ping 1.4s infinite; }
+.token.turn:not(:has(.laeuft)) svg { animation: tokenBob 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes tokenBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9%); } }
 @keyframes ping { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
 .crown-token { position: absolute; transform: translate(-50%, -60%); z-index: 4; width: 4.2%; transition: left 0.6s, top 0.6s; pointer-events: none; }
@@ -488,7 +487,7 @@ table.tbl td, table.tbl th { padding: 6px 8px; border-bottom: 1px solid rgba(255
 .mini-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .mini-action { order: -1; }
 @media (orientation: landscape) {
-  .mini-screen { max-width: none; height: 100vh; height: 100dvh; padding: 30px 12px 6px; overflow: hidden; display: flex; flex-direction: column; }
+  .mini-screen { max-width: none; height: 100vh; height: var(--app-h, 100dvh); padding: 30px 12px 6px; overflow: hidden; display: flex; flex-direction: column; }
   .mini-wrap { flex: 1; min-height: 0; gap: 6px; }
   .mini-head h2 { font-size: 1.3em; }
   .mini-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -512,7 +511,7 @@ table.tbl td, table.tbl th { padding: 6px 8px; border-bottom: 1px solid rgba(255
 }
 
 /* ---------- Lobby: festlich und kompakt ---------- */
-.lobby-phone { position: relative; z-index: 3; max-width: 520px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) 14px 10px; display: flex; flex-direction: column; gap: 9px; }
+.lobby-phone { position: relative; z-index: 3; max-width: 520px; margin: 0 auto; min-height: 100vh; min-height: var(--app-h, 100dvh); padding: max(24px, env(safe-area-inset-top)) 14px 10px; display: flex; flex-direction: column; gap: 9px; }
 .lobby-title { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
 .lobby-title .head { font-size: 1.6em; text-shadow: 0 3px 0 rgba(0, 0, 0, 0.4); }
 .lobby-wait { margin: 0; animation: pulse 2.4s infinite; }
@@ -750,7 +749,7 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (orientation: landscape) { .ap { --b: clamp(52px, min(10vw, 21vh), 80px); } }
 
 /* ---------- Startbildschirm: passt ohne Scrollen auf jedes Handy ---------- */
-.start-screen { min-height: 100vh; min-height: 100dvh; justify-content: center; max-width: 1100px; gap: clamp(10px, 2.2vh, 26px); padding-top: max(34px, env(safe-area-inset-top)); padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+.start-screen { min-height: 100vh; min-height: var(--app-h, 100dvh); justify-content: center; max-width: 1100px; gap: clamp(10px, 2.2vh, 26px); padding-top: max(34px, env(safe-area-inset-top)); padding-bottom: max(14px, env(safe-area-inset-bottom)); }
 .start-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: clamp(2px, 0.8vh, 10px); }
 .start-head .crown-big { width: clamp(3.6rem, 11vh, 8rem); }
 .start-head h1 { font-size: clamp(1.9rem, 5.6vh, 4rem); text-shadow: 0 5px 0 rgba(0, 0, 0, 0.4); }
@@ -945,3 +944,24 @@ button.choice-row:disabled { opacity: 0.5; cursor: not-allowed; }
 .el-felder .el-kuenstler { font-size: 0.82em; min-height: 32px; font-weight: 600; }
 .el-ausschnitt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .el-ausschnitt input[type=range] { width: 100%; accent-color: var(--gold); }
+
+/* Meldungen oben: antippen = schließen */
+.toast { cursor: pointer; user-select: none; -webkit-user-select: none; }
+.toast-x { display: inline-block; margin-left: 0.6em; opacity: 0.55; font-size: 0.8em; }
+
+/* ---------- Spielfigur: Laufen und leichtes Atmen ---------- */
+.fig .fig-bein, .fig .fig-arm { transform-box: view-box; }
+.fig .fig-oben { transform-box: view-box; transform-origin: 32px 72px; animation: figAtmen 3.2s ease-in-out infinite; }
+.fig.laeuft .fig-bein-l { animation: figBein 0.19s ease-in-out infinite alternate; }
+.fig.laeuft .fig-bein-r { animation: figBein 0.19s ease-in-out infinite alternate-reverse; }
+.fig.laeuft .fig-arm-l { animation: figArm 0.19s ease-in-out infinite alternate-reverse; }
+.fig.laeuft .fig-arm-r { animation: figArm 0.19s ease-in-out infinite alternate; }
+.fig.laeuft .fig-koerper { transform-box: view-box; animation: figHuepf 0.19s ease-in-out infinite alternate; }
+.fig.laeuft .fig-oben { animation: none; }
+@keyframes figBein { from { transform: rotate(22deg); } to { transform: rotate(-22deg); } }
+@keyframes figArm { from { transform: rotate(26deg); } to { transform: rotate(-26deg); } }
+@keyframes figHuepf { from { transform: translateY(0); } to { transform: translateY(-2.6px); } }
+@keyframes figAtmen { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.018); } }
+@media (prefers-reduced-motion: reduce) { .fig .fig-oben, .fig.laeuft * { animation: none !important; } }
+.av-figur { aspect-ratio: 64 / 100 !important; }
+.side-face { position: relative; width: 2.3em; height: 2.3em; flex-shrink: 0; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; }

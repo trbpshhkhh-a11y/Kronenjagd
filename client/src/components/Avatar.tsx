@@ -358,26 +358,69 @@ export function AvatarFace({ a, color, size = '100%', title }: { a: Avatar; colo
   );
 }
 
-/** Spielfigur fürs Brett: glänzender Kegel in Spielerfarbe mit dem Avatar-Kopf */
-export function Figur({ a, color, title }: { a: Avatar; color: string; title?: string }) {
+/**
+ * Spielfigur fürs Brett: kleine Person im Weihnachtspulli (Spielerfarbe) auf einem runden Sockel,
+ * mit dem Avatar-Kopf. Mit `laeuft` schwingen Arme und Beine (Laufanimation per CSS).
+ */
+export function Figur({ a, color, title, laeuft }: { a: Avatar; color: string; title?: string; laeuft?: boolean }) {
   const id = useId().replace(/:/g, '');
+  const skin = HAUT[a.haut] ?? HAUT[1];
+  const pulli = color;
+  const pulliDunkel = shade(color, -0.35);
+  const hell = shade(color, 0.55);
+  const muster = color.toLowerCase() === '#f5f5f5' || color.toLowerCase() === '#fdd835' ? '#c62828' : '#fff6e3';
   return (
-    <svg viewBox="0 0 64 88" width="100%" height="100%" role="img" aria-label={title ?? 'Spielfigur'} style={{ display: 'block', overflow: 'visible' }}>
+    <svg viewBox="0 0 64 100" width="100%" height="100%" role="img" aria-label={title ?? 'Spielfigur'} className={`fig ${laeuft ? 'laeuft' : ''}`} style={{ display: 'block', overflow: 'visible' }}>
       <defs>
-        <linearGradient id={`b${id}`} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor={shade(color, -0.35)} />
-          <stop offset="0.35" stopColor={shade(color, 0.25)} />
-          <stop offset="0.6" stopColor={color} />
-          <stop offset="1" stopColor={shade(color, -0.45)} />
+        <linearGradient id={`p${id}`} x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stopColor={pulliDunkel} />
+          <stop offset="0.38" stopColor={hell} />
+          <stop offset="0.62" stopColor={pulli} />
+          <stop offset="1" stopColor={shade(color, -0.5)} />
+        </linearGradient>
+        <linearGradient id={`s${id}`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="#f6d27a" />
+          <stop offset="1" stopColor="#b8862a" />
         </linearGradient>
       </defs>
-      <ellipse cx="32" cy="84" rx="21" ry="4" fill="rgba(0,0,0,0.35)" />
-      <ellipse cx="32" cy="78.5" rx="22" ry="7" fill={shade(color, -0.4)} stroke={INK} strokeWidth="1.5" />
-      <path d="M12.5,77 C15,65 21,57 25,50 L39,50 C43,57 49,65 51.5,77 C45,82 19,82 12.5,77 Z" fill={`url(#b${id})`} stroke={INK} strokeWidth="1.5" />
-      <path d="M21,74 C22,66 25,60 28,55" stroke="rgba(255,255,255,0.45)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-      <ellipse cx="32" cy="50" rx="10.5" ry="3.6" fill={shade(color, 0.2)} stroke={INK} strokeWidth="1.3" />
-      <g transform="translate(-1 -0.5) scale(0.66)">
-        <KopfTeile a={a} />
+      {/* Schatten + Sockel (wie bei einer echten Spielfigur) */}
+      <ellipse cx="32" cy="95.5" rx="19" ry="3.4" fill="rgba(0,0,0,0.38)" />
+      <ellipse cx="32" cy="91.5" rx="17.5" ry="5.2" fill={`url(#s${id})`} stroke={INK} strokeWidth="1.2" />
+      <ellipse cx="32" cy="89.6" rx="17.5" ry="4.6" fill={pulliDunkel} stroke={INK} strokeWidth="1.2" />
+      <ellipse cx="29" cy="88.6" rx="9" ry="1.6" fill="rgba(255,255,255,0.25)" />
+      <g className="fig-koerper">
+        {/* Beine */}
+        <g className="fig-bein fig-bein-l" style={{ transformOrigin: '28.5px 71px' }}>
+          <rect x="25.6" y="70" width="6" height="17" rx="2.6" fill="#2f3542" stroke={INK} strokeWidth="1" />
+          <ellipse cx="27.6" cy="87.4" rx="4.6" ry="2.4" fill="#4a2c17" stroke={INK} strokeWidth="1" />
+        </g>
+        <g className="fig-bein fig-bein-r" style={{ transformOrigin: '35.5px 71px' }}>
+          <rect x="32.4" y="70" width="6" height="17" rx="2.6" fill="#2f3542" stroke={INK} strokeWidth="1" />
+          <ellipse cx="36.4" cy="87.4" rx="4.6" ry="2.4" fill="#4a2c17" stroke={INK} strokeWidth="1" />
+        </g>
+        <g className="fig-oben">
+          {/* Arme */}
+          <g className="fig-arm fig-arm-l" style={{ transformOrigin: '21.5px 52px' }}>
+            <path d="M21.5,51 C17.5,56 16.5,62 17.2,68" stroke={INK} strokeWidth="6.6" fill="none" strokeLinecap="round" />
+            <path d="M21.5,51 C17.5,56 16.5,62 17.2,68" stroke={pulli} strokeWidth="4.6" fill="none" strokeLinecap="round" />
+            <circle cx="17.3" cy="69.6" r="2.7" fill={skin} stroke={INK} strokeWidth="0.9" />
+          </g>
+          <g className="fig-arm fig-arm-r" style={{ transformOrigin: '42.5px 52px' }}>
+            <path d="M42.5,51 C46.5,56 47.5,62 46.8,68" stroke={INK} strokeWidth="6.6" fill="none" strokeLinecap="round" />
+            <path d="M42.5,51 C46.5,56 47.5,62 46.8,68" stroke={pulli} strokeWidth="4.6" fill="none" strokeLinecap="round" />
+            <circle cx="46.7" cy="69.6" r="2.7" fill={skin} stroke={INK} strokeWidth="0.9" />
+          </g>
+          {/* Weihnachtspulli */}
+          <path d="M20.5,73 C19.5,60 22,49.5 32,48.5 C42,49.5 44.5,60 43.5,73 C38,75.5 26,75.5 20.5,73 Z" fill={`url(#p${id})`} stroke={INK} strokeWidth="1.3" />
+          <path d="M22.5,60 L25.5,57 L28.5,60 L31.5,57 L34.5,60 L37.5,57 L40.5,60" stroke={muster} strokeWidth="1.5" fill="none" strokeLinejoin="round" />
+          {[24.5, 29, 33.5, 38].map((x) => <circle key={x} cx={x + 1} cy="65" r="0.95" fill={muster} />)}
+          <path d="M21.6,69.8 C27,71.6 37,71.6 42.4,69.8" stroke={pulliDunkel} strokeWidth="1.6" fill="none" />
+          <ellipse cx="32" cy="49.6" rx="6.4" ry="2.2" fill={pulliDunkel} />
+          {/* Kopf */}
+          <g transform="translate(1 2.5) scale(0.62)">
+            <KopfTeile a={a} />
+          </g>
+        </g>
       </g>
     </svg>
   );
