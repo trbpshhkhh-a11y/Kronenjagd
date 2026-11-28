@@ -293,7 +293,8 @@ function handle(c: Conn, msg: ClientMessage) {
     case 'debugPhase' as string: {
       if (process.env.KJ_DEBUG !== '1') throw new GameError('Unbekannte Nachricht');
       const lobby = requireLeader(c);
-      const d = msg as unknown as { card?: number; winner?: boolean; pos?: number };
+      const d = msg as unknown as { card?: number; winner?: boolean; pos?: number; barrikade?: [number, number] | null };
+      if (d.barrikade !== undefined) lobby.state.barrikade = d.barrikade;
       if (d.pos) {
         const cur = lobby.state.players.find((p) => p.id === lobby.state.order[lobby.state.turn]);
         if (cur) cur.pos = d.pos;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CARD_TEXT, CardId } from '@kronen/shared';
 import { CrownSvg, CircleArrowsSvg } from './icons';
 import { FieldBadge } from './ui';
+import { BarrikadeSeite } from './Barrikade';
 
 /** Rückseite einer Ereigniskarte – wie die ?!-Karte in der Mitte des Spielbretts */
 function CardBack({ feld }: { feld?: boolean }) {
@@ -37,6 +38,7 @@ function CardFront({ card, feld, ziel, info }: { card: CardId; feld?: boolean; z
         {card === 'tausch' && <span className="ev-emoji">🔄</span>}
         {card === 'spielWahl' && <span className="ev-emoji">🎮</span>}
         {card === 'zweiVor' && <span className="ev-plus2">+2</span>}
+        {card === 'barrikade' && <BarrikadeSeite className="ev-barrikade" />}
       </div>
       <div className="ev-text">
         {text}

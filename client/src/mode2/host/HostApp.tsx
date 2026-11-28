@@ -147,7 +147,7 @@ function Game({ v, send, onExit }: { v: HostView; send: Send; onExit: () => void
       {ph.k === 'intro' && <Intro v={v} send={send} />}
       {ph.k === 'gewuerfelt' && <DiceOverlay v={v} />}
       {ph.k === 'bonusStart' && <Overlay dim={0.3}><BonusAnsage v={v} big /></Overlay>}
-      {(ph.k === 'karteZiehen' || ph.k === 'karte') && <CardOverlay v={v} />}
+      {(ph.k === 'karteZiehen' || (ph.k === 'karte' && !(ph.card === 'barrikade' && ph.stage !== 'zeigen'))) && <CardOverlay v={v} />}
       {showMini && <HostMini v={v} send={send} />}
       {ph.k === 'sieg' && <Victory v={v} send={send} onExit={onExit} />}
     </>

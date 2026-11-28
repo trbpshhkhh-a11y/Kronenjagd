@@ -60,8 +60,8 @@ export interface Crown {
   value: 1 | 2;
 }
 
-export type CardId = 'tausch' | 'sprung' | 'kronenNeu' | 'krone' | 'spielWahl' | 'zweiVor';
-export const CARDS: CardId[] = ['tausch', 'sprung', 'kronenNeu', 'krone', 'spielWahl', 'zweiVor'];
+export type CardId = 'tausch' | 'sprung' | 'kronenNeu' | 'krone' | 'spielWahl' | 'zweiVor' | 'barrikade';
+export const CARDS: CardId[] = ['tausch', 'sprung', 'kronenNeu', 'krone', 'spielWahl', 'zweiVor', 'barrikade'];
 export const CARD_TEXT: Record<CardId, { titel: string; text: string }> = {
   tausch: { titel: 'Spielertausch', text: 'Du darfst die Position mit einem Mitspieler deiner Wahl tauschen – musst aber nicht.' },
   sprung: { titel: 'Feldersprung', text: 'Springe auf Feld' },
@@ -69,6 +69,7 @@ export const CARD_TEXT: Record<CardId, { titel: string; text: string }> = {
   krone: { titel: '1x Krone', text: 'Du bekommst sofort einen Kronenpunkt!' },
   spielWahl: { titel: 'Spiel aussuchen', text: 'Du darfst ein Minispiel aussuchen. Es wird sofort gespielt.' },
   zweiVor: { titel: '2 Felder vor', text: 'Du darfst 2 Felder weiter nach vorne gehen.' },
+  barrikade: { titel: 'Barrikade', text: 'Stell die Barrikade zwischen zwei Felder. Dort kommt niemand vorbei!' },
 };
 
 export interface MiniWrapper {
@@ -107,7 +108,7 @@ export type Phase =
   /** Bonusrunde: dieser Spieler darf gleich seine Bonusfelder gehen */
   | { k: 'bonusStart'; id: string; schritte: number; until: number }
   | { k: 'karteZiehen'; until: number }
-  | { k: 'karte'; card: CardId; stage: 'zeigen' | 'wahl' | 'fertig'; until: number; ziel?: number; info?: string; /** true = gelbes Feld statt Ereigniskarte */ feld?: boolean; /** freiwillig nicht getauscht */ verzichtet?: boolean }
+  | { k: 'karte'; card: CardId; stage: 'zeigen' | 'wahl' | 'fertig'; until: number; ziel?: number; info?: string; /** true = gelbes Feld statt Ereigniskarte */ feld?: boolean; /** freiwillig nicht getauscht / keine Barrikade gebaut */ verzichtet?: boolean; /** Barrikade: wo sie neu aufgebaut wurde */ kante?: [number, number] }
   | { k: 'minispiel' }
   | { k: 'sieg'; winner: string };
 
@@ -144,6 +145,8 @@ export interface GameState {
   turnNo: number;
   /** Felder, die im aktuellen Zug betreten wurden (inkl. Start) */
   trail: number[];
+  /** Barrikade zwischen zwei Nachbarfeldern (dort kommt niemand vorbei), null = keine */
+  barrikade: [number, number] | null;
   /**
    * Bonusrunde nach einem Minispiel: alle gehen nacheinander ihre Bonusfelder
    * (ab dem Spieler, der dran war). Sonderfelder ruhen in dieser Zeit.

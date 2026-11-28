@@ -60,6 +60,8 @@ export interface BaseView {
   bonusRunde: { mover: string | null; queue: string[] } | null;
   /** eigene Lieder der Lobby-Leitung: welches Gerät sie abspielt und wie viele (Titel bleiben geheim) */
   eigeneLieder: { von: string; anzahl: number } | null;
+  /** Barrikade zwischen zwei Nachbarfeldern, null = keine */
+  barrikade: [number, number] | null;
 }
 
 export interface HostView extends BaseView {
@@ -97,6 +99,7 @@ function base(s: GameState, now: number): BaseView {
     turnNo: s.turnNo,
     bonusRunde: s.bonusRunde ? { mover: s.bonusRunde.mover, queue: [...s.bonusRunde.queue] } : null,
     eigeneLieder: s.eigeneLieder ? { von: s.eigeneLieder.von, anzahl: s.eigeneLieder.lieder.length } : null,
+    barrikade: s.barrikade ?? null,
   };
 }
 

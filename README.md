@@ -162,7 +162,7 @@ Die Pools liegen in `shared/src/content/*.ts`, ein Eintrag pro Zeile. Für Bots 
 Es werden keine personenbezogenen Daten gespeichert. Lobbys existieren nur im Arbeitsspeicher des Servers und werden nach dem Spiel (spätestens nach 4 Stunden Inaktivität) gelöscht. Auf dem Gerät liegen nur der Spielstand (Modus 1) und das Wiederverbindungs-Token (Modus 2) im `localStorage`. Es gibt keine Cookies.
 
 ### Entwickler-Testmodus
-Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (`debugMini`, `debugPhase`, `debugBonus`), um gezielt ein Minispiel oder eine Ereigniskarte zu starten. Im normalen Betrieb sind sie abgeschaltet.
+Mit `KJ_DEBUG=1 npm start` akzeptiert der Server zusätzliche Test-Nachrichten (`debugMini`, `debugPhase` – auch mit `barrikade: [a, b]` –, `debugBonus`), um gezielt ein Minispiel oder eine Ereigniskarte zu starten. Im normalen Betrieb sind sie abgeschaltet.
 
 ---
 
@@ -190,6 +190,7 @@ Eigene Annahmen (einfachste sinnvolle Lösung):
 - **Allgemeinwissen:** Jeder spielt für sich. In Modus 2 wird die erste angetippte Antwort sofort eingeloggt (kein Umentscheiden); aufgelöst wird, sobald alle geantwortet haben oder die Zeit um ist. Jede richtige Antwort bringt ein Bonusfeld.
 - **Kopfrechnen / Schätzmeister (Modus 2):** 45 s pro Aufgabe bzw. Frage (einstellbar).
 - **Ereigniskarten:** Läuft beim Spielertausch die Zeit ab (30 s), wird nicht getauscht. Bei „Spiel aussuchen“ wird dann aus dem Stapel gelost. Der Feldersprung kann auf jedes Feld außer dem aktuellen führen, das Zielfeld hat keinen Effekt. Die Karte **„2 Felder vor“** funktioniert wie das grüne +2-Feld: 2 Felder in Laufrichtung (an einer Weiche geradeaus), Kronen unterwegs zählen, das Zielfeld hat keinen Effekt.
+- **Barrikade** (Ereigniskarte, beide Modi): Wer sie zieht, baut die Barrikade zwischen zwei Nachbarfeldern auf (in der App: ein Feld antippen, dann ein Nachbarfeld, „Hier bauen“; 45 s Zeit, „Keine Barrikade“ ist erlaubt). Über die Barrikade zieht niemand – die App bietet nur Wege an, die nicht an ihr enden. Kommt man in keiner Richtung ganz voran, endet der Zug direkt davor. Auch +2, −2 und „2 Felder vor“ halten vor ihr an. Es gibt nur eine Barrikade: Zieht jemand die Karte erneut, verschwindet sie und wird neu aufgebaut. Bots stellen sie dem Mitspieler in den Weg, der einer Krone am nächsten ist (schwer: direkt vor der Krone, mittel: direkt vor seiner Figur, leicht: irgendwo) und verbauen dabei nicht ihren eigenen Weg. Für das echte Brett gibt es ein 3D-Druckteil (`druck/barrikade.stl`).
 - **Kronen neu platzieren:** Eine Krone landet nie auf einem Feld, über das der ziehende Spieler im selben Zug noch läuft.
 - **Kronen zum Sieg** ist in Modus 1 von 1 bis 30 einstellbar (in Modus 2 wie vorgegeben 3 bis 15).
 
