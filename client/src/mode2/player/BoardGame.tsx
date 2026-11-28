@@ -5,7 +5,7 @@
  * Die Richtung wird direkt auf dem Brett angetippt.
  */
 import { useEffect, useState } from 'react';
-import { PlayerView, BOARD, gameById } from '@kronen/shared';
+import { PlayerView, BOARD, gameById, areNeighbors } from '@kronen/shared';
 import { BoardLayer, CrownTable, statusText, useLeft, playerName, displayName, tokenLetter, useViewport, RotateHint, BonusAnsage } from '../common';
 import { Die, Dot, FieldBadge } from '../../components/ui';
 import { CrownSvg } from '../../components/icons';
@@ -13,6 +13,7 @@ import { AvatarFace } from '../../components/Avatar';
 import { AvatarEditor } from '../../components/AvatarEditor';
 import { Confetti } from '../../components/Decor';
 import { EventCardScene } from '../../components/EventCard';
+import { BarrikadeSeite } from '../../components/Barrikade';
 
 type Send = (m: any) => void;
 const ASPECT = BOARD.data.width / BOARD.data.height;
@@ -23,6 +24,20 @@ export function BoardGame({ v, send, onExit, onClose }: { v: PlayerView; send: S
   const ph = v.phase;
   const myTurn = v.turnPlayerId === v.me.id;
   const picking = myTurn && ph.k === 'richtung';
+  // Barrikade bauen: erst ein Feld, dann ein Nachbarfeld antippen
+  const bauen = myTurn && ph.k === 'karte' && ph.card === 'barrikade' && ph.stage === 'wahl';
+  const [kw, setKw] = useState<{ a: number | null; b: number | null }>({ a: null, b: null });
+  useEffect(() => {
+    if (!bauen) setKw({ a: null, b: null });
+  }, [bauen]);
+  const onField = (f: number) =>
+    setKw(({ a, b }) => {
+      if (a === null || b !== null) return { a: f, b: null };
+      if (f === a) return { a: null, b: null };
+      if (areNeighbors(a, f)) return { a, b: f };
+      return { a: f, b: null };
+    });
+  const barrikade = { kw, setKw, bauen };
 
   // Brettgröße: so groß wie möglich, Platz für die Randspalte lassen
   let bw: number;
@@ -51,12 +66,16 @@ export function BoardGame({ v, send, onExit, onClose }: { v: PlayerView; send: S
         jump={ph.k === 'karte'}
         previews={ph.k === 'richtung' ? ph.options : undefined}
         onPick={picking ? (key) => send({ t: 'act', a: { t: 'direction', key } }) : undefined}
+        kantenWahl={bauen ? { ...kw, onField } : undefined}
       />
       {picking && <div className="pick-hint">Tippe auf einen leuchtenden Weg</div>}
+      {bauen && <div className="pick-hint">{kw.a === null ? 'Barrikade: Tippe auf ein Feld' : kw.b === null ? 'Jetzt auf ein Nachbarfeld tippen' : 'Hier bauen? Bestätige rechts'}</div>}
     </div>
   );
 
-  const side = <Side v={v} send={send} land={land} />;
+  const side = <Side v={v} send={send} land={land} barrikade={barrikade} />;
+  // Barrikade: nach dem Aufdecken bleibt das Brett frei sichtbar (Stelle wählen bzw. sehen, wo sie steht)
+  const karteZeigen = ph.k === 'karteZiehen' || (ph.k === 'karte' && !(ph.card === 'barrikade' && ph.stage !== 'zeigen'));
 
   return (
     <div className="game-screen" style={{ height: land ? h : undefined, minHeight: h }}>
@@ -75,7 +94,7 @@ export function BoardGame({ v, send, onExit, onClose }: { v: PlayerView; send: S
       {ph.k === 'intro' && <IntroOverlay v={v} send={send} />}
       {ph.k === 'gewuerfelt' && <DiceOverlay v={v} land={land} />}
       {ph.k === 'bonusStart' && <div className="phone-overlay" style={{ background: 'rgba(10,5,2,.35)', pointerEvents: 'none' }}><BonusAnsage v={v} /></div>}
-      {(ph.k === 'karteZiehen' || ph.k === 'karte') && <CardOverlay v={v} send={send} land={land} h={h} />}
+      {karteZeigen && <CardOverlay v={v} send={send} land={land} h={h} />}
       {ph.k === 'sieg' && <VictoryOverlay v={v} send={send} onExit={onExit} onClose={onClose} land={land} />}
     </div>
   );
@@ -83,11 +102,15 @@ export function BoardGame({ v, send, onExit, onClose }: { v: PlayerView; send: S
 
 /* --------------------------- Randspalte ----------------------------- */
 
-function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
+type BarrikadeWahl = { kw: { a: number | null; b: number | null }; setKw: (k: { a: number | null; b: number | null }) => void; bauen: boolean };
+
+function Side({ v, send, land, barrikade }: { v: PlayerView; send: Send; land: boolean; barrikade: BarrikadeWahl }) {
   const ph = v.phase;
   const me = v.me;
   const myTurn = v.turnPlayerId === me.id;
   const left = useLeft(v, ph.k === 'richtung' ? ph.until : null);
+  const bkLeft = useLeft(v, barrikade.bauen && ph.k === 'karte' ? ph.until : null);
+  const { kw } = barrikade;
   const [rolling, setRolling] = useState(false);
   const [figur, setFigur] = useState(false);
   useEffect(() => {
@@ -138,6 +161,24 @@ function Side({ v, send, land }: { v: PlayerView; send: Send; land: boolean }) {
         <div className="side-pick">
           Tippe auf das Brett, um die Richtung zu wählen – noch <b>{ph.remaining}</b> {ph.remaining === 1 ? 'Feld' : 'Felder'}
           {left !== null && <span className="badge" style={{ marginLeft: 6 }}>{left}s</span>}
+        </div>
+      )}
+      {barrikade.bauen && (
+        <div className="bk-panel">
+          <div className="row" style={{ gap: 8, flexWrap: 'nowrap' }}>
+            <BarrikadeSeite className="bk-icon" />
+            <span className="small">
+              {kw.a === null ? 'Tippe auf ein Feld und dann auf ein Nachbarfeld. Dazwischen steht die Barrikade.' : kw.b === null ? <>Feld <b>{kw.a}</b> gewählt – jetzt ein Nachbarfeld antippen.</> : <>Barrikade zwischen Feld <b>{kw.a}</b> und <b>{kw.b}</b></>}
+              {bkLeft !== null && <span className="badge" style={{ marginLeft: 6 }}>{bkLeft}s</span>}
+            </span>
+          </div>
+          {kw.a !== null && kw.b !== null && (
+            <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+              <button className="btn green sm grow" onClick={() => send({ t: 'act', a: { t: 'barrikade', kante: [kw.a, kw.b] } })}>✔ Hier bauen</button>
+              <button className="btn sm" onClick={() => barrikade.setKw({ a: null, b: null })}>Andere Stelle</button>
+            </div>
+          )}
+          <button className="btn sm ghost block" onClick={() => send({ t: 'act', a: { t: 'barrikade', kante: null } })}>✋ Keine Barrikade</button>
         </div>
       )}
       {figur && (

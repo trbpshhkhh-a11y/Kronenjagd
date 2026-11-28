@@ -11,7 +11,7 @@ import type { GameId } from '../games';
 import type { Rng } from '../rng';
 import { pick, randInt } from '../rng';
 import { BOT_ERFOLG, BOT_GAME7_EINLOGGEN, BOT_VERZOEGERUNG, BotLevel } from './constants';
-import { distanceToNearest, fieldType } from '../board';
+import { BOARD, alleKanten, boardOhne, distanceToNearest, fieldType, gleicheKante, kante, kuerzesterWeg } from '../board';
 import { ZAHLEN_HINWEISE } from '../content/zahlenHinweise';
 import { SLF_ANTWORTEN } from '../content/slfAntworten';
 import { startsWithLetter } from '../text';
@@ -73,6 +73,7 @@ export function botPlan(v: PlayerView, level: BotLevel, opts: BotOptions = {}): 
       if (ph.stage !== 'wahl') return null;
       if (ph.card === 'tausch') return { sig: `tausch-${t}`, delay: [1500, 3200], act: (rng) => ({ t: 'tauschWahl', target: chooseSwap(v, level, rng) }) };
       if (ph.card === 'spielWahl') return { sig: `spiel-${t}`, delay: [1500, 3200], act: (rng) => ({ t: 'spielWahl', game: chooseGame(v, rng) }) };
+      if (ph.card === 'barrikade') return { sig: `barrikade-${t}`, delay: [2000, 4000], act: (rng) => ({ t: 'barrikade', kante: chooseBarrikade(v, level, rng) }) };
       return null;
     default:
       return null;
@@ -99,7 +100,7 @@ export function chooseDirection(v: PlayerView, level: BotLevel, rng: Rng): strin
       s += { normal: 0, plus2: 2, minus2: -4, ereignis: 3, wiederholung: 2, minispiel: 2 }[ty];
     }
     const rest = crowns.filter((c) => !o.path.includes(c.field)).map((c) => c.field);
-    const d = distanceToNearest(o.target, rest);
+    const d = distanceToNearest(o.target, rest, boardOhne(v.barrikade));
     if (Number.isFinite(d)) s -= d * 0.4;
     return s + rng() * 0.1;
   };
@@ -112,10 +113,36 @@ export function chooseSwap(v: PlayerView, level: BotLevel, rng: Rng): string | n
   if (!others.length) return null;
   if (level === 'leicht') return rng() < 0.15 ? null : pick(rng, others).id;
   const crownFields = v.crowns.map((c) => c.field);
-  const dist = (pos: number) => distanceToNearest(pos, crownFields);
+  const brett = boardOhne(v.barrikade);
+  const dist = (pos: number) => distanceToNearest(pos, crownFields, brett);
   const best = [...others].sort((a, b) => dist(a.pos) - dist(b.pos) + (rng() - 0.5) * 0.01)[0];
   // nur tauschen, wenn der andere näher an einer Krone steht
   return dist(best.pos) < dist(v.me.pos) ? best.id : null;
+}
+
+/**
+ * Wohin mit der Barrikade? Leicht: irgendwohin. Sonst wird der Mitspieler ausgebremst, der einer Krone
+ * am nächsten ist – mittel direkt vor seiner Figur, schwer direkt vor der Krone. Den eigenen Weg verbaut der Bot nicht.
+ */
+export function chooseBarrikade(v: PlayerView, level: BotLevel, rng: Rng): [number, number] {
+  const kanten = alleKanten(BOARD);
+  if (level === 'leicht') return pick(rng, kanten);
+  const others = v.players.filter((p) => p.id !== v.me.id && p.pos > 0);
+  let ziel: { weg: number[]; von: number; krone: number } | null = null;
+  for (const o of others)
+    for (const c of v.crowns) {
+      const weg = kuerzesterWeg(o.pos, c.field);
+      if (weg && weg.length > 0 && (!ziel || weg.length < ziel.weg.length)) ziel = { weg, von: o.pos, krone: c.field };
+    }
+  if (!ziel) return pick(rng, kanten);
+  const voll = [ziel.von, ...ziel.weg];
+  const vorKrone = kante(voll[voll.length - 2], voll[voll.length - 1]);
+  const vorFigur = kante(voll[0], voll[1]);
+  const meinWeg = kuerzesterWeg(v.me.pos, ziel.krone);
+  const meinVoll = meinWeg ? [v.me.pos, ...meinWeg] : [];
+  const stoertMich = (k: [number, number]) => meinVoll.some((f, i) => i > 0 && gleicheKante(k, meinVoll[i - 1], f));
+  const wunsch = level === 'schwer' ? [vorKrone, vorFigur] : [vorFigur, vorKrone];
+  return wunsch.find((k) => !stoertMich(k)) ?? wunsch[0];
 }
 
 /** Spiele, die Bots gut spielen können */

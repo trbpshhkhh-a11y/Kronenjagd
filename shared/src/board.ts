@@ -72,8 +72,8 @@ export function allowedNext(pos: number, prev: number | null, board: Board = BOA
   if (prev === null) return ns;
   const ok = ns.filter((n) => n !== prev && !areNeighbors(n, prev, board));
   if (ok.length) return ok;
-  const noBack = ns.filter((n) => n !== prev);
-  return noBack.length ? noBack : ns;
+  // nie umkehren – vor einer Barrikade geht es dann eben nicht weiter
+  return ns.filter((n) => n !== prev);
 }
 
 /** Richtung von einem Feld zum nächsten, so wie sie im Bild aussieht (8 Richtungen). */
@@ -182,4 +182,93 @@ export function distanceToNearest(from: number, targets: number[], board: Board 
     frontier = next;
   }
   return Infinity;
+}
+
+/* ------------------------------------------------------------------ */
+/* Barrikade: eine gesperrte Verbindung zwischen zwei Nachbarfeldern    */
+/* ------------------------------------------------------------------ */
+
+/** Verbindung zwischen zwei Nachbarfeldern (kleineres Feld zuerst) */
+export type Kante = [number, number];
+
+export const kante = (a: number, b: number): Kante => (a < b ? [a, b] : [b, a]);
+export const gleicheKante = (k: Kante | null | undefined, a: number, b: number) => !!k && ((k[0] === a && k[1] === b) || (k[0] === b && k[1] === a));
+
+/** Alle Verbindungen des Bretts */
+export function alleKanten(board: Board = BOARD): Kante[] {
+  const out: Kante[] = [];
+  for (const [a, ns] of board.adj) for (const b of ns) if (a < b) out.push([a, b]);
+  return out;
+}
+
+const ohneCache = new Map<string, Board>();
+/** Das Brett, bei dem die Verbindung `k` (Barrikade) fehlt. Ohne Barrikade: das Brett selbst. */
+export function boardOhne(k: Kante | null | undefined, board: Board = BOARD): Board {
+  if (!k || !areNeighbors(k[0], k[1], board)) return board;
+  const key = `${k[0]}-${k[1]}`;
+  if (board === BOARD && ohneCache.has(key)) return ohneCache.get(key)!;
+  const adj = new Map(board.adj);
+  adj.set(k[0], adj.get(k[0])!.filter((n) => n !== k[1]));
+  adj.set(k[1], adj.get(k[1])!.filter((n) => n !== k[0]));
+  const b: Board = { data: board.data, byId: board.byId, adj };
+  if (board === BOARD) ohneCache.set(key, b);
+  return b;
+}
+
+/** Gibt es von `pos` aus (von `prev` kommend) einen Weg mit genau `steps` Schritten? */
+export function kannZiehen(pos: number, prev: number | null, steps: number, board: Board = BOARD): boolean {
+  if (steps <= 0) return true;
+  for (const n of allowedNext(pos, prev, board)) if (kannZiehen(n, pos, steps - 1, board)) return true;
+  return false;
+}
+
+/** Längster Weg (höchstens `steps` Felder) ab `pos` – für den Fall, dass man vor einer Barrikade stehen bleibt */
+export function laengsterWeg(pos: number, prev: number | null, steps: number, board: Board = BOARD): number[] {
+  if (steps <= 0) return [];
+  let best: number[] = [];
+  for (const n of allowedNext(pos, prev, board)) {
+    const w = [n, ...laengsterWeg(n, pos, steps - 1, board)];
+    if (w.length > best.length) best = w;
+    if (best.length >= steps) break;
+  }
+  return best;
+}
+
+/**
+ * Wahlmöglichkeiten für einen Zug, die nicht an einer Barrikade enden.
+ * Kommt man in keiner Richtung ganz voran, geht es so weit wie möglich – der Zug endet vor der Barrikade.
+ */
+export function zugOptionen(pos: number, prev: number | null, steps: number, board: Board = BOARD): MoveOption[] {
+  const alle = moveOptions(pos, prev, steps, board);
+  const vor = (o: MoveOption) => (o.path.length >= 2 ? o.path[o.path.length - 2] : pos);
+  const ok = alle.filter((o) => o.final || kannZiehen(o.target, vor(o), steps - o.path.length, board));
+  if (ok.length) return ok;
+  return alle.map((o) => {
+    const path = [...o.path, ...laengsterWeg(o.target, vor(o), steps - o.path.length, board)];
+    return { ...o, path, target: path[path.length - 1], final: true };
+  });
+}
+
+/** Kürzester Weg von `from` zu `to` (ohne Start), null wenn unerreichbar */
+export function kuerzesterWeg(from: number, to: number, board: Board = BOARD): number[] | null {
+  if (from === to) return [];
+  const prev = new Map<number, number>([[from, from]]);
+  let frontier = [from];
+  while (frontier.length) {
+    const next: number[] = [];
+    for (const f of frontier)
+      for (const n of neighbors(f, board)) {
+        if (prev.has(n)) continue;
+        prev.set(n, f);
+        if (n === to) {
+          const out = [to];
+          let c = to;
+          while (prev.get(c) !== from) out.unshift((c = prev.get(c)!));
+          return out;
+        }
+        next.push(n);
+      }
+    frontier = next;
+  }
+  return null;
 }

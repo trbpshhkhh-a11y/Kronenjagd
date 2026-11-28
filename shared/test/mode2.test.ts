@@ -4,7 +4,9 @@ import {
   createGameState, addPlayer, renamePlayer, startGame, GameError, viewForHost, viewForPlayer, fieldType, fieldsOfType,
   hostAction, CARDS, newDeck, GameState, Rng, endTurn, startMinigame, setConnected, GETRENNT_UEBERSPRINGEN_MS, SCHRITT_MS,
   relocateAllCrowns, freeCrownFields, drawCrownField, drawStartFields,
+  boardOhne, zugOptionen, autoPath, areNeighbors, alleKanten,
 } from '../src';
+import { chooseBarrikade } from '../src/mode2/bots';
 import { setup, advance } from './helpers';
 
 describe('Bewegung auf dem Streckennetz', () => {
@@ -381,7 +383,7 @@ describe('Ereigniskarten', () => {
       if (ph.k === 'karte') seen.push(ph.card);
     }
     for (let r = 0; r < 3; r++) expect(new Set(seen.slice(r * n, r * n + n)).size).toBe(n);
-    expect(CARDS).toHaveLength(6);
+    expect(CARDS).toHaveLength(7);
   });
   function forceCard(s: GameState, card: string) {
     const idx = CARDS.indexOf(card as never);
@@ -415,6 +417,84 @@ describe('Ereigniskarten', () => {
     s.phase = { k: 'karte', card: 'tausch', stage: 'wahl', until: t.now + 30000, feld: true };
     playerAction(s, q.id, { t: 'tauschWahl', target: null }, { rng, now: t.now });
     expect(s.phase).toMatchObject({ stage: 'fertig', verzichtet: true });
+  });
+  it('Barrikade: alte verschwindet beim Ziehen, neue wird zwischen zwei Nachbarfeldern gebaut', () => {
+    const { s, rng, t, p } = toCard();
+    s.barrikade = [30, 31];
+    forceCard(s, 'barrikade');
+    playerAction(s, p.id, { t: 'drawCard' }, { rng, now: t.now });
+    expect(s.barrikade).toBeNull();
+    expect(s.phase).toMatchObject({ k: 'karte', card: 'barrikade', stage: 'zeigen' });
+    // erst wird die Karte gezeigt, dann die Stelle gewählt
+    expect(() => playerAction(s, p.id, { t: 'barrikade', kante: [12, 13] }, { rng, now: t.now })).toThrow(GameError);
+    advance(s, rng, t, 3600);
+    expect(s.phase).toMatchObject({ k: 'karte', card: 'barrikade', stage: 'wahl' });
+    const other = s.players.find((x) => x.id !== p.id)!;
+    expect(() => playerAction(s, other.id, { t: 'barrikade', kante: [12, 13] }, { rng, now: t.now })).toThrow(GameError);
+    expect(() => playerAction(s, p.id, { t: 'barrikade', kante: [12, 20] }, { rng, now: t.now })).toThrow(GameError);
+    playerAction(s, p.id, { t: 'barrikade', kante: [13, 12] }, { rng, now: t.now });
+    expect(s.barrikade).toEqual([12, 13]);
+    expect(s.phase).toMatchObject({ stage: 'fertig', kante: [12, 13] });
+    expect(viewForHost(s, t.now).barrikade).toEqual([12, 13]);
+    expect(viewForPlayer(s, other.id, t.now)!.barrikade).toEqual([12, 13]);
+    advance(s, rng, t, 3000);
+    expect(currentPlayer(s)!.id).not.toBe(p.id);
+  });
+  it('Barrikade ist freiwillig, ohne Wahl in der Zeit gibt es keine', () => {
+    const { s, rng, t, p } = toCard();
+    s.barrikade = [30, 31];
+    forceCard(s, 'barrikade');
+    playerAction(s, p.id, { t: 'drawCard' }, { rng, now: t.now });
+    advance(s, rng, t, 3600);
+    playerAction(s, p.id, { t: 'barrikade', kante: null }, { rng, now: t.now });
+    expect(s.barrikade).toBeNull();
+    expect(s.phase).toMatchObject({ stage: 'fertig', verzichtet: true });
+    // Zeit abgelaufen
+    s.phase = { k: 'karte', card: 'barrikade', stage: 'wahl', until: t.now + 1000 };
+    advance(s, rng, t, 1500);
+    expect(s.phase).toMatchObject({ stage: 'fertig', verzichtet: true });
+    expect(s.barrikade).toBeNull();
+  });
+  it('An der Barrikade kommt niemand vorbei: nur Wege in die andere Richtung', () => {
+    const { s, rng, t } = setup(3, 7);
+    toTurnPhase(s, rng, t);
+    const p = currentPlayer(s)!;
+    s.crowns.forEach((c, i) => (c.field = [40, 60][i]));
+    forcePos(s, p.id, 5);
+    s.barrikade = [6, 7];
+    rollWith(s, t, 3);
+    advance(s, rng, t, 3000);
+    if (s.phase.k !== 'richtung') throw new Error('keine Richtungswahl');
+    expect(s.phase.options.map((o) => o.first)).toEqual([4]);
+    expect(() => choose(s, p.id, 6, rng, t)).toThrow(GameError);
+    // ohne Barrikade ginge es in beide Richtungen
+    expect(zugOptionen(5, null, 3).map((o) => o.first).sort((a, b) => a - b)).toEqual([4, 6]);
+  });
+  it('Barrikade: +2 und Engpässe – stehen bleiben statt durchlaufen', () => {
+    const brett = boardOhne([31, 32]);
+    expect(autoPath(30, 29, 2, brett)).toEqual([31]);
+    expect(autoPath(30, 29, 2)).toEqual([31, 32]);
+    // mitten im Zug direkt vor der Barrikade: kein Weiterkommen, kein Umkehren
+    expect(zugOptionen(6, 5, 3, boardOhne([6, 7]))).toEqual([]);
+    // kommt man in keiner Richtung ganz voran, geht es so weit wie möglich
+    const o = zugOptionen(5, 4, 3, boardOhne([7, 8]));
+    expect(o).toHaveLength(1);
+    expect(o[0]).toMatchObject({ path: [6, 7], target: 7, final: true });
+  });
+  it('Bots bauen die Barrikade zwischen Nachbarfeldern, vor einer Krone oder einem Mitspieler', () => {
+    for (let seed = 1; seed < 30; seed++) {
+      const { s, rng, t } = setup(4, seed);
+      toTurnPhase(s, rng, t);
+      const me = currentPlayer(s)!;
+      const v = viewForPlayer(s, me.id, t.now)!;
+      for (const lvl of ['leicht', 'mittel', 'schwer'] as const) {
+        const k = chooseBarrikade(v, lvl, rng);
+        expect(areNeighbors(k[0], k[1])).toBe(true);
+        // vor einer Krone – oder, wenn das den eigenen Weg verbauen würde, direkt vor einem Mitspieler
+        if (lvl !== 'leicht') expect(s.crowns.some((c) => k.includes(c.field)) || s.players.some((x) => x.id !== me.id && k.includes(x.pos))).toBe(true);
+      }
+    }
+    expect(alleKanten()).toHaveLength(79);
   });
   it('Feldersprung: nie aktuelles Feld, Krone am Ziel wird eingesammelt', () => {
     const { s, rng, t, p } = toCard();

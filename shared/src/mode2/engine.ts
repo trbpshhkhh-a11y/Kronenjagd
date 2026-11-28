@@ -11,7 +11,7 @@ import { newDeck, drawIndex } from '../deck';
 import { newPools } from '../pools';
 import { randInt, shuffle, pick, uniqueFields, Rng } from '../rng';
 import { makeTeamsHumansFirst } from '../teams';
-import { BOARD, Board, fieldType, fieldsOfType, moveOptions, autoPath, allowedNext } from '../board';
+import { BOARD, Board, fieldType, fieldsOfType, autoPath, allowedNext, areNeighbors, boardOhne, kante, zugOptionen } from '../board';
 import {
   KRONE_AUCH_BEIM_VORBEIGEHEN, GELB_SPIELERTAUSCH, GROSSE_KRONE_CHANCE, SCHRITT_MS, GETRENNT_UEBERSPRINGEN_MS,
   MAX_SPIELER, MIN_SPIELER, SPIELER_FARBEN, DEFAULT_TIMER, TimerSettings, BotLevel, BOT_LEVELS, BOT_NAMEN,
@@ -28,6 +28,8 @@ export type PlayerAction =
   /** target null = freiwillig nicht tauschen */
   | { t: 'tauschWahl'; target: string | null }
   | { t: 'spielWahl'; game: GameId }
+  /** Barrikade zwischen zwei Nachbarfeldern aufbauen, null = keine bauen */
+  | { t: 'barrikade'; kante: [number, number] | null }
   | { t: 'ready' }
   | { t: 'mini'; a: MiniAction };
 
@@ -62,6 +64,7 @@ export function createGameState(code: string, now: number, opts: { screenMode?: 
     leaderId: null,
     turnNo: 0,
     trail: [],
+    barrikade: null,
   };
 }
 
@@ -347,6 +350,7 @@ export function startGame(s: GameState, ctx: Ctx) {
   });
   s.turnNo = 0;
   s.bonusRunde = null;
+  s.barrikade = null;
   s.order = shuffle(ctx.rng, s.players.map((p) => p.id));
   s.turn = 0;
   s.cardDeck = newDeck(CARDS.length);
@@ -431,13 +435,24 @@ function nextBonus(s: GameState, now: number) {
 /** Vorheriges Feld der aktuellen Bewegung (für die Richtung) */
 const prevField = (s: GameState): number | null => (s.trail.length >= 2 ? s.trail[s.trail.length - 2] : null);
 
+/** Das Brett mit der aktuellen Barrikade (diese Verbindung fehlt) */
+export const brettMitBarrikade = (s: GameState): Board => boardOhne(s.barrikade);
+
 /** Richtungswahl für die verbleibenden Schritte anbieten (an jeder Weiche neu) */
 export function offerDirections(s: GameState, remaining: number, now: number) {
   const p = currentPlayer(s)!;
   if (s.trail.length === 0) s.trail = [p.pos];
-  const options = moveOptions(p.pos, prevField(s), remaining);
+  const options = zugOptionen(p.pos, prevField(s), remaining, brettMitBarrikade(s));
+  if (!options.length) {
+    // eingeklemmt (kommt praktisch nie vor): stehen bleiben
+    toast(s, `${label(p)} kommt an der Barrikade nicht vorbei.`, 'info');
+    return startMove(s, [], 0, !s.bonusRunde, s.bonusRunde ? 'bonus' : 'zug', now);
+  }
   s.phase = { k: 'richtung', remaining, options, until: now + s.settings.timer.richtung * 1000 };
 }
+
+/** Restschritte nach einer gewählten Richtung (0, wenn der Zug dort endet – auch vor einer Barrikade) */
+const restNach = (remaining: number, opt: { path: number[]; final: boolean }) => (opt.final ? 0 : remaining - opt.path.length);
 
 function startMove(s: GameState, path: number[], remainingAfter: number, effects: boolean, grund: 'zug' | 'plus2' | 'minus2' | 'bonus', now: number) {
   if (path.length === 0) {
@@ -453,7 +468,7 @@ function backPath(s: GameState, steps: number): number[] {
   if (back.length < steps) {
     const cur = back.length ? back[back.length - 1] : s.trail[s.trail.length - 1];
     const prev = back.length >= 2 ? back[back.length - 2] : back.length === 1 ? s.trail[s.trail.length - 1] : null;
-    back.push(...autoPath(cur, prev, steps - back.length));
+    back.push(...autoPath(cur, prev, steps - back.length, brettMitBarrikade(s)));
   }
   return back;
 }
@@ -464,7 +479,7 @@ function onLanded(s: GameState, p: Player, effects: boolean, ctx: Ctx) {
   switch (type) {
     case 'plus2':
       toast(s, `+2! ${label(p)} geht 2 Felder weiter.`, 'feld');
-      return startMove(s, autoPath(p.pos, prevField(s), 2), 0, false, 'plus2', ctx.now + 500);
+      return startMove(s, autoPath(p.pos, prevField(s), 2, brettMitBarrikade(s)), 0, false, 'plus2', ctx.now + 500);
     case 'minus2':
       toast(s, `−2! ${label(p)} muss 2 Felder zurück.`, 'feld');
       return startMove(s, backPath(s, 2), 0, false, 'minus2', ctx.now + 500);
@@ -500,6 +515,12 @@ function drawCard(s: GameState, ctx: Ctx) {
     case 'spielWahl':
       s.phase = { k: 'karte', card, stage: 'wahl', until: ctx.now + 30000 };
       break;
+    case 'barrikade':
+      // Die alte Barrikade verschwindet – wer die Karte zieht, baut sie neu auf
+      if (s.barrikade) toast(s, 'Die alte Barrikade ist weg!', 'feld');
+      s.barrikade = null;
+      s.phase = { k: 'karte', card, stage: 'zeigen', until: ctx.now + 3500 };
+      break;
     case 'sprung': {
       const ziel = randInt(ctx.rng, 1, BOARD.data.fields.length - 1);
       const target = ziel >= p.pos ? ziel + 1 : ziel; // nie das aktuelle Feld
@@ -519,6 +540,10 @@ function resolveCardShown(s: GameState, ctx: Ctx) {
     p.pos = ph.ziel;
     toast(s, `${label(p)} springt auf Feld ${ph.ziel}!`, 'feld');
     if (collectAt(s, p, p.pos, ctx.rng)) return;
+  } else if (ph.card === 'barrikade') {
+    // Karte gesehen – jetzt die Stelle auf dem Brett wählen
+    s.phase = { ...ph, stage: 'wahl', until: ctx.now + 45000 };
+    return;
   } else if (ph.card === 'kronenNeu') {
     relocateAllCrowns(s, ctx.rng);
     toast(s, 'Die Kronen wurden neu platziert!', 'feld');
@@ -527,7 +552,7 @@ function resolveCardShown(s: GameState, ctx: Ctx) {
   } else if (ph.card === 'zweiVor') {
     // wie das grüne +2-Feld: 2 Felder in Laufrichtung (an einer Weiche geradeaus), Kronen unterwegs zählen
     toast(s, `${label(p)} geht 2 Felder vor!`, 'feld');
-    return startMove(s, autoPath(p.pos, prevField(s), 2), 0, false, 'plus2', ctx.now + 300);
+    return startMove(s, autoPath(p.pos, prevField(s), 2, brettMitBarrikade(s)), 0, false, 'plus2', ctx.now + 300);
   }
   s.phase = { ...ph, stage: 'fertig', until: ctx.now + 2500 };
 }
@@ -675,7 +700,7 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       requireTurn(s, pid);
       const opt = ph.options.find((o) => o.key === a.key);
       if (!opt) throw new GameError('Ungültige Richtung');
-      startMove(s, opt.path, ph.remaining - opt.path.length, !s.bonusRunde, s.bonusRunde ? 'bonus' : 'zug', ctx.now);
+      startMove(s, opt.path, restNach(ph.remaining, opt), !s.bonusRunde, s.bonusRunde ? 'bonus' : 'zug', ctx.now);
       break;
     }
     case 'drawCard':
@@ -699,6 +724,21 @@ export function playerAction(s: GameState, pid: string, a: PlayerAction, ctx: Ct
       other.pos = tmp;
       toast(s, `${label(p)} tauscht mit ${label(other)}!`, 'feld');
       s.phase = { ...ph, stage: 'fertig', until: ctx.now + 2500, info: label(other) };
+      break;
+    }
+    case 'barrikade': {
+      if (ph.k !== 'karte' || ph.card !== 'barrikade' || ph.stage !== 'wahl') throw new GameError('Jetzt nicht möglich.');
+      requireTurn(s, pid);
+      if (a.kante === null) {
+        toast(s, `${label(p)} baut keine Barrikade.`, 'info');
+        s.phase = { ...ph, stage: 'fertig', until: ctx.now + 1800, verzichtet: true };
+        break;
+      }
+      const [x, y] = Array.isArray(a.kante) ? a.kante.map(Number) : [NaN, NaN];
+      if (!Number.isInteger(x) || !Number.isInteger(y) || !areNeighbors(x, y)) throw new GameError('Die Barrikade muss zwischen zwei Nachbarfeldern stehen.');
+      s.barrikade = kante(x, y);
+      toast(s, `${label(p)} baut eine Barrikade zwischen Feld ${s.barrikade[0]} und ${s.barrikade[1]}!`, 'feld');
+      s.phase = { ...ph, stage: 'fertig', until: ctx.now + 2500, kante: s.barrikade };
       break;
     }
     case 'spielWahl': {
@@ -842,7 +882,7 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
       if (ctx.now < ph.until && !wegBeiBonus) return false;
       const opt = ph.options[0];
       if (!wegBeiBonus) toast(s, `Zeit abgelaufen – es geht ${opt.label}.`, 'info');
-      startMove(s, opt.path, ph.remaining - opt.path.length, !s.bonusRunde, s.bonusRunde ? 'bonus' : 'zug', ctx.now);
+      startMove(s, opt.path, restNach(ph.remaining, opt), !s.bonusRunde, s.bonusRunde ? 'bonus' : 'zug', ctx.now);
       return true;
     }
     case 'bonusStart':
@@ -882,6 +922,9 @@ function tickOnce(s: GameState, ctx: Ctx): boolean {
         if (ph.card === 'spielWahl') {
           toast(s, 'Zeit abgelaufen – das Spiel wird ausgelost.', 'info');
           startMinigame(s, null, null, ctx);
+        } else if (ph.card === 'barrikade') {
+          toast(s, 'Zeit abgelaufen – keine Barrikade.', 'info');
+          s.phase = { ...ph, stage: 'fertig', until: ctx.now + 1500, verzichtet: true };
         } else {
           toast(s, 'Zeit abgelaufen – kein Tausch.', 'info');
           s.phase = { ...ph, stage: 'fertig', until: ctx.now + 1500 };

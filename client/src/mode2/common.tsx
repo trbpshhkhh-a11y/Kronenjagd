@@ -1,8 +1,9 @@
 import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BOARD, BaseView, PublicPlayer, Crown, MoveOption, gameById, CARD_TEXT } from '@kronen/shared';
+import { BOARD, BaseView, PublicPlayer, Crown, MoveOption, gameById, CARD_TEXT, neighbors } from '@kronen/shared';
 import boardImg from '@assets/spielbrett.png';
 import ruheImg from '../board/spielbrett-ruhe.png';
 import { CrownSvg } from '../components/icons';
+import { BarrikadeOben } from '../components/Barrikade';
 import { AvatarFace, Figur } from '../components/Avatar';
 import { useServerClock } from '../lib/hooks';
 import { onViewport, sichtbar } from '../lib/noZoom';
@@ -91,6 +92,24 @@ export interface BoardProps {
   jump?: boolean;
   /** Richtung durch Antippen des Bretts wählen (Schlüssel der Option) */
   onPick?: (key: string) => void;
+  /** Barrikade bauen: Feld antippen, dann ein Nachbarfeld (a = erstes Feld, b = Nachbarfeld) */
+  kantenWahl?: { a: number | null; b: number | null; onField: (f: number) => void };
+}
+
+/** Lage einer Barrikade zwischen zwei Feldern: Mitte und Drehung quer zur Strecke */
+function barrikadeLage(k: [number, number]) {
+  const a = fieldXY(k[0]), b = fieldXY(k[1]);
+  const dx = (b.x - a.x) * BOARD.data.width, dy = (b.y - a.y) * BOARD.data.height;
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, deg: (Math.atan2(dy, dx) * 180) / Math.PI + 90 };
+}
+
+function BarrikadeAufBrett({ k, vorschau }: { k: [number, number]; vorschau?: boolean }) {
+  const l = barrikadeLage(k);
+  return (
+    <div className={`barrikade ${vorschau ? 'vorschau' : ''}`} style={{ left: `${l.x}%`, top: `${l.y}%`, ['--r' as string]: `${l.deg}deg` }} title={`Barrikade zwischen Feld ${k[0]} und ${k[1]}`}>
+      <BarrikadeOben />
+    </div>
+  );
 }
 
 /** Farben für die Richtungsoptionen auf dem Brett */
@@ -100,13 +119,24 @@ export const OPTION_COLORS = ['#66bb6a', '#4fc3f7', '#ffb74d', '#f06292'];
  * Das Brett mit Figuren und Kronen (Positionen in Prozent -> passt zu jeder Auflösung).
  * Mit `onPick` kann der Spieler einen hervorgehobenen Weg direkt auf dem Brett antippen.
  */
-export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardProps) {
+export function BoardLayer({ view, previews, highlight, jump, onPick, kantenWahl }: BoardProps) {
   const off = tokenOffsets(view.players);
   const pick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onPick || !previews?.length) return;
     const r = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - r.left;
     const py = e.clientY - r.top;
+    if (kantenWahl) {
+      // nächstes Feld (Tippfläche mind. 44 px)
+      const radius = Math.max(26, r.width * 0.03);
+      let best: { f: number; d: number } | null = null;
+      for (const f of BOARD.data.fields) {
+        const d = Math.hypot((f.x / 100) * r.width - px, (f.y / 100) * r.height - py);
+        if (d <= radius && (!best || d < best.d)) best = { f: f.id, d };
+      }
+      if (best) kantenWahl.onField(best.f);
+      return;
+    }
+    if (!onPick || !previews?.length) return;
     // nächstes hervorgehobenes Feld; Tippfläche mind. 44 px (Radius 26 px)
     const radius = Math.max(26, r.width * 0.03);
     let best: { key: string; d: number } | null = null;
@@ -119,7 +149,7 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
     if (best) onPick(best.key);
   };
   return (
-    <div className={`board-wrap ${onPick && previews?.length ? 'pickable' : ''}`} onClick={pick}>
+    <div className={`board-wrap ${(onPick && previews?.length) || kantenWahl ? 'pickable' : ''}`} onClick={pick}>
       <img className="board-img" src={boardImg} alt="Spielbrett" draggable={false} />
       {/* Bonusrunde: alle Sonderfelder ruhen und sehen wie normale Felder aus */}
       <img className={`board-img board-ruhe ${view.bonusRunde ? 'on' : ''}`} src={ruheImg} alt="" aria-hidden draggable={false} />
@@ -136,6 +166,15 @@ export function BoardLayer({ view, previews, highlight, jump, onPick }: BoardPro
           </div>
         );
       })}
+      {view.barrikade && !(kantenWahl && kantenWahl.b !== null) && <BarrikadeAufBrett k={view.barrikade} />}
+      {kantenWahl && kantenWahl.a !== null && (
+        <>
+          <span className="kw-mark a" style={{ left: `${fieldXY(kantenWahl.a).x}%`, top: `${fieldXY(kantenWahl.a).y}%` }} />
+          {kantenWahl.b === null &&
+            neighbors(kantenWahl.a).map((n) => <span key={n} className="kw-mark n" style={{ left: `${fieldXY(n).x}%`, top: `${fieldXY(n).y}%` }} />)}
+          {kantenWahl.b !== null && <BarrikadeAufBrett k={[kantenWahl.a, kantenWahl.b]} vorschau />}
+        </>
+      )}
       {view.crowns.map((c: Crown) => {
         const { x, y } = fieldXY(c.field);
         return (
@@ -256,6 +295,8 @@ export function statusText(v: BaseView): string {
     case 'karteZiehen':
       return `${cur} zieht eine Ereigniskarte`;
     case 'karte':
+      if (ph.card === 'barrikade' && ph.stage === 'wahl') return `${cur} baut eine Barrikade …`;
+      if (ph.card === 'barrikade' && ph.stage === 'fertig') return ph.kante ? `Barrikade zwischen Feld ${ph.kante[0]} und ${ph.kante[1]}` : `${cur} baut keine Barrikade`;
       return `${cur}: ${CARD_TEXT[ph.card].titel}`;
     case 'minispiel':
       // während der Auslosung das Ergebnis nicht verraten
